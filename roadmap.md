@@ -154,6 +154,7 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `pkt_01HX...`,
 - ULID generator + path helpers
 - LLM Abstraction (Anthropic + OpenAI) with capability manifest
 - Persona Library (Coder, Reviewer) with execution-mandatory protocol
+- **Devil's-advocate Reviewer flag** (`devil_advocate_mode: true`, default `false`): when enabled, Reviewer always produces an explicit "reasons to reject" section even when the verdict is APPROVE. Low cost, high signal — makes implicit concerns visible. Opt-in per persona config.
 - Skills Library (import of `.claude/commands/speckit.*` + added `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`)
 - Context Compiler (priority tiers + token budget + provenance)
 - Workflow Engine (speckit loop, serial)
@@ -189,6 +190,7 @@ Convergence detection, round caps, anonymized peer ranking, chairman synthesis.
 - Concurrent agent sessions across worktrees
 - Cross-worktree memory sync (strategic decisions to main repo, tactical to worktree — automates the manual rule from TIROS CLAUDE.md)
 - Session router handling multi-terminal routing
+- **Meta-Observation Gate** — configurable checkpoint type the Workflow Engine can inject at stage transitions, before destructive ops, and after review verdicts. Pauses the run to ask the human: *"Anything about the previous stage that should inform the next one?"*, *"Noticed anything I should learn for future runs?"*, *"Any deviation from what you expected?"* Responses become first-class `Observation` memory records, queryable across runs. Over many runs, recurring observations surface as candidate new defaults for `.atelier/overrides.yaml`. Converts the tacit "I'll mention it next time" human habit into explicit capture.
 
 ### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness
 
