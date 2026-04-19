@@ -28,6 +28,7 @@ Not an agent framework. A reproducibility system for agentic engineering work.
 
 - [`roadmap.md`](./roadmap.md) — full end-to-end product roadmap, Phase 0 through Phase 8+
 - [`phase0_plan.md`](./phase0_plan.md) — hackathon execution plan with parallel worktree DAG
+- [`phase0_launch.md`](./phase0_launch.md) — paste-ready git worktree commands + coder/reviewer prompts for all 26 worktrees
 - `atelier/` — Python control plane (to be scaffolded)
 - `plugin-jetbrains/` — JetBrains plugin (to be scaffolded)
 - `.atelier/defaults/` — shipped opinionated defaults (personas, skills, rules, workflows)

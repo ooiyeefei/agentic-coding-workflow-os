@@ -2,6 +2,8 @@
 
 > **No time frames** per user instruction.
 > **Goal**: Maximum parallelism — every task packaged as a worktree-ready unit with explicit inputs, outputs, deps, and acceptance criteria.
+>
+> **Operational companion**: [`phase0_launch.md`](./phase0_launch.md) contains paste-ready git worktree commands + coder/reviewer prompts for all 26 worktrees. Open that file when you're ready to start work; this file is the design spec.
 
 ## Scope Summary
 
@@ -40,7 +42,7 @@ Plugin shows, through the run:
 | Repo scaffolding (pyproject, tooling, dir structure) | Lane A | `pyproject.toml`, `atelier/__init__.py`, dir layout |
 | ULID generator + path helpers | Lane A | `atelier/util/ulid.py`, `atelier/util/paths.py` |
 | LLM Abstraction (Anthropic + OpenAI) + capability manifest | Lane A | `atelier/llm/*.py`, `atelier/llm/models/*.yaml` |
-| Persona Library (Coder, Reviewer) | Lane B | `atelier/personas/*.py`, `.atelier/defaults/personas/*.md` |
+| Persona Library (Coder, Reviewer) + `devil_advocate_mode` flag (default off) | Lane B | `atelier/personas/*.py`, `.atelier/defaults/personas/*.md` |
 | Skills Library (imports + additions) | Lane B | `.atelier/defaults/skills/*.md` |
 | Context Compiler | Lane A | `atelier/compiler/*.py` |
 | Knowledge Plane record schemas + file I/O | Lane B | `atelier/memory/*.py` |
