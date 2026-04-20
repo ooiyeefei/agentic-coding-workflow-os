@@ -1,0 +1,10 @@
+provider: openai
+model: gpt-5
+offers:
+  tool_use: true
+  parallel_tool_use: true
+  long_context: 400000
+  code_execution: false
+  structured_outputs: false
+cost_per_mtok_in: 1.25
+cost_per_mtok_out: 10.0

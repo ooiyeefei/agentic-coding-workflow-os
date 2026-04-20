@@ -1,0 +1,10 @@
+provider: openai
+model: gpt-4o-mini
+offers:
+  tool_use: true
+  parallel_tool_use: true
+  long_context: 128000
+  code_execution: false
+  structured_outputs: false
+cost_per_mtok_in: 0.15
+cost_per_mtok_out: 0.6
