@@ -1,15 +1,18 @@
 from .reader import DEFAULT_MEMORY_ROOT, list_records, read_record
 from .records import Decision, MemoryRecord, Record, RejectedAlternative, ReviewFinding
 from .writer import write_record
+from .council import DEFAULT_COUNCIL_MEMORY_DIR, write_council_report
 
 __all__ = [
+    "DEFAULT_COUNCIL_MEMORY_DIR",
     "DEFAULT_MEMORY_ROOT",
     "Decision",
-    "list_records",
     "MemoryRecord",
-    "read_record",
     "Record",
     "RejectedAlternative",
     "ReviewFinding",
+    "list_records",
+    "read_record",
+    "write_council_report",
     "write_record",
 ]
