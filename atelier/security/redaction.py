@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from re import Match
 
 from .patterns import (
@@ -15,16 +16,25 @@ from .patterns import (
 )
 
 
-def redact(text: str, extra_patterns: list[str] | None = None) -> str:
+def redact(
+    text: str,
+    extra_patterns: list[str] | None = None,
+    *,
+    secrets: Iterable[str] | None = None,
+) -> str:
     if not text:
         return text
+
+    redacted = text
+    for secret in _sorted_secrets(secrets):
+        redacted = redacted.replace(secret, _marker("secret"))
 
     compiled_extra_patterns = tuple(
         SecretPattern(name=f"extra-pattern-{index}", regex=re.compile(pattern))
         for index, pattern in enumerate(extra_patterns or (), start=1)
     )
 
-    parts = re.split(f"({REDACTION_MARKER_PATTERN.pattern})", text)
+    parts = re.split(f"({REDACTION_MARKER_PATTERN.pattern})", redacted)
     return "".join(
         part
         if REDACTION_MARKER_PATTERN.fullmatch(part)
@@ -141,6 +151,11 @@ def _env_value_marker(value: str, marker_name: str) -> str:
 
 def _marker(name: str) -> str:
     return f"[REDACTED:{name}]"
+
+
+def _sorted_secrets(secrets: Iterable[str] | None) -> list[str]:
+    unique_values = {secret for secret in secrets or () if secret}
+    return sorted(unique_values, key=len, reverse=True)
 
 
 __all__ = ["redact"]

@@ -59,6 +59,7 @@ class EvidencePack(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
     verdict: Verdict
     confidence: float = Field(ge=0.0, le=1.0)
+    summary: str = ""
     findings: list[Finding] = Field(default_factory=list)
     execution: list[CommandOutput] = Field(default_factory=list)
     audit_chain: list[AuditReference] = Field(default_factory=list, min_length=1)
