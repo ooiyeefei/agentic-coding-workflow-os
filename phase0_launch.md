@@ -1818,7 +1818,7 @@ Learnings carried:
 ## W24: E2E dogfood + warm cache
 
 **Issue**: [#24](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/24)
-**Depends on**: W11, W15, W22, W23 (ideally also W16, W18, W19, W20, W21)
+**Depends on**: W11, W15, W22, W23 (ideally also W16 if time, W18, W19, W21)
 **Blocks**: W25
 
 **Git commands**:
