@@ -127,7 +127,6 @@ class LLMAdapter(ABC):
     def __init__(self, manifest: CapabilityManifest, *, max_output_tokens: int = 4096) -> None:
         self.manifest = manifest
         self.max_output_tokens = max_output_tokens
-        self._validate_manifest_contract()
 
     @abstractmethod
     async def generate(
@@ -147,20 +146,6 @@ class LLMAdapter(ABC):
             raise UnsupportedCapabilityError(
                 requirements=requirements,
                 failures={self.manifest.model: missing},
-            )
-
-    def _validate_manifest_contract(self) -> None:
-        unsupported_claims: list[str] = []
-        if self.manifest.offers.code_execution:
-            unsupported_claims.append("code_execution")
-        if self.manifest.offers.structured_outputs:
-            unsupported_claims.append("structured_outputs")
-
-        if unsupported_claims:
-            rendered = ", ".join(unsupported_claims)
-            raise LLMConfigurationError(
-                f"Manifest {self.manifest.model} claims unsupported adapter contract capabilities: "
-                f"{rendered}"
             )
 
     def build_response(
