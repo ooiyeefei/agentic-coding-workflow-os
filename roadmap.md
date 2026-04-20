@@ -139,7 +139,7 @@ Canonical layout:
 └── audit/YYYY-MM-DD.jsonl         # cross-run daily audit
 ```
 
-Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `pkt_01HX...`, etc.) to enable time-ordered lexicographic sort without separate timestamp columns.
+Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX...`, etc.) to enable time-ordered lexicographic sort without separate timestamp columns.
 
 ---
 

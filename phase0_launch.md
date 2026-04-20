@@ -377,14 +377,14 @@ cd ../acw-w03
 ```
 You are the Coder agent for W03 — ULID generator + path helpers (issue #3).
 
-Strategic context: Atelier's Run Graph is a directory tree in the filesystem, with every entity (run, stage, packet, action, evidence, decision) identified by a ULID. Lex-sortable identifiers enable time-range queries without separate timestamp columns. Atomic writes prevent corruption on process crashes. This worktree is foundational — many other worktrees will import these utilities.
+Strategic context: Atelier's Run Graph is a directory tree in the filesystem, with every entity (run, stage, packet, action, evidence, decision) identified by a ULID. Lex-sortable identifiers enable time-range queries without separate timestamp columns. Same-directory atomic replacement prevents partial overwrite corruption during local writes and leaves existing destinations untouched if the final replace step fails. This worktree is foundational — many other worktrees will import these utilities.
 
 Objective: Build atelier/util/ with ULID generation and filesystem path helpers.
 
 Files you own:
 - atelier/util/ulid.py — wrapper over `python-ulid` library; `new_run_id()`, `new_stage_id()`, `new_packet_id()`, `new_action_id()`, `new_evidence_id()`, `new_decision_id()`; each returns prefixed strings like `run_01HX...`, `stage_01HX...`
 - atelier/util/paths.py — Pydantic-validated path constructors: `run_dir(run_id)`, `stage_dir(run_id, stage_seq, stage_name)` (e.g., `.atelier/runs/run_01.../stages/001-specify/`), `packet_path`, `evidence_md_path`, `evidence_json_path`, `transcript_path`, `audit_log_path`
-- atelier/util/fs.py — `safe_mkdir(path)` (idempotent); `atomic_write(path, content)` (write to tmpfile in same dir, then os.rename)
+- atelier/util/fs.py — `safe_mkdir(path)` (idempotent); `atomic_write(path, content)` (write to tmpfile in same dir, then os.replace)
 - tests/test_ulid.py, tests/test_paths.py, tests/test_fs.py
 
 How to start:
@@ -396,7 +396,7 @@ How to start:
 Acceptance criteria:
 - `new_run_id()` returns valid ULID-formatted string with `run_` prefix, lex-sorts by creation time
 - Path constructors return pathlib.Path; never string concatenation
-- atomic_write: a forced crash after tmpfile creation but before rename leaves destination file untouched (simulate via mock)
+- atomic_write: a forced failure after tmpfile creation but before the final replace step leaves the destination file untouched (simulate via mock)
 - 100% coverage on util/ (small surface area, test everything)
 
 Credentials: not needed.
@@ -417,7 +417,7 @@ Review guidelines (execution-mandatory):
 2. `uv run ruff check atelier/util/` — paste output.
 3. `uv run pyright atelier/util/` — paste output.
 4. Write a 10-line verification script that: generates 100 ULIDs, sorts them lexicographically, confirms they equal sorted-by-generation-time order. Paste output.
-5. Atomic write verification: simulate a crash mid-write (mock os.rename to raise), confirm destination file is NOT partially written. Paste output.
+5. Atomic write verification: simulate a crash mid-write (mock os.replace to raise), confirm destination file is NOT partially written. Paste output.
 
 Domain findings to apply:
 - If `os.makedirs` or `os.path.join` used instead of pathlib: flag as YELLOW (pathlib is idiomatic in 3.11+).
