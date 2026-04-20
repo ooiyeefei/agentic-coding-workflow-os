@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
-from typing import Any, Literal, TypeAlias
+from decimal import Decimal
+from typing import Any, Literal, Protocol, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -12,6 +14,7 @@ from atelier.llm.capabilities import (
 )
 
 JsonValue: TypeAlias = dict[str, Any] | list[Any] | str | int | float | bool | None
+_MILLION = Decimal("1000000")
 
 
 def _json_object() -> dict[str, Any]:
@@ -20,6 +23,27 @@ def _json_object() -> dict[str, Any]:
 
 def _tool_call_list() -> list[ToolCall]:
     return []
+
+
+def _encoded_size(value: str) -> int:
+    if not value:
+        return 0
+    return len(value.encode("utf-8"))
+
+
+def _json_size(value: Any) -> int:
+    if isinstance(value, str):
+        return _encoded_size(value)
+    try:
+        serialized = json.dumps(value, separators=(",", ":"), sort_keys=True)
+    except TypeError:
+        serialized = str(value)
+    return _encoded_size(serialized)
+
+
+class CostPolicy(Protocol):
+    def check_cost(self, run_id: str, proposed_cost: Decimal | float | int | str) -> bool:
+        ...
 
 
 class ToolCall(BaseModel):
@@ -134,6 +158,9 @@ class LLMAdapter(ABC):
         messages: list[Message],
         tools: list[ToolDefinition] | None = None,
         required_capabilities: CapabilityRequirements | None = None,
+        *,
+        run_id: str | None = None,
+        policy: CostPolicy | None = None,
     ) -> Response:
         """Generate a normalized provider response."""
 
@@ -172,3 +199,65 @@ class LLMAdapter(ABC):
             usage=usage,
             cost=cost,
         )
+
+    def estimate_max_cost(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+    ) -> Decimal:
+        estimated_input_tokens = Decimal(self.estimate_input_tokens(messages, tools))
+        max_output_tokens = Decimal(self.max_output_tokens)
+        input_rate = Decimal(str(self.manifest.cost_per_mtok_in))
+        output_rate = Decimal(str(self.manifest.cost_per_mtok_out))
+        return (
+            (input_rate * estimated_input_tokens) / _MILLION
+            + (output_rate * max_output_tokens) / _MILLION
+        )
+
+    def estimate_input_tokens(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+    ) -> int:
+        total = 0
+        for message in messages:
+            total += 16
+            total += _encoded_size(message.role)
+            total += _encoded_size(message.content)
+            if message.tool_call_id is not None:
+                total += _encoded_size(message.tool_call_id)
+            for tool_call in message.tool_calls:
+                total += 24
+                total += _encoded_size(tool_call.id)
+                total += _encoded_size(tool_call.name)
+                arguments = tool_call.raw_arguments
+                if arguments is None:
+                    arguments = json.dumps(
+                        tool_call.arguments,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    )
+                total += _encoded_size(arguments)
+
+        for tool in tools or []:
+            total += 32
+            total += _encoded_size(tool.name)
+            if tool.description is not None:
+                total += _encoded_size(tool.description)
+            total += _json_size(tool.input_schema)
+
+        return max(total, 1)
+
+    def enforce_cost_policy(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        *,
+        run_id: str | None = None,
+        policy: CostPolicy | None = None,
+    ) -> None:
+        if policy is None:
+            return
+        if run_id is None or not run_id.strip():
+            raise ValueError("run_id is required when LLM cost policy is enabled")
+        policy.check_cost(run_id, self.estimate_max_cost(messages, tools))

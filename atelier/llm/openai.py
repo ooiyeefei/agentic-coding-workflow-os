@@ -9,6 +9,7 @@ from openai.types.responses import Response as OpenAIResponse
 from openai.types.responses import ResponseFunctionToolCall
 
 from atelier.llm.adapter import (
+    CostPolicy,
     JsonValue,
     LLMAdapter,
     LLMProviderError,
@@ -37,8 +38,12 @@ class OpenAIAdapter(LLMAdapter):
         messages: list[Message],
         tools: list[ToolDefinition] | None = None,
         required_capabilities: CapabilityRequirements | None = None,
+        *,
+        run_id: str | None = None,
+        policy: CostPolicy | None = None,
     ) -> Response:
         self.ensure_supported(required_capabilities)
+        self.enforce_cost_policy(messages, tools, run_id=run_id, policy=policy)
 
         kwargs: dict[str, Any] = {
             "model": self.manifest.model,
