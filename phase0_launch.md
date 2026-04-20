@@ -12,8 +12,8 @@
 1. From the main repo checkout, run the `git worktree add` command for a worktree. Example:
    ```bash
    cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-   git worktree add worktrees/W01-repo-scaffolding -b feat/W01-repo-scaffolding main
-   cd worktrees/W01-repo-scaffolding
+   git worktree add ../acw-w01 -b acw-w01 main
+   cd ../acw-w01
    ```
 2. Open two side-by-side terminals in that worktree directory.
 3. Paste the **Coder prompt** into terminal 1 (suggested: Codex, OpenAI Codex CLI, or Claude Code).
@@ -22,12 +22,12 @@
 6. After each phase, paste Reviewer feedback into Coder's terminal. Iterate until Reviewer APPROVES.
 7. Disagreement between Coder and Reviewer? Ask them to debate. Don't converge until consensus. If stuck after 2 rounds, invoke the 3-agent tiebreaker (W21 peek — once built).
 8. When implementation is green: `/uat-test` (for user-facing features) → `/rebase-before-pr` (analyze only — never auto-resolve) → create PR → merge.
-9. After merge: `git worktree remove worktrees/W##-<slug>`.
+9. After merge: `git worktree remove ../acw-w##`.
 
 ## Conventions
 
-- **Branches**: `feat/W##-<short-slug>`
-- **Worktree paths**: `worktrees/W##-<short-slug>/`
+- **Branches**: `acw-w##` (e.g., `acw-w02`, `acw-w15`)
+- **Worktree paths**: `../acw-w##/` — sibling directory of `agentic-coding-workflow-os/`, not a nested subdirectory
 - **Starting base**: always `main`. Before creating any worktree: `cd <main repo>; git fetch origin; git rebase origin/main`
 - **Credentials**: `.env.local` in the main repo root (gitignored). Load via `set -a; source ../../.env.local; set +a`
 - **Sample docs**: `docs/samples/` in the main worktree (once we add them — see W01 and W22). Agents should search this directory for any format samples they need.
@@ -65,6 +65,22 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 
 At any time, multiple worktrees across different waves can be running in parallel as long as each worktree's own dependencies have landed.
 
+### Parallelizing beyond wave boundaries via the stub pattern
+
+Some Wave 1b/2/3 worktrees depend on INTERFACES from prior waves (e.g., W04 needs `LLMAdapter` from W02), not full implementations. For these, you can parallelize beyond the wave boundary by **stubbing the interface locally**:
+
+1. The downstream Coder writes a local Protocol/ABC matching the contract defined in `phase0_plan.md` for the upstream worktree.
+2. Works against the stub until the upstream worktree merges.
+3. Post-merge, swaps imports from local stub → real module in a follow-up commit.
+
+Worktrees where stubbing is recommended (each Coder prompt below includes the stub snippet):
+- **W04** → stub `LLMAdapter` from W02
+- **W07** → stub `LLMAdapter` from W02 (reuse W04's stub if both run concurrently)
+- **W18** → stub `Persona` base from W04 (reuse W04's if that landed)
+- **W21** → stub `LLMAdapter` from W02
+
+Without stubbing, treat wave boundaries as strict ordering: Wave 1a must merge before Wave 1b starts, etc.
+
 ---
 
 # Wave 0 — Start immediately (no dependencies)
@@ -78,8 +94,8 @@ At any time, multiple worktrees across different waves can be running in paralle
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W01-repo-scaffolding -b feat/W01-repo-scaffolding main
-cd worktrees/W01-repo-scaffolding
+git worktree add ../acw-w01 -b acw-w01 main
+cd ../acw-w01
 ```
 
 **Coder prompt**:
@@ -184,8 +200,8 @@ Learnings carried (steering context — do not suggest these):
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W22-demo-app -b feat/W22-demo-app main
-cd worktrees/W22-demo-app
+git worktree add ../acw-w22 -b acw-w22 main
+cd ../acw-w22
 mkdir -p demo/app
 ```
 
@@ -273,8 +289,8 @@ Learnings carried:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
 git fetch origin && git checkout main && git pull --rebase
-git worktree add worktrees/W02-llm-abstraction -b feat/W02-llm-abstraction main
-cd worktrees/W02-llm-abstraction
+git worktree add ../acw-w02 -b acw-w02 main
+cd ../acw-w02
 set -a; source ../../.env.local; set +a
 ```
 
@@ -353,8 +369,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W03-ulid-paths -b feat/W03-ulid-paths main
-cd worktrees/W03-ulid-paths
+git worktree add ../acw-w03 -b acw-w03 main
+cd ../acw-w03
 ```
 
 **Coder prompt**:
@@ -428,8 +444,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W05-skills-library -b feat/W05-skills-library main
-cd worktrees/W05-skills-library
+git worktree add ../acw-w05 -b acw-w05 main
+cd ../acw-w05
 ```
 
 **Coder prompt**:
@@ -510,8 +526,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W10-redaction -b feat/W10-redaction main
-cd worktrees/W10-redaction
+git worktree add ../acw-w10 -b acw-w10 main
+cd ../acw-w10
 ```
 
 **Coder prompt**:
@@ -585,8 +601,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W12-policy -b feat/W12-policy main
-cd worktrees/W12-policy
+git worktree add ../acw-w12 -b acw-w12 main
+cd ../acw-w12
 ```
 
 **Coder prompt**:
@@ -663,8 +679,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W04-personas -b feat/W04-personas main
-cd worktrees/W04-personas
+git worktree add ../acw-w04 -b acw-w04 main
+cd ../acw-w04
 ```
 
 **Coder prompt**:
@@ -673,7 +689,18 @@ You are the Coder agent for W04 — Persona Library (issue #4).
 
 Strategic context: Personas are capability-gated, LLM-agnostic roles. Coder implements; Reviewer attacks with execution-mandatory protocol; UAT (later) drives the app. Personas declare their required capabilities; the LLM abstraction routes to a compatible model. This is the concrete realization of "LLM-agnostic" as an architectural property.
 
-Objective: Build atelier/personas/ with Coder + Reviewer personas, bound to W02's LLMAdapter.
+**W02 dependency + stub pattern**: W04 imports `LLMAdapter` from W02. If W02 has NOT merged yet when you start, parallelize via the stub pattern:
+1. Create `atelier/personas/_llm_proto.py` with a local `LLMAdapter` Protocol matching the W02 contract from phase0_plan.md:
+   ```python
+   from typing import Any, Protocol
+   class LLMAdapter(Protocol):
+       async def generate(self, messages: list[dict], tools: list[dict] | None = None, required_capabilities: list[str] | None = None) -> Any: ...
+   ```
+2. Import from this stub in your persona code.
+3. When W02 PR merges to main, open a follow-up commit that swaps `from atelier.personas._llm_proto import LLMAdapter` → `from atelier.llm.adapter import LLMAdapter` and deletes the stub file.
+4. If W02 has already merged when you start, skip the stub — import directly from `atelier.llm.adapter`.
+
+Objective: Build atelier/personas/ with Coder + Reviewer personas, bound to the LLMAdapter interface (stubbed or real per above).
 
 Files you own:
 - atelier/personas/base.py — abstract Persona: `name`, `system_prompt`, `required_capabilities`, `llm_adapter_name`, async `respond(context_packet) -> AgentResponse`
@@ -742,8 +769,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W06-memory-records -b feat/W06-memory-records main
-cd worktrees/W06-memory-records
+git worktree add ../acw-w06 -b acw-w06 main
+cd ../acw-w06
 ```
 
 **Coder prompt**:
@@ -816,8 +843,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W08-evidence-pack -b feat/W08-evidence-pack main
-cd worktrees/W08-evidence-pack
+git worktree add ../acw-w08 -b acw-w08 main
+cd ../acw-w08
 ```
 
 **Coder prompt**:
@@ -892,8 +919,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W09-run-graph -b feat/W09-run-graph main
-cd worktrees/W09-run-graph
+git worktree add ../acw-w09 -b acw-w09 main
+cd ../acw-w09
 ```
 
 **Coder prompt**:
@@ -967,8 +994,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W26-git-hygiene -b feat/W26-git-hygiene main
-cd worktrees/W26-git-hygiene
+git worktree add ../acw-w26 -b acw-w26 main
+cd ../acw-w26
 ```
 
 **Coder prompt**:
@@ -1048,8 +1075,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W07-context-compiler -b feat/W07-context-compiler main
-cd worktrees/W07-context-compiler
+git worktree add ../acw-w07 -b acw-w07 main
+cd ../acw-w07
 ```
 
 **Coder prompt**:
@@ -1128,8 +1155,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W11-workflow-engine -b feat/W11-workflow-engine main
-cd worktrees/W11-workflow-engine
+git worktree add ../acw-w11 -b acw-w11 main
+cd ../acw-w11
 ```
 
 **Coder prompt**:
@@ -1205,8 +1232,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W13-audit -b feat/W13-audit main
-cd worktrees/W13-audit
+git worktree add ../acw-w13 -b acw-w13 main
+cd ../acw-w13
 ```
 
 **Coder prompt**:
@@ -1279,8 +1306,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W14-auto-adr -b feat/W14-auto-adr main
-cd worktrees/W14-auto-adr
+git worktree add ../acw-w14 -b acw-w14 main
+cd ../acw-w14
 ```
 
 **Coder prompt**:
@@ -1356,8 +1383,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W18-uat-persona -b feat/W18-uat-persona main
-cd worktrees/W18-uat-persona
+git worktree add ../acw-w18 -b acw-w18 main
+cd ../acw-w18
 ```
 
 **Coder prompt**:
@@ -1431,8 +1458,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W15-cli -b feat/W15-cli main
-cd worktrees/W15-cli
+git worktree add ../acw-w15 -b acw-w15 main
+cd ../acw-w15
 ```
 
 **Coder prompt**:
@@ -1509,8 +1536,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W16-http-daemon -b feat/W16-http-daemon main
-cd worktrees/W16-http-daemon
+git worktree add ../acw-w16 -b acw-w16 main
+cd ../acw-w16
 ```
 
 **Coder prompt**:
@@ -1585,8 +1612,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W19-swap-demo -b feat/W19-swap-demo main
-cd worktrees/W19-swap-demo
+git worktree add ../acw-w19 -b acw-w19 main
+cd ../acw-w19
 ```
 
 **Coder prompt**:
@@ -1657,8 +1684,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W21-council-tiebreaker -b feat/W21-council-tiebreaker main
-cd worktrees/W21-council-tiebreaker
+git worktree add ../acw-w21 -b acw-w21 main
+cd ../acw-w21
 ```
 
 **Coder prompt**:
@@ -1732,8 +1759,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W17-plugin-scaffold -b feat/W17-plugin-scaffold main
-cd worktrees/W17-plugin-scaffold
+git worktree add ../acw-w17 -b acw-w17 main
+cd ../acw-w17
 ```
 
 **Coder prompt**:
@@ -1807,8 +1834,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W20-plugin-ui -b feat/W20-plugin-ui main
-cd worktrees/W20-plugin-ui
+git worktree add ../acw-w20 -b acw-w20 main
+cd ../acw-w20
 ```
 
 **Coder prompt**:
@@ -1889,8 +1916,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W23-demo-issue -b feat/W23-demo-issue main
-cd worktrees/W23-demo-issue
+git worktree add ../acw-w23 -b acw-w23 main
+cd ../acw-w23
 ```
 
 **Coder prompt**:
@@ -1953,8 +1980,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W24-e2e-dogfood -b feat/W24-e2e-dogfood main
-cd worktrees/W24-e2e-dogfood
+git worktree add ../acw-w24 -b acw-w24 main
+cd ../acw-w24
 ```
 
 **Coder prompt**:
@@ -2025,8 +2052,8 @@ Learnings carried:
 **Git commands**:
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add worktrees/W25-pitch-demo -b feat/W25-pitch-demo main
-cd worktrees/W25-pitch-demo
+git worktree add ../acw-w25 -b acw-w25 main
+cd ../acw-w25
 ```
 
 **Coder prompt**:
