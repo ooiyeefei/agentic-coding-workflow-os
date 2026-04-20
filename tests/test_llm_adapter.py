@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 import pytest
 from anthropic.types import Message as AnthropicMessage
 from atelier.llm.adapter import (
-    LLMConfigurationError,
     LLMProviderError,
     Message,
     ToolCall,
@@ -58,27 +57,34 @@ def test_load_capability_manifests_reads_default_yaml_files() -> None:
     }
 
 
-def test_shipped_manifests_do_not_claim_unsupported_contract_capabilities() -> None:
+def test_shipped_manifests_include_reviewer_compatible_model() -> None:
     manifests = load_capability_manifests(Path(".atelier/defaults/models"))
 
-    assert all(not manifest.offers.code_execution for manifest in manifests)
-    assert all(not manifest.offers.structured_outputs for manifest in manifests)
-
-
-def test_adapter_rejects_manifest_claims_unsupported_by_contract() -> None:
-    manifest = make_manifest(
-        provider="openai",
-        model="openai-overclaiming",
-        structured_outputs=True,
+    selected = route_persona_to_model(
+        CapabilityRequirements(
+            tool_use=True,
+            code_execution=True,
+            structured_outputs=True,
+        ),
+        manifests,
     )
 
-    with pytest.raises(LLMConfigurationError) as exc_info:
-        OpenAIAdapter(
-            manifest,
-            client=SimpleNamespace(responses=SimpleNamespace(create=AsyncMock())),
-        )
+    assert selected.model == "gpt-5"
 
-    assert "unsupported adapter contract capabilities" in str(exc_info.value)
+
+def test_adapter_allows_capability_claims_used_for_persona_routing() -> None:
+    adapter = OpenAIAdapter(
+        make_manifest(
+            provider="openai",
+            model="openai-reviewer",
+            code_execution=True,
+            structured_outputs=True,
+        ),
+        client=SimpleNamespace(responses=SimpleNamespace(create=AsyncMock())),
+    )
+
+    assert adapter.manifest.offers.code_execution is True
+    assert adapter.manifest.offers.structured_outputs is True
 
 
 @pytest.mark.asyncio
