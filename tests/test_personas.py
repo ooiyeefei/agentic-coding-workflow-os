@@ -16,6 +16,7 @@ from atelier.llm import (
     UnsupportedCapabilityError,
     Usage,
 )
+from atelier.llm.adapter import CostPolicy
 from atelier.personas import AgentResponse, Coder, Reviewer
 
 
@@ -34,6 +35,9 @@ class FakeAdapter(LLMAdapter):
         messages: list[Message],
         tools: list[ToolDefinition] | None = None,
         required_capabilities: CapabilityRequirements | None = None,
+        *,
+        run_id: str | None = None,
+        policy: CostPolicy | None = None,
     ) -> Response:
         self.ensure_supported(required_capabilities)
         self.calls.append(
@@ -41,6 +45,8 @@ class FakeAdapter(LLMAdapter):
                 "messages": messages,
                 "tools": tools,
                 "required_capabilities": required_capabilities,
+                "run_id": run_id,
+                "policy": policy,
             }
         )
         return self._response
@@ -176,6 +182,24 @@ async def test_reviewer_respond_returns_structured_agent_response() -> None:
     assert result.adapter_name == "reviewer-model"
     assert result.metadata["devil_advocate_mode"] is False
     assert adapter.calls[0]["required_capabilities"] == reviewer.required_capabilities
+
+
+@pytest.mark.asyncio
+async def test_persona_forwards_run_id_and_policy_when_available(fixed_run_id: str) -> None:
+    adapter = FakeAdapter(
+        make_manifest(
+            model="reviewer-model",
+            tool_use=True,
+            code_execution=True,
+            structured_outputs=True,
+        )
+    )
+    reviewer = Reviewer(adapter=adapter)
+
+    await reviewer.review({"run_id": fixed_run_id, "diff": "print('ok')"})
+
+    assert adapter.calls[0]["run_id"] == fixed_run_id
+    assert adapter.calls[0]["policy"] is not None
 
 
 def test_reviewer_prompt_contains_execution_mandatory_language() -> None:

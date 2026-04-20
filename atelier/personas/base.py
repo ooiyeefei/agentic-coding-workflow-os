@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 from abc import ABC
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import frontmatter
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,7 +23,8 @@ from atelier.llm import (
     load_capability_manifests,
     route_persona_to_model,
 )
-from atelier.llm.adapter import JsonValue
+from atelier.llm.adapter import CostPolicy, JsonValue
+from atelier.policy import PolicyEngine
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL_DIR = _REPO_ROOT / ".atelier/defaults/models"
@@ -94,6 +95,8 @@ class Persona(ABC):
         prompt_path: str | Path | None = None,
         model_directory: str | Path = DEFAULT_MODEL_DIR,
         adapter_factory: AdapterFactory = build_default_adapter,
+        policy_engine: CostPolicy | None = None,
+        run_id: str | None = None,
     ) -> None:
         definition = load_persona_definition(prompt_path or self.default_prompt_path())
         self.definition = definition
@@ -110,6 +113,8 @@ class Persona(ABC):
         self.llm_adapter_name = self.manifest.model
         self._adapter = adapter
         self._adapter_factory = adapter_factory
+        self.policy_engine = policy_engine or PolicyEngine()
+        self.run_id = run_id
         self.system_prompt = self.render_system_prompt()
 
     @classmethod
@@ -127,12 +132,16 @@ class Persona(ABC):
         return {}
 
     async def respond(self, context_packet: Any) -> AgentResponse:
+        resolved_run_id = self._resolve_run_id(context_packet)
+        policy = self.policy_engine if resolved_run_id is not None else None
         response = await self.adapter.generate(
             messages=[
                 Message(role="system", content=self.system_prompt),
                 Message(role="user", content=self.build_user_message(context_packet)),
             ],
             required_capabilities=self.required_capabilities,
+            run_id=resolved_run_id,
+            policy=policy,
         )
         return self._build_agent_response(response, metadata=self.response_metadata(context_packet))
 
@@ -151,6 +160,21 @@ class Persona(ABC):
             return json.dumps(context_packet, indent=2, sort_keys=True)
         except TypeError:
             return str(context_packet)
+
+    def _resolve_run_id(self, context_packet: Any) -> str | None:
+        if self.run_id is not None and self.run_id.strip():
+            return self.run_id
+        if isinstance(context_packet, BaseModel):
+            payload = cast("dict[str, object]", context_packet.model_dump(mode="python"))
+            candidate = payload.get("run_id")
+        elif isinstance(context_packet, Mapping):
+            payload = cast("Mapping[str, object]", context_packet)
+            candidate = payload.get("run_id")
+        else:
+            candidate = getattr(context_packet, "run_id", None)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate
+        return None
 
     def _build_agent_response(
         self,

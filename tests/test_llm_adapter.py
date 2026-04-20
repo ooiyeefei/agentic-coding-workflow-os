@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -21,6 +22,7 @@ from atelier.llm.capabilities import (
     route_persona_to_model,
 )
 from atelier.llm.openai import OpenAIAdapter
+from atelier.policy import CostCapExceeded
 from openai.types.responses import Response as OpenAIResponse
 
 
@@ -343,6 +345,42 @@ async def test_adapter_rejects_unsupported_capability_before_provider_call() -> 
 
 
 @pytest.mark.asyncio
+async def test_openai_adapter_checks_policy_before_provider_call(fixed_run_id: str) -> None:
+    manifest = make_manifest(provider="openai", model="openai-cost-check")
+    client = SimpleNamespace(responses=SimpleNamespace(create=AsyncMock()))
+    adapter = OpenAIAdapter(manifest, client=client)
+    policy = RejectingPolicy()
+
+    with pytest.raises(CostCapExceeded):
+        await adapter.generate(
+            messages=[Message(role="user", content="hello")],
+            run_id=fixed_run_id,
+            policy=policy,
+        )
+
+    assert policy.calls[0]["run_id"] == fixed_run_id
+    client.responses.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_anthropic_adapter_checks_policy_before_provider_call(fixed_run_id: str) -> None:
+    manifest = make_manifest(provider="anthropic", model="anthropic-cost-check")
+    client = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock()))
+    adapter = AnthropicAdapter(manifest, client=client)
+    policy = RejectingPolicy()
+
+    with pytest.raises(CostCapExceeded):
+        await adapter.generate(
+            messages=[Message(role="user", content="hello")],
+            run_id=fixed_run_id,
+            policy=policy,
+        )
+
+    assert policy.calls[0]["run_id"] == fixed_run_id
+    client.messages.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_anthropic_adapter_wraps_provider_errors() -> None:
     manifest = make_manifest(provider="anthropic", model="anthropic-provider-error")
     client = SimpleNamespace(
@@ -376,6 +414,21 @@ async def test_openai_adapter_wraps_provider_errors() -> None:
 
 def assert_close(actual: float, expected: float) -> None:
     assert abs(actual - expected) < 1e-12
+
+
+class RejectingPolicy:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def check_cost(self, run_id: str, proposed_cost: Decimal | float | int | str) -> bool:
+        self.calls.append({"run_id": run_id, "proposed_cost": proposed_cost})
+        raise CostCapExceeded(
+            scope="run",
+            cap_usd=Decimal("5.00"),
+            current_total_usd=Decimal("4.99"),
+            proposed_cost_usd=Decimal("0.02"),
+            projected_total_usd=Decimal("5.01"),
+        )
 
 
 def make_manifest(

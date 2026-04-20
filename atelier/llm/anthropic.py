@@ -7,6 +7,7 @@ from anthropic.types import Message as AnthropicMessageResponse
 from anthropic.types import TextBlock, ToolUseBlock
 
 from atelier.llm.adapter import (
+    CostPolicy,
     JsonValue,
     LLMAdapter,
     LLMProviderError,
@@ -35,8 +36,12 @@ class AnthropicAdapter(LLMAdapter):
         messages: list[Message],
         tools: list[ToolDefinition] | None = None,
         required_capabilities: CapabilityRequirements | None = None,
+        *,
+        run_id: str | None = None,
+        policy: CostPolicy | None = None,
     ) -> Response:
         self.ensure_supported(required_capabilities)
+        self.enforce_cost_policy(messages, tools, run_id=run_id, policy=policy)
 
         system_prompt, anthropic_messages = self._serialize_messages(messages)
         kwargs: dict[str, Any] = {
