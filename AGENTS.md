@@ -17,6 +17,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-20
 - Filesystem JSONL audit logs under `.atelier/runs/` and `.atelier/audit/` (012-policy-engine)
 - Python 3.11 + anthropic SDK, openai SDK, pydantic v2, python-frontmatter, pathlib, pytest (005-swappability-demo)
 - Filesystem outputs under `demo/swap-demo-output/` and generated fixture files inside the demo workspace (005-swappability-demo)
+- Python 3.11 + pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio (005-council-tiebreaker)
+- Filesystem-backed council report records under `.atelier/memory/council_reports/` plus in-process Pydantic models (005-council-tiebreaker)
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio (004-persona-library)
 
 ## Project Structure
@@ -42,6 +44,7 @@ Python 3.11: Follow standard conventions
 - 005-typed-memory-records: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest
 - 012-policy-engine: Added Python 3.11 + pydantic v2, pathlib, pytest
 - 005-swappability-demo: Added Python 3.11 + anthropic SDK, openai SDK, pydantic v2, python-frontmatter, pathlib, pytest
+- 005-council-tiebreaker: Added Python 3.11 + pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio
 - 004-persona-library: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio
 
 <!-- MANUAL ADDITIONS START -->
