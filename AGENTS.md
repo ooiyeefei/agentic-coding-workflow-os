@@ -7,6 +7,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-20
 - In-memory source models and markdown strings; optional filesystem paths only as provenance metadata (006-context-compiler)
 - Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `atelier.util.fs` helpers (007-rungraph-tree-ops)
 - Filesystem-only state under `.atelier/runs/<run_id>/...` matching the roadmap's canonical storage layout (007-rungraph-tree-ops)
+- Python 3.11 + Python `re` and `typing` from the standard library, plus `pytest` for validation (006-secret-redaction)
+- N/A for the redaction function itself; transforms in-memory strings before persistence (006-secret-redaction)
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest (005-typed-memory-records)
 - Markdown files with YAML frontmatter under `.atelier/memory/{decisions,findings,rejected_alternatives}/` (005-typed-memory-records)
 
@@ -30,6 +32,7 @@ Python 3.11: Follow standard conventions
 ## Recent Changes
 - 006-context-compiler: Added Python 3.11 + pydantic v2, pathlib, pytest
 - 007-rungraph-tree-ops: Added Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `atelier.util.fs` helpers
+- 006-secret-redaction: Added Python 3.11 + Python `re` and `typing` from the standard library, plus `pytest` for validation
 - 005-typed-memory-records: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest
 
 - 004-persona-library: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio
