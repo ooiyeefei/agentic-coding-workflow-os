@@ -1,0 +1,70 @@
+# Evidence Pack
+
+`Run:` {{ run_id | md_inline_code }}  
+`Stage:` {{ stage_id | md_inline_code }}  
+`Schema:` {{ pack.schema_version | md_inline_code }}
+
+> Verdict: **{{ pack.verdict.value | md_text }}**
+> Confidence: **{{ confidence_percent | md_text }}**
+> Reviewer Persona: {{ pack.reviewer_persona_id | md_inline_code }}
+> Timestamp: {{ timestamp_text | md_inline_code }}
+
+## Findings
+
+{% for severity in severity_order %}
+### {{ severity }}
+
+{% set findings = grouped_findings[severity] %}
+{% if findings %}
+{% for finding in findings %}
+#### {{ finding.finding_id | md_inline_code }}
+
+- File: {{ (finding.file ~ (":" ~ finding.line if finding.line is not none else "")) | md_inline_code }}
+- Description: {{ finding.description | md_text }}
+- Verification: {{ finding.verification | md_text }}
+
+{% endfor %}
+{% else %}
+_None._
+
+{% endif %}
+{% endfor %}
+## Execution
+
+{% if pack.execution %}
+{% for command_output in pack.execution %}
+### Command {{ loop.index }}
+
+- Command: {{ command_output.command | md_inline_code }}
+- Exit Code: {{ command_output.exit_code | md_inline_code }}
+{% if command_output.finding_ids %}
+- Linked Findings: {% for finding_id in command_output.finding_ids %}{{ finding_id | md_inline_code }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% else %}
+- Linked Findings: _None_
+{% endif %}
+
+#### Stdout
+
+{% if command_output.stdout %}
+{{ command_output.stdout | md_code_block("text") }}
+{% else %}
+_No stdout captured._
+{% endif %}
+
+#### Stderr
+
+{% if command_output.stderr %}
+{{ command_output.stderr | md_code_block("text") }}
+{% else %}
+_No stderr captured._
+{% endif %}
+
+{% endfor %}
+{% else %}
+_No execution records captured._
+{% endif %}
+## Audit Chain
+
+{% for reference in pack.audit_chain %}
+- [{{ reference | md_inline_code }}](../../audit.jsonl#{{ reference }})
+{% endfor %}
