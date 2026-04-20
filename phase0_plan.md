@@ -7,31 +7,30 @@
 
 ## Scope Summary
 
-Ship a demoable, end-to-end slice of Atelier that proves the reproducibility thesis on a curated repo, invokable from CLI and JetBrains plugin.
+Ship a demoable, end-to-end slice of Atelier that proves the reproducibility thesis on a curated repo, invokable from the CLI.
 
 **Thesis demonstrated in demo**: One GitHub issue → spec → review (with execution evidence) → plan → tasks → implement → UAT → ADR auto-synthesized → rebase analyzed → cleanup. All persisted as files. Replayable. Reviewer-attacked. Human-approved at destructive gates.
 
-## The Demo Scenario (12 beats)
+## The Demo Scenario (11 beats)
 
-1. User opens JetBrains plugin → clicks "New run from issue #123"
-2. Plugin calls CLI daemon → orchestrator creates `.atelier/runs/<ulid>/` + worktree from main
-3. Context Compiler assembles Packet v1 for Coder (issue + rules + sample docs + objective + exact commands)
-4. Coder runs `/speckit.specify` → produces draft spec → writes to worktree
-5. Reviewer attacks spec (execution-mandatory protocol) → produces Evidence Pack v1 (JSON + Markdown)
-6. If Reviewer rejects 2× with no resolution → **Phase 1 peek**: "Escalating to Council" visual + 3-agent tiebreaker
-7. Coder advances through `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement` (serial)
-8. Each stage produces Evidence Pack; each disagreement logs a Decision + RejectedAlternative memory record
-9. UAT stage runs `ccc/skills/uat-testing` against a real local demo app
-10. Auto-ADR synthesis reads transcripts + decisions → writes `docs/adr/NNNN-<topic>.md` in MADR 3.0 format
-11. `/rebase-before-pr` analyzes: runs `git fetch origin`, computes rebase conflicts, reports findings, **never auto-resolves**
-12. `/cleanup-worktree` (with confirmation) — Run Graph remains committed for replay
+1. User runs `atelier run --issue 123` in the terminal → orchestrator creates `.atelier/runs/<ulid>/` + worktree from main
+2. Context Compiler assembles Packet v1 for Coder (issue + rules + sample docs + objective + exact commands)
+3. Coder runs `/speckit.specify` → produces draft spec → writes to worktree
+4. Reviewer attacks spec (execution-mandatory protocol) → produces Evidence Pack v1 (JSON + Markdown)
+5. If Reviewer rejects 2× with no resolution → **Phase 1 peek**: "Escalating to Council" — 3-agent tiebreaker
+6. Coder advances through `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement` (serial)
+7. Each stage produces Evidence Pack; each disagreement logs a Decision + RejectedAlternative memory record
+8. UAT stage runs `ccc/skills/uat-testing` against a real local demo app
+9. Auto-ADR synthesis reads transcripts + decisions → writes `docs/adr/NNNN-<topic>.md` in MADR 3.0 format
+10. `/rebase-before-pr` analyzes: runs `git fetch origin`, computes rebase conflicts, reports findings, **never auto-resolves**
+11. `/cleanup-worktree` (with confirmation) — Run Graph remains committed for replay
 
-Plugin shows, through the run:
-- Run Graph tree (stages, evidence, decisions)
-- Evidence Pack rendered live (webview)
-- ADR preview after synthesis
-- Rebase report
-- Cost tracker
+CLI surfaces for each run:
+- `atelier run show <id>` — Run Graph tree (stages, evidence, decisions)
+- `atelier run show <id> --evidence` — rendered Evidence Pack (Markdown to terminal)
+- `atelier run show <id> --adr` — generated ADR preview
+- `atelier run show <id> --rebase` — rebase analysis report
+- `atelier run show <id> --cost` — cost tracker per-run aggregate
 
 ---
 
@@ -56,9 +55,7 @@ Plugin shows, through the run:
 | Audit log (JSONL) | Lane C | `atelier/audit/*.py` |
 | UAT persona + integration | Lane C | `atelier/personas/uat.py`, `.atelier/defaults/personas/uat.md` |
 | CLI | Lane A | `atelier/cli/*.py` |
-| HTTP daemon + SSE | Lane A | `atelier/daemon/*.py` |
-| JetBrains plugin scaffold | Lane D | `plugin-jetbrains/*` |
-| Plugin tool window + JCEF webview + SSE client | Lane D | `plugin-jetbrains/src/main/kotlin/*` |
+| HTTP daemon + SSE (optional — future client surfaces) | Lane A | `atelier/daemon/*.py` |
 | **Phase 1 peek**: 3-agent tiebreaker | Lane B (late) | `atelier/council/*.py` |
 | Curated demo target app | Lane E | `demo/app/*` |
 | Curated demo issue | Lane E | `demo/issue.md` |
@@ -116,14 +113,10 @@ Plugin shows, through the run:
                 │              (CLI)
                 │                 │
                 │                W16
-                │          (HTTP daemon + SSE)
+                │          (HTTP daemon + SSE, future surfaces)
                 │                 │
-                │        ┌────────┴────────┐
-                │       W17               W18
-                │    (plugin scaffold)  (UAT persona)
-                │        │
-                │       W20
-                │  (plugin UI webview)
+                │                W18
+                │             (UAT persona)
                 │
               W19 (LLM swappability test)    W21 (3-agent tiebreaker, Phase 1 peek)
                                              W24 (E2E dogfood + warm cache)
@@ -145,18 +138,14 @@ One engineer with prompt-craft + Python. Owns the IP that makes Atelier differen
 `W10 → W13 → W26 → W18`
 One engineer comfortable with git internals + subprocess orchestration. Owns git hygiene, audit log, secret redaction, UAT wiring.
 
-**Lane D — JetBrains Plugin**
-`W17 → W20`
-One engineer with Kotlin + frontend. Starts as soon as W16 API spec is frozen (interfaces defined even before implementation). Owns plugin scaffold, tool window, webview, SSE consumer.
-
 **Lane E — Product / Demo**
 `W22 → W23 → W19 → W24 → W25`
 One generalist. Curates demo repo + demo issue, validates dogfood runs, builds warm-cache, writes pitch script, records fallback video.
 
 ### Cross-Lane Integration Points
 
-- **Saturday 11am equivalent milestone**: Lane A publishes HTTP API contract (OpenAPI spec or Python Protocol). All lanes freeze to this interface by EOD Day 1.
-- **Evidence Pack schema** (JSON): Lanes B + D agree on Evidence Pack JSON structure so plugin webview knows what to render.
+- **Early milestone**: Lane A publishes the CLI command contract (help output, arg shape, JSON output schema for `--json` flag). All lanes freeze to this interface early.
+- **Evidence Pack schema** (JSON + Markdown): Lane B publishes; consumers are Lane A (audit chain, CLI `show --evidence` renderer) and any future client (VSCode ext, web dashboard, CI integration).
 - **Context Packet format** (Markdown): Lane A + Lane B agree on packet.md structure early.
 - **LLM capability manifest format**: Lane A publishes; Lane B consumes when declaring persona requirements.
 
@@ -308,18 +297,9 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 - **Depends**: W15
 - **Owns**: `atelier/daemon/server.py`, `atelier/daemon/routes.py`
 - **Scope**: FastAPI app exposing: `POST /runs` (start), `GET /runs/<id>` (status), `GET /runs/<id>/events` (SSE stream of audit events), `POST /runs/<id>/approve` (gate approvals). Same process as CLI but daemon mode.
-- **Acceptance**: Plugin subscribes to SSE, receives events in real-time as workflow advances.
-- **Output**: API for plugin consumption
-- **Blocks**: W17, W20
-
-### W17 — JetBrains Plugin Scaffold
-
-- **Depends**: W16 (API contract frozen; implementation can lag)
-- **Owns**: `plugin-jetbrains/build.gradle.kts`, `plugin-jetbrains/src/main/resources/META-INF/plugin.xml`, `plugin-jetbrains/src/main/kotlin/com/atelier/*.kt`
-- **Scope**: IntelliJ Platform Plugin Template (start from official template). Register tool window, declare dependencies, set up Gradle intellij-platform plugin. Kotlin HTTP client for W16 daemon.
-- **Acceptance**: `./gradlew runIde` launches IDEA with Atelier tool window visible (empty shell).
-- **Output**: Pluggable IDE surface
-- **Blocks**: W20
+- **Acceptance**: An HTTP client subscribes to SSE and receives events in real-time as workflow advances. Used for future IDE/web/CI integrations.
+- **Output**: API surface for future non-CLI clients (optional in Phase 0 — build only if time permits after W15 CLI ships).
+- **Blocks**: (nothing in Phase 0; future clients depend on this)
 
 ### W18 — UAT Persona Integration
 
@@ -338,15 +318,6 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 - **Acceptance**: Both runs produce valid Evidence Packs (may differ in findings, that's fine). Capability manifest correctly rejects routes to insufficient models.
 - **Output**: Demo beat that proves swappability
 - **Blocks**: (standalone demo asset)
-
-### W20 — Plugin Tool Window + JCEF Webview + SSE
-
-- **Depends**: W17, W08 (evidence pack format)
-- **Owns**: `plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/*.kt`, `plugin-jetbrains/src/main/resources/web/*`
-- **Scope**: Tool window with 3 tabs: Run Graph (tree view), Evidence Pack (JCEF webview rendering evidence.md), ADR (preview + open-in-editor). SSE client streams events, updates UI live. Run Graph tree hydrated from filesystem on load.
-- **Acceptance**: Click "New run", live events flow in, Evidence Pack renders, ADR preview shows after synthesis.
-- **Output**: Visible IDE product
-- **Blocks**: (end of Lane D)
 
 ### W21 — Phase 1 Peek: 3-Agent Tiebreaker
 
@@ -407,12 +378,13 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 
 | Contract | Owner | Consumers |
 |---|---|---|
-| HTTP API (POST /runs, GET /runs/<id>, SSE /events, POST /approve) | Lane A | Lane D (plugin) |
-| Evidence Pack JSON schema | Lane B | Lane D (plugin webview), Lane A (audit) |
+| CLI command contract (args, `--json` output shape) | Lane A | All users; scripts; CI |
+| Evidence Pack JSON schema | Lane B | Lane A (audit linkage, CLI `show --evidence`), future clients |
 | Context Packet markdown structure | Lane A + Lane B | Lane B (personas consume) |
 | Persona capability declaration format | Lane A | Lane B (personas declare) |
 | Skill frontmatter schema | Lane B | Lane A (workflow engine loads) |
 | LLM adapter interface | Lane A | Lane B (personas call) |
+| HTTP API (future surfaces — optional in Phase 0) | Lane A | Future IDE / web / CI clients |
 
 **Freeze deadline**: end of first integration block. After freeze, changes require cross-lane sign-off.
 
@@ -422,11 +394,11 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 
 | Stage | Warm cache | Fallback trigger |
 |---|---|---|
-| Workflow start | pre-generated run directory | live daemon fails > 5s |
+| Workflow start | pre-generated run directory | CLI fails > 5s |
 | Evidence Pack generation | pre-rendered example | LLM API rate limit or timeout |
 | Auto-ADR synthesis | pre-generated ADR file | LLM fails |
-| Plugin UI | cached static render of last successful run | daemon connection failure |
-| Whole demo | pre-recorded video | catastrophic failure |
+| CLI output rendering | static `run show` output snapshot | command error |
+| Whole demo | pre-recorded terminal capture | catastrophic failure |
 
 Fallback narration: never admit "it failed." Narrate over cached output as if live. Use present tense. Rehearse this.
 
@@ -436,15 +408,15 @@ Fallback narration: never admit "it failed." Narrate over cached output as if li
 
 **[0:00-0:10]** Hook. "When you let an AI coding agent loose on your codebase, you're trusting that tomorrow you can explain what it did and why. Today you can't. Atelier fixes that."
 
-**[0:10-0:25]** Setup. Show JetBrains IDE with demo repo. "Here's a real issue: add rate limiting to /api/login. I click run. Atelier starts."
+**[0:10-0:25]** Setup. Terminal, with demo repo. "Here's a real issue: add rate limiting to /api/login. I run `atelier run --issue 42`. Atelier starts."
 
-**[0:25-0:55]** The core loop. Tool window lights up. Coder writes spec. Reviewer attacks with real command output. Reviewer finds an edge case Coder missed — show the Evidence Pack with red finding + pasted pytest failure. Coder fixes. Reviewer approves. Green.
+**[0:25-0:55]** The core loop. Streaming terminal output: Coder writes spec. Reviewer attacks with real command output. Reviewer finds an edge case Coder missed — show the Evidence Pack with red finding + pasted pytest failure (`atelier run show <id> --evidence`). Coder fixes. Reviewer approves. Green.
 
-**[0:55-1:15]** UAT + ADR. UAT persona runs against live app — show 5 rate-limit attempts on a browser. Auto-generated ADR appears — judges see real MADR 3.0 format.
+**[0:55-1:15]** UAT + ADR. UAT persona runs against live app — show 5 rate-limit attempts on a browser (headless or visible). Auto-generated ADR appears — judges see real MADR 3.0 format via `cat docs/adr/*.md`.
 
-**[1:15-1:30]** The reproducibility moment. Show `.atelier/runs/<id>/` directory. "Every packet, every transcript, every decision — on disk. Replayable. Swap Claude for Codex and run it again. Same workflow. Different brain. That's Atelier."
+**[1:15-1:30]** The reproducibility moment. `ls .atelier/runs/<id>/stages/`. "Every packet, every transcript, every decision — on disk. Replayable. Swap Claude for Codex and run it again. Same workflow. Different brain. That's Atelier."
 
-**[1:30 stretch]** Rebase analysis. "And when you're ready to merge, Atelier never decides for you. It reports the exact conflicts and commands — you stay in control of destructive operations."
+**[1:30 stretch]** Rebase analysis. `atelier run show <id> --rebase`. "And when you're ready to merge, Atelier never decides for you. It reports the exact conflicts and commands — you stay in control of destructive operations."
 
 ---
 

@@ -38,7 +38,7 @@ Coding agents don't lack capability — they lack **workflow, discipline, and me
 
 ```
 ┌───────────────────────── CLIENTS (thin surfaces) ──────────────────────────┐
-│   JetBrains plugin  │  VSCode ext  │  CLI  │  Web dashboard  │  GH App    │
+│   CLI (Phase 0)  │  VSCode ext  │  Web dashboard  │  GitHub App            │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                                    │ HTTP/SSE · Subprocess
 ┌──────────────────────────────────▼─────────────────────────────────────────┐
@@ -147,7 +147,7 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 
 ### Phase 0 — Foundation (hackathon scope)
 
-**Exit criteria**: One curated issue flows end-to-end through specify → clarify → plan → tasks → implement → review → UAT → rebase-analyze → cleanup, producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from CLI and JetBrains plugin.
+**Exit criteria**: One curated issue flows end-to-end through specify → clarify → plan → tasks → implement → review → UAT → rebase-analyze → cleanup, producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from the CLI.
 
 **Must-ship**:
 - Filesystem-first storage (no DB)
@@ -166,8 +166,7 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 - Secret redaction (regex-based)
 - Audit log (JSONL)
 - Rule precedence (2 levels: core + repo)
-- CLI (primary interface)
-- JetBrains plugin (thin client over CLI daemon)
+- CLI (primary and only client surface in Phase 0)
 - UAT persona (wraps existing `ccc/skills/uat-testing`)
 - **Phase 1 peek**: 3-agent tiebreaker for Coder↔Reviewer escalation
 
@@ -209,11 +208,11 @@ Convergence detection, round caps, anonymized peer ranking, chairman synthesis.
 - OpenTelemetry integration (spans for every agent action, tool call, gate)
 - Cost budget enforcement with per-run/per-day/per-model caps
 
-### Phase 5 — IDE Plugins Extended
+### Phase 5 — IDE Extensions
 
-- JetBrains plugin polish: Evidence Pack webview, Run Graph explorer, ADR browser, cost dashboard, debate visualizer
 - VSCode extension (shares backend; covers Cursor, Windsurf, Void by extension)
 - Zed extension
+- JetBrains extensibility intentionally excluded — not in scope as of 2026-04
 
 ### Phase 6 — Web Dashboard + GitHub App
 

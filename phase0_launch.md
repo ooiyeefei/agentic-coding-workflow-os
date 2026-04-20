@@ -59,9 +59,8 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 | **1b** — short chains | W04 (+W02), W06 (+W03), W08 (+W03), W09 (+W03), W26 (+W03, W13) | Wave 1a pieces |
 | **1c** | W07 (+W02, W03) | Wave 1a |
 | **2** | W11 (+W04, W05, W06, W07, W08, W09), W13 (+W03, W10), W14 (+W06) | Wave 1 |
-| **3** | W15 (+W11), W16 (+W15), W18 (+W04), W19 (+W02, W04), W21 (+W02, W04) | Wave 2 |
-| **4** | W17 (W16 API), W20 (+W17, W08) | Wave 3 |
-| **Demo** | W23 (+W22), W24 (+W11, W15, W22, W23), W25 (+W24) | Wave 3-4 |
+| **3** | W15 (+W11), W16 (+W15, optional — future surfaces), W18 (+W04), W19 (+W02, W04), W21 (+W02, W04) | Wave 2 |
+| **Demo** | W23 (+W22), W24 (+W11, W15, W22, W23), W25 (+W24) | Wave 3 |
 
 At any time, multiple worktrees across different waves can be running in parallel as long as each worktree's own dependencies have landed.
 
@@ -838,7 +837,7 @@ Learnings carried:
 
 **Issue**: [#8](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/8)
 **Depends on**: W01, W03
-**Blocks**: W04 (Reviewer writes via this), W20
+**Blocks**: W04 (Reviewer writes via this)
 
 **Git commands**:
 ```bash
@@ -1531,7 +1530,9 @@ Learnings carried:
 
 **Issue**: [#16](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/16)
 **Depends on**: W15
-**Blocks**: W17, W20
+**Blocks**: (nothing in Phase 0 — optional worktree that unlocks future non-CLI clients)
+
+**Phase 0 scope note**: W16 is OPTIONAL in Phase 0 now that the JetBrains plugin (W17/W20) has been dropped. Build this only if Lane A has time after W15 CLI ships. Its value is enabling future surfaces (VSCode, web dashboard, CI integration).
 
 **Git commands**:
 ```bash
@@ -1544,7 +1545,7 @@ cd ../acw-w16
 ```
 You are the Coder agent for W16 — HTTP daemon + SSE (issue #16).
 
-Strategic context: The JetBrains plugin (W17/W20) connects to this daemon via localhost HTTP. SSE stream delivers live workflow events to the plugin webview. This is the seam where the Control Plane meets its first client.
+Strategic context: An optional future-facing worktree. Exposes the Control Plane over localhost HTTP + SSE so non-CLI clients (future VSCode extension, web dashboard, CI integrations) can consume runs in real time. Phase 0 has no concrete consumer — we are establishing the contract for later phases. Skip if CLI priorities crowd it out.
 
 Objective: Build atelier/daemon/ with FastAPI exposing runs + SSE + approval routes.
 
@@ -1744,163 +1745,6 @@ Output format + verification + confidence as standard.
 Learnings carried:
 - MAD is escalation-only; never routine.
 - Anonymization is Phase 1; for Phase 0 demo, just run 3 voters in parallel with majority logic.
-```
-
----
-
-# Wave 4 — Plugin (depends on W16 API + W08 Evidence Pack)
-
-## W17: JetBrains plugin scaffold
-
-**Issue**: [#17](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/17)
-**Depends on**: W16 API contract (interfaces can be stubbed; can start when OpenAPI spec lands)
-**Blocks**: W20
-
-**Git commands**:
-```bash
-cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add ../acw-w17 -b acw-w17 main
-cd ../acw-w17
-```
-
-**Coder prompt**:
-```
-You are the Coder agent for W17 — JetBrains plugin scaffold (issue #17).
-
-Strategic context: This is Atelier's IDE surface. A plugin that renders well wins hackathon demo points; one that doesn't compile tanks them. Start from the IntelliJ Platform Plugin Template to skip Gradle hell.
-
-Objective: Scaffold a JetBrains plugin that registers a tool window, builds via Gradle intellij-platform plugin, and runs in a dev IDE.
-
-Files you own:
-- plugin-jetbrains/build.gradle.kts
-- plugin-jetbrains/settings.gradle.kts
-- plugin-jetbrains/src/main/resources/META-INF/plugin.xml
-- plugin-jetbrains/src/main/kotlin/com/atelier/AtelierToolWindowFactory.kt
-- plugin-jetbrains/gradle/wrapper/*
-
-How to start:
-1. /speckit.specify "JetBrains plugin scaffold using IntelliJ Platform Plugin Template; Atelier tool window registered (empty shell)"
-2. /speckit.clarify — target IDE versions (IntelliJ IDEA 2024.3+), Kotlin version (2.0+), minimum platform API version.
-3. /speckit.plan → /speckit.tasks → /speckit.implement. Use https://github.com/JetBrains/intellij-platform-plugin-template as starting commit.
-4. Review iterations.
-
-Acceptance criteria:
-- `./gradlew buildPlugin` succeeds, produces a .zip in build/distributions/
-- `./gradlew runIde` launches a dev IDE with Atelier tool window visible (empty panel OK for this worktree)
-- plugin.xml declares tool window + dependencies correctly
-- CI-friendly: build completes without manual user input
-
-Credentials: not needed.
-```
-
-**Reviewer prompt**:
-```
-You are the Reviewer agent for W17 — JetBrains plugin scaffold (issue #17).
-
-Strategic context — where we are heading:
-Plugin must compile + load in a real IDE. Scaffold-only worktree; W20 adds the real UI. But this foundation must be rock-solid.
-
-Full scope: ../../phase0_plan.md W17.
-
-Review scope: plugin-jetbrains/.
-
-Review guidelines (execution-mandatory):
-1. `cd plugin-jetbrains && ./gradlew buildPlugin` — paste output.
-2. `ls build/distributions/` — confirm .zip exists. Paste.
-3. Inspect plugin.xml; confirm tool window + dependencies valid.
-4. If you can run IDE (team might have JBR): `./gradlew runIde` and confirm Atelier panel appears. Otherwise skip with note.
-
-Domain findings to apply:
-- If build takes >5 minutes (heavy intellij-platform download): ORANGE (cache config needed).
-- If Kotlin version <2.0: YELLOW (newer better for Compose-based UI later).
-- If plugin.xml declares tool window without factory class: RED (broken on first run).
-- If any hardcoded API key in build.gradle: RED.
-
-Output format + verification + confidence as standard.
-
-Learnings carried:
-- Start from the official template. Custom Gradle configs eat hours.
-- Defer real UI to W20. Keep W17 minimal.
-```
-
----
-
-## W20: Plugin tool window + JCEF webview + SSE
-
-**Issue**: [#20](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/20)
-**Depends on**: W17, W08 (Evidence Pack format)
-**Blocks**: (demo presentation)
-
-**Git commands**:
-```bash
-cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add ../acw-w20 -b acw-w20 main
-cd ../acw-w20
-```
-
-**Coder prompt**:
-```
-You are the Coder agent for W20 — Plugin tool window + JCEF webview (issue #20).
-
-Strategic context: The user-visible Atelier UI. JCEF webview renders Evidence Pack Markdown; SSE client streams live events from W16 daemon; tree view shows Run Graph. Judges see THIS. Invest in polish.
-
-Objective: Build the full plugin UI — 3 tabs (Run Graph tree, Evidence Pack webview, ADR preview) + SSE live updates.
-
-Files you own:
-- plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/AtelierToolWindow.kt — main panel; tabs
-- plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/RunGraphTreeView.kt — tree rendering
-- plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/EvidencePackView.kt — JCEF webview
-- plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/AdrPreviewView.kt — ADR renderer
-- plugin-jetbrains/src/main/kotlin/com/atelier/api/SSEClient.kt — Server-Sent Events client for W16 daemon
-- plugin-jetbrains/src/main/resources/web/evidence.html + styles.css + app.js — webview static assets
-- plugin-jetbrains/src/main/resources/web/package.json — frontend deps (marked for markdown rendering, etc.)
-
-How to start:
-1. /speckit.specify "Plugin tool window with 3 tabs, JCEF webview for Evidence Pack, SSE live events from local daemon"
-2. /speckit.clarify — frontend framework (vanilla JS + marked is probably enough for Phase 0; React adds bundle complexity), state refresh strategy (SSE-driven).
-3. /speckit.plan → /speckit.tasks → /speckit.implement.
-4. Review iterations.
-
-Acceptance criteria:
-- `./gradlew runIde` opens IDE; Atelier tool window shows 3 tabs
-- Click "New Run from Issue" → daemon starts → Run Graph tab populates in real time via SSE
-- Switching to Evidence Pack tab shows rendered Markdown from the active stage
-- ADR tab shows auto-generated ADR after run completes
-- SSE client reconnects on transient disconnect
-
-Credentials: passed through to daemon via localhost.
-```
-
-**Reviewer prompt**:
-```
-You are the Reviewer agent for W20 — Plugin UI (issue #20).
-
-Strategic context — where we are heading:
-This is the demo's money shot. Judges stare at this. Every polish point matters. A broken SSE or a blank webview tanks the whole hackathon.
-
-Full scope: ../../phase0_plan.md W20.
-
-Review scope: plugin-jetbrains/src/main/kotlin/com/atelier/toolwindow/, plugin-jetbrains/src/main/resources/web/.
-
-Review guidelines (execution-mandatory):
-1. `./gradlew runIde` — paste output. Open the tool window.
-2. Start daemon (W16) in parallel; trigger a run; confirm live updates. Paste screenshot or event log.
-3. Evidence Pack tab: confirm Markdown renders correctly (headings, code blocks, lists). Paste HTML source of a rendered pack.
-4. SSE disconnect test: kill daemon, confirm plugin shows "Disconnected" or retries. Paste observation.
-
-Domain findings to apply:
-- If plugin blocks the EDT (event-dispatch thread) on network calls: RED (IDE freezes).
-- If SSE client doesn't reconnect: ORANGE.
-- If webview has no CSP header: ORANGE.
-- If secrets appear in logs: RED.
-- If UI breaks on large Evidence Packs (>100 findings): YELLOW.
-
-Output format + verification + confidence as standard.
-
-Learnings carried:
-- EDT-unsafe code freezes the IDE. Always dispatch heavy ops to background.
-- JCEF is Chromium. Full HTML/CSS/JS works. Leverage it.
-- Live updates are the magic. Don't let them break.
 ```
 
 ---
