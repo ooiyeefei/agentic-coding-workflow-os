@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2026-04-20
 
 ## Active Technologies
+- Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest (005-typed-memory-records)
+- Markdown files with YAML frontmatter under `.atelier/memory/{decisions,findings,rejected_alternatives}/` (005-typed-memory-records)
 
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio (004-persona-library)
 
@@ -22,6 +24,7 @@ cd src && pytest && ruff check .
 Python 3.11: Follow standard conventions
 
 ## Recent Changes
+- 005-typed-memory-records: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest
 
 - 004-persona-library: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio
 
