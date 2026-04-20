@@ -1,7 +1,7 @@
 # Implementation Plan: Context Compiler
 
-**Branch**: `005-context-compiler` | **Date**: 2026-04-20 | **Spec**: [/home/fei/fei/code/hackathon/acw-w07/specs/005-context-compiler/spec.md](/home/fei/fei/code/hackathon/acw-w07/specs/005-context-compiler/spec.md)
-**Input**: Feature specification from `/specs/005-context-compiler/spec.md`
+**Branch**: `006-context-compiler` | **Date**: 2026-04-20 | **Spec**: [/home/fei/fei/code/hackathon/acw-w07/specs/006-context-compiler/spec.md](/home/fei/fei/code/hackathon/acw-w07/specs/006-context-compiler/spec.md)
+**Input**: Feature specification from `/specs/006-context-compiler/spec.md`
 
 ## Summary
 
@@ -28,7 +28,7 @@ The repository constitution is still template text, so there are no enforceable 
 ### Documentation (this feature)
 
 ```text
-specs/005-context-compiler/
+specs/006-context-compiler/
 ├── plan.md
 ├── research.md
 ├── data-model.md

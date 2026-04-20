@@ -1,6 +1,6 @@
 # Feature Specification: Context Compiler
 
-**Feature Branch**: `005-context-compiler`  
+**Feature Branch**: `006-context-compiler`  
 **Created**: 2026-04-20  
 **Status**: Draft  
 **Input**: User description: "Context Compiler: priority-tier packet assembly with token budgets and provenance"

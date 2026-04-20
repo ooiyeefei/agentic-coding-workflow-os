@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning  
 **Created**: 2026-04-20  
-**Feature**: [spec.md](/home/fei/fei/code/hackathon/acw-w07/specs/005-context-compiler/spec.md)
+**Feature**: [spec.md](/home/fei/fei/code/hackathon/acw-w07/specs/006-context-compiler/spec.md)
 
 ## Content Quality
 

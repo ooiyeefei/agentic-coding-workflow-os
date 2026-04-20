@@ -1,6 +1,6 @@
 # Tasks: Context Compiler
 
-**Input**: Design documents from `/specs/005-context-compiler/`  
+**Input**: Design documents from `/specs/006-context-compiler/`  
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/compiler.md  
 **Tests**: Tests are required for this feature because the acceptance criteria explicitly require deterministic compilation, budget trimming, deduplication, and the impossible-budget error path.  
 **Organization**: Tasks are grouped by user story so packet assembly, budget enforcement, and provenance remain independently testable.
