@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
-from atelier.council.schema import CouncilReport
+if TYPE_CHECKING:
+    from atelier.council.schema import CouncilReport
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_COUNCIL_MEMORY_DIR = REPO_ROOT / ".atelier" / "memory" / "council_reports"
