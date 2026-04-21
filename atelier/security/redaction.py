@@ -10,6 +10,7 @@ from .patterns import (
     REDACTION_MARKER_PATTERN,
     SENSITIVE_ENV_ASSIGNMENT_PATTERN,
     SENSITIVE_ENV_NAME_PATTERNS,
+    SENSITIVE_JSON_VALUE_PATTERN,
     URL_CREDENTIALS_PATTERN,
     WHOLE_MATCH_PATTERNS,
     SecretPattern,
@@ -56,6 +57,7 @@ def _redact_segment(text: str, extra_patterns: tuple[SecretPattern, ...]) -> str
         redacted = pattern.regex.sub(_replace_whole_match(pattern.name), redacted)
 
     redacted = SENSITIVE_ENV_ASSIGNMENT_PATTERN.sub(_replace_sensitive_env_assignment, redacted)
+    redacted = SENSITIVE_JSON_VALUE_PATTERN.sub(_replace_sensitive_json_value, redacted)
 
     for pattern in extra_patterns:
         redacted = pattern.regex.sub(_replace_whole_match(pattern.name), redacted)
@@ -102,6 +104,19 @@ def _replace_sensitive_env_assignment(match: Match[str]) -> str:
         f"{key}{match.group('sep')}{opening_quote}"
         f"{_env_value_marker(inner_value, marker_name)}{closing_quote}"
     )
+
+
+def _replace_sensitive_json_value(match: Match[str]) -> str:
+    key = match.group("key")
+    marker_name = _marker_name_for_env_key(key)
+    if marker_name is None:
+        return match.group(0)
+
+    value = match.group("value")
+    if REDACTION_MARKER_PATTERN.fullmatch(value):
+        return match.group(0)
+
+    return f'"{key}"{match.group("sep")}"{_marker(marker_name)}"'
 
 
 def _replace_bearer_token(match: Match[str]) -> str:
