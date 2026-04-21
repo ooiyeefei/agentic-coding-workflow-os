@@ -1,0 +1,62 @@
+name: speckit-loop
+version: "1.0.0"
+description: >
+  Full speckit workflow: specify → clarify → plan → tasks → implement →
+  UAT → rebase-analyze → cleanup.
+
+stages:
+  - id: specify
+    persona: coder
+    skill: speckit.specify
+    gate_type: auto
+    retry_max: 0
+    on_reject: halt
+
+  - id: clarify
+    persona: coder
+    skill: speckit.clarify
+    gate_type: auto
+    retry_max: 0
+    on_reject: halt
+
+  - id: plan
+    persona: coder
+    skill: speckit.plan
+    gate_type: review
+    retry_max: 3
+    on_reject: revise
+
+  - id: tasks
+    persona: coder
+    skill: speckit.tasks
+    gate_type: review
+    retry_max: 3
+    on_reject: revise
+
+  - id: implement
+    persona: coder
+    skill: speckit.implement
+    gate_type: review
+    retry_max: 5
+    on_reject: revise
+
+  - id: uat
+    persona: uat
+    skill: uat-test
+    gate_type: auto
+    retry_max: 2
+    on_reject: "revert_to:implement"
+
+  - id: rebase-analyze
+    persona: coder
+    skill: rebase-before-pr
+    gate_type: approval
+    retry_max: 0
+    on_reject: halt
+
+  - id: cleanup
+    persona: coder
+    skill: cleanup-worktree
+    gate_type: approval
+    retry_max: 0
+    on_reject: halt
