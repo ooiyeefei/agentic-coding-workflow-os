@@ -4,6 +4,18 @@
 >
 > **Operational companion**: [`phase0_launch.md`](./phase0_launch.md) contains paste-ready git worktree commands + coder/reviewer prompts for each worktree. Open that file when you're ready to start work; this file is the design spec.
 
+## Current Progress
+
+| Status | Count | Worktrees |
+|---|---|---|
+| **Merged to main** | 16 | W01, W02, W03, W04, W05, W06, W07, W08, W09, W10, W12, W18, W19, W21, W22, W23 |
+| **Descoped** | 2 | W17, W20 (JetBrains plugin — CLI is sole Phase 0 surface) |
+| **Closed** | 1 | W25 (hackathon pitch — removed post-hackathon) |
+| **Ready to launch (Wave 3)** | 4 | **W11, W13, W14, W26** — all deps met, can start in parallel NOW |
+| **Blocked on Wave 3** | 3 | W15 (needs W11), W16 (needs W15), W24 (needs W11 + W15) |
+
+**Critical path**: W11 (Workflow Engine) → W15 (CLI) → W24 (Integration Tests)
+
 ## Scope Summary
 
 Ship the functional MVP of Atelier: a real GitHub issue flows end-to-end through a user-defined workflow, producing Evidence Packs, auto-generated ADRs, and a Run Graph — all persisted as files, replayable, reviewer-attacked, and human-approved at destructive gates. Invokable from the CLI. All components dynamic and configurable.

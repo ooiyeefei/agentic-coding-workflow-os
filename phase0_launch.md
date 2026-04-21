@@ -52,15 +52,18 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 
 ## Wave structure (dependency graph)
 
-| Wave | Worktrees | Depends on |
+| Wave | Worktrees | Status |
 |---|---|---|
-| **0** — start now | W01, W22 | nothing |
-| **1a** — after W01 | W02, W03, W05, W10, W12 | W01 |
-| **1b** — short chains | W04 (+W02), W06 (+W03), W08 (+W03), W09 (+W03), W26 (+W03, W13) | Wave 1a pieces |
-| **1c** | W07 (+W02, W03) | Wave 1a |
-| **2** | W11 (+W04, W05, W06, W07, W08, W09), W13 (+W03, W10), W14 (+W06) | Wave 1 |
-| **3** | W15 (+W11), W16 (+W15, optional — future surfaces), W18 (+W04), W19 (+W02, W04), W21 (+W02, W04) | Wave 2 |
-| **Demo** | W23 (+W22), W24 (+W11, W15, W22, W23), W25 (+W24) | Wave 3 |
+| **0** | W01, W22 | **DONE** — merged to main |
+| **1a** | W02, W03, W05, W10, W12 | **DONE** — merged to main |
+| **1b** | W04, W06, W08, W09 | **DONE** — merged to main |
+| **1c** | W07 | **DONE** — merged to main |
+| **1d** (parallel) | W18, W19, W21, W23 | **DONE** — merged to main |
+| **~~descoped~~** | ~~W17, W20~~ (JetBrains plugin) | Removed — CLI is sole Phase 0 surface |
+| **~~removed~~** | ~~W25~~ (pitch deck) | Closed — not a product artifact |
+| **3 — CURRENT** | **W11, W13, W14, W26** | **READY NOW** — all deps met, launch in parallel |
+| **4** — after W11 | W15 (+W11), W16 (+W15) | Blocked on W11 |
+| **5** — after W15 | W24 (+W11, W15, W22, W23) | Blocked on W15 |
 
 At any time, multiple worktrees across different waves can be running in parallel as long as each worktree's own dependencies have landed.
 
@@ -190,7 +193,7 @@ Learnings carried (steering context — do not suggest these):
 
 ---
 
-## W22: Curated demo target app
+## W22: Example project (integration test target)
 
 **Issue**: [#22](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/22)
 **Depends on**: nothing (parallel lane, no code deps)
@@ -608,18 +611,20 @@ cd ../acw-w12
 ```
 You are the Coder agent for W12 — Policy Engine (issue #12).
 
-Strategic context: Workflow says WHAT happens next; Policy says what is ALLOWED, what requires approval, what evidence is required, what counts as an override. Separating these prevents workflow logic from being contaminated with approval checks. Phase 0 uses hardcoded policies; Phase 3+ makes them config-driven.
+Strategic context: Workflow says WHAT happens next; Policy says what is ALLOWED, what requires approval, what evidence is required, what counts as an override. Separating these prevents workflow logic from being contaminated with approval checks. Policy is loaded from `.atelier/policy.yaml` (user project) or `.atelier/defaults/policy.yaml` (shipped defaults). Users override in their project config.
 
 Objective: Build atelier/policy/ with primitives for approval gates, dry-run defaults, and cost caps.
 
 Files you own:
 - atelier/policy/engine.py — `PolicyEngine` class with `requires_approval(stage, context) -> bool`, `is_dry_run(operation) -> bool`, `check_cost(run_id, proposed_cost) -> bool | raises CostCapExceeded`
-- atelier/policy/defaults.py — Phase 0 hardcoded defaults: approval required at `rebase-before-pr` and `cleanup-worktree`; dry-run default True for all git mutate ops; cost cap $5/run, $50/day
+- atelier/policy/loader.py — loads policy from `.atelier/policy.yaml` (user) or `.atelier/defaults/policy.yaml` (shipped defaults)
+- atelier/policy/defaults.py — shipped defaults: approval required at `rebase-before-pr` and `cleanup-worktree`; dry-run default True for all git mutate ops; cost cap $5/run, $50/day
+- .atelier/defaults/policy.yaml — the shipped default policy as YAML (users copy to `.atelier/policy.yaml` and customize)
 - atelier/policy/cost_tracker.py — reads audit.jsonl (W13), sums costs per run and per day
 - tests/test_policy.py
 
 How to start:
-1. /speckit.specify "policy engine with approval gates, dry-run defaults, cost caps, all hardcoded for Phase 0"
+1. /speckit.specify "configurable policy engine loading from .atelier/policy.yaml with approval gates, dry-run defaults, cost caps"
 2. /speckit.clarify — cost tracking scope (per-call vs per-run — prefer per-run aggregated from W13 audit), approval UX (how policy signals "needs approval" back to orchestrator — enum return vs exception).
 3. /speckit.plan → /speckit.tasks → /speckit.implement.
 4. Review iterations.
@@ -1143,7 +1148,7 @@ Learnings carried:
 
 ---
 
-# Wave 2 — Workflow engine + late dependencies
+# Wave 3 — CURRENT: Workflow engine + late dependencies (all deps met, launch now)
 
 ## W11: Workflow Engine
 
@@ -1160,29 +1165,35 @@ cd ../acw-w11
 
 **Coder prompt**:
 ```
-You are the Coder agent for W11 — Workflow Engine (issue #11).
+You are the Coder agent for W11 — Workflow Engine, dynamic workflow-as-code (issue #11).
 
-Strategic context: The engine choreographs the speckit loop: specify → clarify → plan → tasks → implement → (UAT optional) → rebase-analyze → cleanup. Each stage: calls persona, writes Evidence Pack, checks policy gate, transitions or loops. Resume-aware via W09 cursor. Phase 0 is serial; Phase 2 adds parallelism.
+Strategic context: This engine is the core of Atelier. It MUST be dynamic — it loads workflow definitions from YAML files, NOT a hardcoded pipeline. Users define their own workflows for their projects. Atelier ships `speckit-loop.yaml` as the default, but the engine is NOT tied to speckit. Phase 0 is serial execution; Phase 2 adds parallelism.
 
-Objective: Build atelier/workflow/ that drives one issue end-to-end.
+Objective: Build a workflow-as-code engine that loads and executes workflow definitions from `.atelier/workflows/*.yaml`.
 
 Files you own:
-- atelier/workflow/engine.py — `Workflow` class with `start(issue_ref) -> run_id`, `advance(run_id) -> NextStage | Done`, `resume(run_id)`
-- atelier/workflow/stages.py — stage functions (one per speckit command + UAT + rebase + cleanup), each: pull context via W07 compiler, call persona (W04), generate Evidence Pack (W08), check policy gate (W12), write memory records (W06), mark stage complete (W09)
-- atelier/workflow/transitions.py — logic for deciding next stage from current verdict
-- tests/test_workflow.py — integration test with mock LLM: start → run through specify + review → confirm files created on disk
+- atelier/workflow/engine.py — `WorkflowEngine` class with `start(issue_ref, workflow_name="speckit-loop") -> run_id`, `advance(run_id) -> NextStage | Done`, `resume(run_id)`. Loads workflow YAML, resolves personas + skills per stage, drives execution.
+- atelier/workflow/loader.py — `load_workflow(name) -> WorkflowDefinition`. Searches `.atelier/workflows/` (user project), falls back to `.atelier/defaults/workflows/`. Validates with Pydantic schema.
+- atelier/workflow/schema.py — Pydantic models: `WorkflowDefinition`, `StageDefinition` (persona, skill, gate_type: review|approval|auto, retry_policy, transition_rules)
+- atelier/workflow/stages.py — stage executor: pull context via W07 compiler, call persona (W04), generate Evidence Pack (W08), check policy gate (W12), write memory records (W06), mark stage complete (W09)
+- atelier/workflow/transitions.py — logic for deciding next stage from current verdict + workflow YAML rules
+- .atelier/defaults/workflows/speckit-loop.yaml — the default shipped workflow (specify → clarify → plan → tasks → implement → UAT → rebase-analyze → cleanup)
+- tests/test_workflow.py — (1) load speckit-loop.yaml, run specify→review. (2) load a CUSTOM 2-stage workflow YAML, run it successfully. Both must work.
 
 How to start:
-1. /speckit.specify "Workflow Engine driving speckit loop serially, with resume-from-cursor"
-2. /speckit.clarify — how to handle Reviewer NEEDS_REVISION (loop Coder with feedback embedded in next packet, max 3 iters then escalate to council W21), UAT trigger condition (only if user-facing feature detected — use a simple heuristic for Phase 0: run if /api/ route or UI component in diff).
+1. /speckit.specify "Dynamic workflow-as-code engine that loads workflow definitions from YAML, ships speckit-loop as default, supports custom workflows"
+2. /speckit.clarify — YAML schema design (each stage declares: id, persona, skill, gate_type, retry_max, on_reject action), how loader resolves user-project vs shipped defaults (user wins), how to handle Reviewer NEEDS_REVISION (loop Coder with feedback in next packet, max from YAML retry_max then escalate to council W21).
 3. /speckit.plan → /speckit.tasks → /speckit.implement.
 4. Review iterations.
 
 Acceptance criteria:
+- load_workflow("speckit-loop") loads from defaults, returns valid WorkflowDefinition
+- load_workflow("custom") loads from user's .atelier/workflows/custom.yaml if present
 - start(issue_ref) creates run + first stage, returns run_id
-- advance() drives specify → review; on NEEDS_REVISION, loops Coder (max 3 iters)
+- advance() drives stages per YAML definition; on NEEDS_REVISION, loops per retry_max
 - resume(run_id) picks up where cursor points
-- Files on disk: .atelier/runs/<id>/run.md + stages/001-specify/ with packet.md, transcript.jsonl, evidence.{md,json}
+- A DIFFERENT workflow YAML (e.g., minimal 2-stage "implement → review") runs successfully through the same engine
+- Files on disk: .atelier/runs/<id>/run.md + stages/001-<name>/ with packet.md, transcript.jsonl, evidence.{md,json}
 - Mock LLM fixture enables deterministic tests
 
 Credentials: for integration test (optional), ANTHROPIC_API_KEY + OPENAI_API_KEY.
@@ -1193,28 +1204,33 @@ Credentials: for integration test (optional), ANTHROPIC_API_KEY + OPENAI_API_KEY
 You are the Reviewer agent for W11 — Workflow Engine (issue #11).
 
 Strategic context — where we are heading:
-This engine IS the reproducibility thesis made operational. Every bug here cascades. Resume correctness, transition logic, and stage isolation are load-bearing for the whole product.
+This engine IS the reproducibility thesis made operational. Every bug here cascades. Resume correctness, transition logic, and stage isolation are load-bearing for the whole product. CRITICAL: the engine MUST be dynamic (loads workflow from YAML), NOT a hardcoded speckit pipeline. If you see hardcoded stage sequences instead of YAML-driven execution, flag as RED immediately.
 
 Full scope: ../../phase0_plan.md W11.
 
-Review scope: atelier/workflow/, tests/test_workflow.py.
+Review scope: atelier/workflow/, .atelier/defaults/workflows/speckit-loop.yaml, tests/test_workflow.py.
 
 Review guidelines (execution-mandatory):
 1. `uv run pytest tests/test_workflow.py -v` — paste output.
-2. Resume test: start workflow, advance 2 stages, simulate crash (kill process), resume in new process, confirm stage 3 is next. Paste trace.
-3. Infinite-loop guard test: force reviewer to NEEDS_REVISION 5x; confirm engine stops at max_iters and either escalates or halts (NEVER runs forever). Paste.
-4. Idempotency test: call advance() twice without new state change; confirm no duplicate stage creation. Paste.
+2. Verify YAML-driven: confirm engine reads stage sequence from YAML, not from Python code. `rg -n "specify.*clarify.*plan" atelier/workflow/` should return ZERO hits in engine.py (stages come from YAML, not code). Paste.
+3. Custom workflow test: create a minimal 2-stage YAML (implement → review), run it through the engine. Must succeed. Paste.
+4. Resume test: start workflow, advance 2 stages, simulate crash, resume in new process, confirm stage 3 is next. Paste trace.
+5. Infinite-loop guard: force NEEDS_REVISION beyond retry_max; confirm engine escalates or halts (NEVER runs forever). Paste.
+6. Idempotency: call advance() twice without state change; confirm no duplicate stage. Paste.
 
 Domain findings to apply:
+- If engine has hardcoded stage sequence (not loaded from YAML): RED. This is the single most important requirement.
 - If engine writes to DB instead of filesystem: RED.
 - If NEEDS_REVISION loop has no max-iter cap: RED (runaway cost).
-- If policy gate check is missing before rebase or cleanup stages: RED.
+- If policy gate check is missing before destructive stages: RED.
 - If Evidence Pack generation is optional on any review stage: RED.
 - If transcript.jsonl is overwritten (not append-only): RED.
+- If workflow YAML schema is not validated (accepts arbitrary keys silently): ORANGE.
 
 Output format + verification + confidence as standard.
 
 Learnings carried:
+- DYNAMIC WORKFLOW IS NON-NEGOTIABLE. The engine loads from YAML. Period.
 - Max iteration cap is cost + sanity protection. Always present.
 - Filesystem is truth; engine orchestrates, never stores state in memory beyond session.
 - Reviewer must gate every transition. No implicit advance on "Coder says done".
@@ -1446,7 +1462,7 @@ Learnings carried:
 
 ---
 
-# Wave 3 — Interfaces + LLM swappability
+# Wave 4 — CLI + Daemon (after W11 lands)
 
 ## W15: CLI
 
@@ -1608,7 +1624,7 @@ Learnings carried:
 
 **Issue**: [#19](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/19)
 **Depends on**: W02, W04
-**Blocks**: W24, W25
+**Blocks**: W24
 
 **Git commands**:
 ```bash
@@ -1676,7 +1692,7 @@ Learnings carried:
 
 ---
 
-## W21: Phase 1 peek: 3-agent tiebreaker
+## W21: 3-agent council tiebreaker
 
 **Issue**: [#21](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/21)
 **Depends on**: W02, W04
@@ -1693,7 +1709,7 @@ cd ../acw-w21
 ```
 You are the Coder agent for W21 — 3-agent tiebreaker (issue #21).
 
-Strategic context: Phase 1 peek — a minimal Council. When Coder ↔ Reviewer deadlock 2×, escalate: send both positions to 3 different models; each votes; majority wins; ties go to human. Full MAD comes in Phase 1; Phase 0 ships this narrow slice as a demo beat.
+Strategic context: A minimal Council for escalation. When Coder ↔ Reviewer deadlock 2×, escalate: send both positions to 3 different models; each votes; majority wins; ties go to human. Full MAD protocol comes in Phase 1; Phase 0 ships this narrow tiebreaker for real disagreement resolution.
 
 Objective: Build atelier/council/tiebreaker.py with a minimal voting protocol.
 
@@ -1751,7 +1767,7 @@ Learnings carried:
 
 # Demo prep wave (parallel with Wave 3-4, finalize Sunday)
 
-## W23: Curated demo issue
+## W23: Example issue
 
 **Issue**: [#23](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/23)
 **Depends on**: W22
@@ -1815,11 +1831,11 @@ Learnings carried:
 
 ---
 
-## W24: E2E dogfood + warm cache
+## W24: Integration tests + E2E validation
 
 **Issue**: [#24](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/24)
-**Depends on**: W11, W15, W22, W23 (ideally also W16 if time, W18, W19, W21)
-**Blocks**: W25
+**Depends on**: W11, W15, W22, W23
+**Blocks**: (final validation gate for Phase 0)
 
 **Git commands**:
 ```bash
@@ -1830,112 +1846,66 @@ cd ../acw-w24
 
 **Coder prompt**:
 ```
-You are the Coder agent for W24 — E2E dogfood + warm cache (issue #24).
+You are the Coder agent for W24 — Integration tests + E2E validation (issue #24).
 
-Strategic context: The moment we run Atelier ON the demo issue ON the demo app. Every stage must work. Every failure here is a demo risk. Capture every stage's output to warm-cache/ so that if the live demo hiccups, we drop to cached and the audience doesn't notice.
+Strategic context: This is the final validation gate for Phase 0. Run the full Atelier workflow against the example project + example issue end-to-end. Validate every component integrates correctly. Write repeatable integration tests. Set up CI (GitHub Actions) so every PR runs the suite.
 
-Objective: Run the full Phase 0 workflow end-to-end. Capture everything.
+Objective: E2E integration tests + CI pipeline proving the full workflow works.
 
 Files you own:
-- demo/warm-cache/* — captured outputs from a successful run
-- demo/dogfood.md — replay instructions, fallback triggers per stage
-- scripts/run-demo.sh — one-command kickoff
+- tests/integration/test_e2e_workflow.py — full workflow run against example app + issue: Context Compiler → Persona → Workflow Engine → Evidence Pack → ADR → Git Hygiene. Assert all artifacts produced.
+- tests/integration/test_component_integration.py — pairwise integration tests: Compiler+Persona, Persona+EvidencePack, WorkflowEngine+RunGraph, etc.
+- tests/integration/conftest.py — shared fixtures (mock LLM for deterministic CI, real LLM opt-in via env var)
+- .github/workflows/ci.yaml — GitHub Actions: lint (ruff), type-check (pyright), unit tests, integration tests
+- scripts/run-e2e.sh — one-command local E2E run (loads env, runs full workflow against example app)
 
 How to start:
-1. /speckit.specify "end-to-end dogfood run against demo app + issue, with warm-cache capture per stage"
-2. /speckit.clarify — what counts as "successful" per stage (each Evidence Pack approved, UAT pass, ADR generated, rebase-report produced).
+1. /speckit.specify "integration tests validating full Atelier workflow end-to-end + CI pipeline"
+2. /speckit.clarify — mock vs real LLM in CI (mock by default for determinism + cost, real LLM opt-in via ATELIER_INTEGRATION_REAL_LLM=1), what "full workflow" means (every stage from speckit-loop.yaml produces correct artifacts on filesystem).
 3. /speckit.plan → /speckit.tasks → /speckit.implement.
 4. Review iterations.
-5. RUN THE DEMO at least 3×. Each run should succeed. Cache the 3rd.
 
 Acceptance criteria:
-- Full workflow runs without human intervention (except rebase-before-pr approval)
-- Every stage produces expected artifacts
-- warm-cache/ has replay-ready snapshots of every stage
-- scripts/run-demo.sh is one-command executable
-- Rehearsed 3+ times
+- E2E test runs full speckit-loop workflow with mock LLM: all stages produce artifacts
+- Every artifact type verified: packet.md, transcript.jsonl, evidence.{md,json}, decisions/*.md, run.md with completion marker
+- Component integration tests cover: Compiler→Persona, Persona→Evidence, Workflow→RunGraph, ADR synthesis from memory records
+- CI pipeline runs on every PR (GitHub Actions)
+- scripts/run-e2e.sh works from clean checkout (after uv sync + env setup)
+- Tests are repeatable — no dependency on prior state
 
-Credentials: full env.
+Credentials: ANTHROPIC_API_KEY + OPENAI_API_KEY (for real-LLM opt-in tests only; mock by default).
 ```
 
 **Reviewer prompt**:
 ```
-You are the Reviewer agent for W24 — E2E dogfood (issue #24).
+You are the Reviewer agent for W24 — Integration tests + E2E validation (issue #24).
 
-Strategic context: This IS the demo. If it works here, it works Sunday. If it flakes, everything else is lost.
+Strategic context: This is where we prove Phase 0 actually works. Integration tests must be deterministic (mock LLM default), comprehensive (every component pair tested), and CI-ready. If these tests pass, Phase 0 ships.
 
-Review scope: demo/warm-cache/, demo/dogfood.md, scripts/run-demo.sh.
+Full scope: ../../phase0_plan.md W24.
 
-Guidelines:
-1. Run scripts/run-demo.sh. Paste stdout + stderr.
-2. Verify every stage produced artifacts: grep for evidence.md, evidence.json, packet.md, transcript.jsonl, completion markers. Paste counts.
-3. Check warm-cache has replay: can you rerun from cache without hitting LLMs? Paste fallback exercise.
-4. Run demo 3× back-to-back. Did any run fail? Paste each trace.
+Review scope: tests/integration/, .github/workflows/ci.yaml, scripts/run-e2e.sh.
 
-Domain findings:
-- If any stage skipped: RED.
-- If Evidence Pack missing for any review stage: RED.
-- If warm-cache has secrets (missed redaction): RED.
-- If script requires manual typing beyond approval prompts: ORANGE.
+Review guidelines (execution-mandatory):
+1. `uv run pytest tests/integration/ -v` — paste output.
+2. Verify artifact completeness: after E2E run, check .atelier/runs/<id>/ has all expected files. `find .atelier/runs/ -type f | sort` — paste.
+3. CI dry-run: `act -j test` (if act installed) or review .github/workflows/ci.yaml for correctness. Paste findings.
+4. Clean-slate test: delete .atelier/, run E2E again, confirm it recreates everything. Paste.
 
-Output + verification + confidence as standard.
+Domain findings to apply:
+- If E2E test requires real LLM by default (not mock): RED (CI will fail without keys + cost is unbounded).
+- If any stage's artifacts are not verified by assertions: ORANGE.
+- If CI doesn't run on PR: RED.
+- If tests depend on prior state (not idempotent): RED.
+- If scripts/run-e2e.sh has hardcoded paths: ORANGE.
+
+Output format + verification + confidence as standard.
 
 Learnings carried:
-- Three clean runs = we ship. Two = rehearse more. One = unreliable.
-- Cache EVERYTHING. Fallback is worth the disk space.
+- Mock LLM by default. Real LLM opt-in. CI must be free and deterministic.
+- Every artifact type must be asserted. "It ran without error" is not enough — verify what's on disk.
 ```
 
----
-
-## W25: Pitch deck + demo script + fallback video
-
-**Issue**: [#25](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/25)
-**Depends on**: W24
-**Blocks**: (submission)
-
-**Git commands**:
-```bash
-cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-git worktree add ../acw-w25 -b acw-w25 main
-cd ../acw-w25
-```
-
-**Coder prompt**:
-```
-You are the Coder agent for W25 — Pitch deck + demo script + fallback video (issue #25).
-
-Strategic context: Pitch is 10% of the rubric but the tiebreaker. A clear demo with a sharp narrative wins against a better product with a bad pitch. Record fallback video NOW, not Sunday afternoon.
-
-Objective: Deliver pitch deck, demo script, and fallback video.
-
-Files you own:
-- demo/pitch.md — 5 slides: problem, solution, demo, moat, ask
-- demo/script.md — beat-by-beat narration timed to ≤90s
-- demo/fallback.mp4 — recorded screen+narration of a successful dogfood run
-
-How to start:
-1. /speckit.specify "pitch deck + demo script + fallback video for Atelier Phase 0"
-2. /speckit.clarify — deck format (markdown-only is fine for hackathon judges; no need for fancy slides), voice (calm, confident, one-thesis-per-slide).
-3. /speckit.plan → /speckit.tasks → /speckit.implement.
-4. Record fallback video with OBS/QuickTime. Rehearse live script 5×.
-
-Acceptance criteria:
-- Pitch deck: 5 slides, each ≤50 words
-- Script fits in 90s when read aloud
-- Fallback video plays the demo narrated over real outputs
-- Rehearsed ≥5 times
-```
-
-**Reviewer prompt**:
-```
-You are the Reviewer agent for W25 — Pitch materials (issue #25).
-
-Review scope: demo/pitch.md, demo/script.md, demo/fallback.mp4.
-
-Guidelines:
-1. Read pitch aloud, time it. Paste duration.
-2. Watch fallback video. Paste 3 critical observations (pacing, clarity, obvious bugs).
-3. Confirm deck covers: problem, solution, demo, moat, ask — one per slide.
 
 Domain findings:
 - If script exceeds 90s: RED (cut ruthlessly).
