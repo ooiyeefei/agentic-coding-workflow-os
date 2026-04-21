@@ -34,6 +34,10 @@ SENSITIVE_ENV_ASSIGNMENT_PATTERN = re.compile(
     r"(?P<key>\b[A-Za-z_][A-Za-z0-9_]{0,63}\b)(?P<sep>\s*=\s*)(?P<value>\"[^\"]*\"|'[^']*'|[^\s]+)"
 )
 
+SENSITIVE_JSON_VALUE_PATTERN = re.compile(
+    r'"(?P<key>[A-Za-z_][A-Za-z0-9_]{0,63})"(?P<sep>\s*:\s*)"(?P<value>[^"]+)"'
+)
+
 SENSITIVE_ENV_NAME_PATTERNS: tuple[tuple[str, Pattern[str]], ...] = (
     ("api-key", re.compile(r"(?:^|_)API_KEY(?:_|$)", re.IGNORECASE)),
     ("private-key", re.compile(r"(?:^|_)PRIVATE_KEY(?:_|$)", re.IGNORECASE)),
@@ -93,6 +97,7 @@ __all__ = [
     "REDACTION_MARKER_PATTERN",
     "SENSITIVE_ENV_ASSIGNMENT_PATTERN",
     "SENSITIVE_ENV_NAME_PATTERNS",
+    "SENSITIVE_JSON_VALUE_PATTERN",
     "SecretPattern",
     "URL_CREDENTIALS_PATTERN",
     "WHOLE_MATCH_PATTERNS",
