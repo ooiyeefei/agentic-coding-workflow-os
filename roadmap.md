@@ -191,13 +191,15 @@ Convergence detection, round caps, anonymized peer ranking, chairman synthesis.
 - Session router handling multi-terminal routing
 - **Meta-Observation Gate** — configurable checkpoint type the Workflow Engine can inject at stage transitions, before destructive ops, and after review verdicts. Pauses the run to ask the human: *"Anything about the previous stage that should inform the next one?"*, *"Noticed anything I should learn for future runs?"*, *"Any deviation from what you expected?"* Responses become first-class `Observation` memory records, queryable across runs. Over many runs, recurring observations surface as candidate new defaults for `.atelier/overrides.yaml`. Converts the tacit "I'll mention it next time" human habit into explicit capture.
 
-### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness
+### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness + Competitive Integration
 
 - Full rule precedence model: `core < org < repo < workflow/stage < human override` with audit trail
 - Path-matched rule loading (per `paths:` frontmatter pattern)
 - Memory namespaces: `repo-local` / `user-private` / `org-shared` with explicit opt-in tagging
 - Replay harness: rerun old runs against new prompts/workflows/models, compare outcome + cost + latency + approval
 - Regression detection for prompt/workflow changes
+- **MemoryBackend interface**: pluggable backend for cross-agent sync. Default = `FilesBackend` (local `.atelier/memory/`). Optional = `MemoryBridgeBackend` wrapping memory-bridge or similar for Claude↔Codex state sync. Adopt existing plumbing; build application layer on top.
+- **Build vs adopt benchmark**: first task of this phase is evaluating memory-bridge, Memorix, MemClaw against Atelier's typed-record + persona-slicing requirements. Don't reinvent plumbing that already works.
 
 ### Phase 4 — Git Hygiene Complete + Event Bus + Observability
 
@@ -222,9 +224,12 @@ Convergence detection, round caps, anonymized peer ranking, chairman synthesis.
 
 ### Phase 7 — Team / Org Scaling
 
-- Shared control plane deployment (self-hosted or SaaS)
+Team value comes from **auto-updated documentation as source of truth** (ADRs, architecture docs, typed decisions in git), NOT from real-time state sharing between users. Git is the sync mechanism, not a state fabric. Mesh Code-style live cross-user push is explicitly out of scope.
+
+- **Auto-updated team knowledge**: every Atelier run auto-generates ADRs + Decision records committed to git. Teammates pull the branch and get full context. No Slack, no "hey what did you decide about X?" — read the ADR.
+- **Run resumability across users**: Bob runs `atelier run resume <alice-run-id>` — Context Compiler rebuilds the packet from Alice's Run Graph + Evidence Packs + Decisions. Zero context loss, zero manual handoff.
+- **Selective memory sharing via git subtree**: `.atelier/shared-memory/` as opt-in git subtree from a team-wide repo. Only explicitly human-promoted records appear. Not automatic sync — curated knowledge base using the same typed-record format.
 - Org-level rule defaults with override inheritance
-- Org-shared memory (opt-in, tagged) with cross-project decision search
 - Team approval workflows (multi-reviewer, tiered approval)
 - Role-based access (who can override which policies)
 - Audit compliance exports (SOC 2 / ISO 27001 evidence)
