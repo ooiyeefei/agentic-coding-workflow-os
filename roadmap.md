@@ -1,7 +1,7 @@
 # Agentic Coding Workflow OS — Product Roadmap
 
 > **Working name**: _Atelier_ (placeholder — final naming TBD)
-> **Status**: Design validated across 7 rounds of critique. Phase 0 build in progress.
+> **Status**: Phase 0 build in progress. 16 of 24 components merged to main.
 > **Origin**: Distilled from battle-tested workflow on a safety-critical HAZOP/LOPA AI system (TIROS) where wrong outputs could kill people.
 
 ---
@@ -145,9 +145,9 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 
 ## Phases
 
-### Phase 0 — Foundation (hackathon scope)
+### Phase 0 — Foundation (MVP)
 
-**Exit criteria**: One curated issue flows end-to-end through specify → clarify → plan → tasks → implement → review → UAT → rebase-analyze → cleanup, producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from the CLI.
+**Exit criteria**: A real GitHub issue flows end-to-end through a user-defined workflow (default: specify → clarify → plan → tasks → implement → review → UAT → rebase-analyze → cleanup), producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from the CLI. All components dynamic and configurable — no hardcoded workflows, no hardcoded policies.
 
 **Must-ship**:
 - Filesystem-first storage (no DB)
@@ -155,10 +155,10 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 - LLM Abstraction (Anthropic + OpenAI) with capability manifest
 - Persona Library (Coder, Reviewer) with execution-mandatory protocol
 - **Devil's-advocate Reviewer flag** (`devil_advocate_mode: true`, default `false`): when enabled, Reviewer always produces an explicit "reasons to reject" section even when the verdict is APPROVE. Low cost, high signal — makes implicit concerns visible. Opt-in per persona config.
-- Skills Library (import of `.claude/commands/speckit.*` + added `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`)
+- Skills Library (extensible — ships with speckit.* + `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`; users add their own)
 - Context Compiler (priority tiers + token budget + provenance)
-- Workflow Engine (speckit loop, serial)
-- Policy Engine (human-approval gates, dry-run defaults, hardcoded cost caps)
+- **Workflow Engine (workflow-as-code)**: loads workflow definitions from `.atelier/workflows/*.yaml`. Ships with `speckit-loop.yaml` as default. Users define custom workflows for their project. NOT a hardcoded pipeline.
+- **Policy Engine (configurable)**: loads policy from `.atelier/policy.yaml`. Ships with sensible defaults (human-approval at destructive gates, dry-run for git ops, configurable cost caps). NOT hardcoded.
 - Knowledge Plane with 3 record types (Decision, ReviewFinding, RejectedAlternative)
 - Evidence Pack (JSON + Markdown)
 - Auto-ADR synthesis (MADR 3.0 format)
@@ -168,7 +168,7 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 - Rule precedence (2 levels: core + repo)
 - CLI (primary and only client surface in Phase 0)
 - UAT persona (wraps existing `ccc/skills/uat-testing`)
-- **Phase 1 peek**: 3-agent tiebreaker for Coder↔Reviewer escalation
+- 3-agent council tiebreaker for Coder↔Reviewer escalation
 
 **Deferred to later phases** (documented, not built).
 

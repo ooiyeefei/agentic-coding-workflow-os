@@ -1,26 +1,23 @@
-# Phase 0 Execution Plan — Hackathon Slice
+# Phase 0 Execution Plan — MVP Foundation
 
-> **No time frames** per user instruction.
 > **Goal**: Maximum parallelism — every task packaged as a worktree-ready unit with explicit inputs, outputs, deps, and acceptance criteria.
 >
-> **Operational companion**: [`phase0_launch.md`](./phase0_launch.md) contains paste-ready git worktree commands + coder/reviewer prompts for all 26 worktrees. Open that file when you're ready to start work; this file is the design spec.
+> **Operational companion**: [`phase0_launch.md`](./phase0_launch.md) contains paste-ready git worktree commands + coder/reviewer prompts for each worktree. Open that file when you're ready to start work; this file is the design spec.
 
 ## Scope Summary
 
-Ship a demoable, end-to-end slice of Atelier that proves the reproducibility thesis on a curated repo, invokable from the CLI.
+Ship the functional MVP of Atelier: a real GitHub issue flows end-to-end through a user-defined workflow, producing Evidence Packs, auto-generated ADRs, and a Run Graph — all persisted as files, replayable, reviewer-attacked, and human-approved at destructive gates. Invokable from the CLI. All components dynamic and configurable.
 
-**Thesis demonstrated in demo**: One GitHub issue → spec → review (with execution evidence) → plan → tasks → implement → UAT → ADR auto-synthesized → rebase analyzed → cleanup. All persisted as files. Replayable. Reviewer-attacked. Human-approved at destructive gates.
+## MVP User Flow
 
-## The Demo Scenario (11 beats)
-
-1. User runs `atelier run --issue 123` in the terminal → orchestrator creates `.atelier/runs/<ulid>/` + worktree from main
-2. Context Compiler assembles Packet v1 for Coder (issue + rules + sample docs + objective + exact commands)
-3. Coder runs `/speckit.specify` → produces draft spec → writes to worktree
-4. Reviewer attacks spec (execution-mandatory protocol) → produces Evidence Pack v1 (JSON + Markdown)
-5. If Reviewer rejects 2× with no resolution → **Phase 1 peek**: "Escalating to Council" — 3-agent tiebreaker
-6. Coder advances through `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement` (serial)
+1. User runs `atelier run --issue <N>` → orchestrator reads workflow definition from `.atelier/workflows/`, creates `.atelier/runs/<ulid>/` + worktree from main
+2. Context Compiler assembles Packet for Coder (issue + repo rules + relevant ADRs + objective + commands)
+3. Coder executes the first workflow stage (e.g., `/speckit.specify`) → produces draft → writes to worktree
+4. Reviewer attacks output using execution-mandatory protocol → produces Evidence Pack (JSON + Markdown)
+5. If Reviewer rejects 2× with no resolution → escalate to 3-agent council tiebreaker
+6. Coder advances through subsequent workflow stages as defined in the workflow YAML (e.g., clarify → plan → tasks → implement)
 7. Each stage produces Evidence Pack; each disagreement logs a Decision + RejectedAlternative memory record
-8. UAT stage runs `ccc/skills/uat-testing` against a real local demo app
+8. UAT stage runs acceptance tests against the real application
 9. Auto-ADR synthesis reads transcripts + decisions → writes `docs/adr/NNNN-<topic>.md` in MADR 3.0 format
 10. `/rebase-before-pr` analyzes: runs `git fetch origin`, computes rebase conflicts, reports findings, **never auto-resolves**
 11. `/cleanup-worktree` (with confirmation) — Run Graph remains committed for replay
@@ -48,19 +45,18 @@ CLI surfaces for each run:
 | Evidence Pack generator | Lane B | `atelier/evidence/*.py`, `atelier/evidence/templates/*.j2` |
 | Auto-ADR synthesis | Lane B | `atelier/adr/*.py`, `atelier/adr/templates/madr.j2` |
 | Run Graph file tree ops | Lane A | `atelier/rungraph/*.py` |
-| Workflow Engine (speckit loop) | Lane A | `atelier/workflow/*.py` |
+| Workflow Engine (dynamic, workflow-as-code) | Lane A | `atelier/workflow/*.py`, `.atelier/workflows/*.yaml` |
 | Policy Engine | Lane A | `atelier/policy/*.py` |
 | Git Hygiene (worktree, rebase-analyze, cleanup) | Lane C | `atelier/git/*.py` |
 | Secret redaction | Lane C | `atelier/security/redaction.py` |
 | Audit log (JSONL) | Lane C | `atelier/audit/*.py` |
 | UAT persona + integration | Lane C | `atelier/personas/uat.py`, `.atelier/defaults/personas/uat.md` |
 | CLI | Lane A | `atelier/cli/*.py` |
-| HTTP daemon + SSE (optional — future client surfaces) | Lane A | `atelier/daemon/*.py` |
-| **Phase 1 peek**: 3-agent tiebreaker | Lane B (late) | `atelier/council/*.py` |
-| Curated demo target app | Lane E | `demo/app/*` |
-| Curated demo issue | Lane E | `demo/issue.md` |
-| End-to-end dogfood run + warm-cache | Lane E | `demo/warm-cache/*` |
-| Pitch deck + demo script | Lane E | `demo/pitch.md`, `demo/script.md` |
+| HTTP daemon + SSE (foundation for future client surfaces) | Lane A | `atelier/daemon/*.py` |
+| 3-agent council tiebreaker | Lane B | `atelier/council/*.py` |
+| Example project (integration test target) | Lane E | `examples/app/*` |
+| Example issue | Lane E | `examples/issue.md` |
+| Integration tests + E2E validation | Lane E | `tests/integration/` |
 
 ## Deferred (documented, not built)
 
@@ -73,8 +69,8 @@ CLI surfaces for each run:
 - Event bus, OpenTelemetry (Phase 4)
 - Org defaults, workflow-level policy (Phase 4)
 - Full rule precedence (2 levels in Phase 0, 5 levels in Phase 3)
-- Model capability dynamic discovery (hardcoded YAML in Phase 0)
-- Workflow YAML validator + dynamic loader (hardcoded Python workflow in Phase 0)
+- Model capability dynamic discovery (static YAML manifests in Phase 0; auto-discovery later)
+- Workflow schema validation tooling (Phase 0 ships YAML loader + Pydantic validation; richer tooling later)
 
 ---
 
@@ -118,9 +114,8 @@ CLI surfaces for each run:
                 │                W18
                 │             (UAT persona)
                 │
-              W19 (LLM swappability test)    W21 (3-agent tiebreaker, Phase 1 peek)
-                                             W24 (E2E dogfood + warm cache)
-                                             W25 (pitch deck + demo script)
+              W19 (LLM swappability test)    W21 (3-agent council tiebreaker)
+                                             W24 (integration tests + E2E validation)
               W26 (Git Hygiene)
 ```
 
@@ -138,9 +133,9 @@ One engineer with prompt-craft + Python. Owns the IP that makes Atelier differen
 `W10 → W13 → W26 → W18`
 One engineer comfortable with git internals + subprocess orchestration. Owns git hygiene, audit log, secret redaction, UAT wiring.
 
-**Lane E — Product / Demo**
-`W22 → W23 → W19 → W24 → W25`
-One generalist. Curates demo repo + demo issue, validates dogfood runs, builds warm-cache, writes pitch script, records fallback video.
+**Lane E — Examples + Integration**
+`W22 → W23 → W19 → W24`
+One generalist. Maintains example project + issue, validates E2E runs, writes integration tests, ensures all components work together.
 
 ### Cross-Lane Integration Points
 
@@ -247,22 +242,22 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 - **Output**: Reusable redaction function
 - **Blocks**: W13 (audit log), W08 (evidence)
 
-### W11 — Workflow Engine
+### W11 — Workflow Engine (dynamic, workflow-as-code)
 
 - **Depends**: W04, W05, W06, W07, W08, W09
-- **Owns**: `atelier/workflow/engine.py`, `atelier/workflow/stages.py`, `atelier/workflow/transitions.py`
-- **Scope**: Python class `Workflow` with hardcoded speckit loop: specify → clarify → plan → tasks → implement → (optional UAT) → rebase-analyze → cleanup. Each stage is a function that: runs persona with packet, writes Evidence Pack, checks gate, transitions or loops. Resume-aware via W09 cursor.
-- **Acceptance**: Start workflow on fixture issue, advance through at least specify → review, handle Reviewer rejection with one Coder retry, confirm all files written to .atelier/runs/<ulid>/.
-- **Output**: Executable workflow
+- **Owns**: `atelier/workflow/engine.py`, `atelier/workflow/loader.py`, `atelier/workflow/stages.py`, `atelier/workflow/transitions.py`, `.atelier/defaults/workflows/speckit-loop.yaml`
+- **Scope**: Workflow-as-code engine that loads workflow definitions from `.atelier/workflows/*.yaml` (user project) or `.atelier/defaults/workflows/` (shipped defaults). Each workflow YAML declares: stages (ordered), persona per stage, skill per stage, gate type (review/approval/auto), transition rules, retry policy. The engine reads the YAML, resolves personas + skills, and drives execution. Ships with `speckit-loop.yaml` as the default workflow (specify → clarify → plan → tasks → implement → UAT → rebase-analyze → cleanup). Users define custom workflows for their project — the engine is NOT tied to speckit. Resume-aware via W09 cursor.
+- **Acceptance**: (1) Load `speckit-loop.yaml` and run a real issue through specify → review, handling Reviewer rejection with retry. (2) Load a DIFFERENT custom workflow YAML (e.g., a minimal 2-stage "implement → review" workflow) and run it successfully. Both produce correct Run Graph artifacts.
+- **Output**: Configurable, extensible workflow engine
 - **Blocks**: W15, W16
 
-### W12 — Policy Engine
+### W12 — Policy Engine (configurable)
 
 - **Depends**: W01
-- **Owns**: `atelier/policy/engine.py`, `atelier/policy/defaults.py`
-- **Scope**: Policy primitives: `human_approval_required`, `dry_run_default`, `cost_cap_per_run`. Hardcoded in Phase 0: approval at rebase-before-pr, dry-run for all git ops, $5/run cap. Policy checks called by W11 before destructive ops and before LLM calls.
-- **Acceptance**: Rebase-before-pr halts + prompts for human approval. Cost exceeding cap halts + alerts.
-- **Output**: Policy enforcement layer
+- **Owns**: `atelier/policy/engine.py`, `atelier/policy/loader.py`, `atelier/policy/defaults.py`, `.atelier/defaults/policy.yaml`
+- **Scope**: Loads policy from `.atelier/policy.yaml` (user project) or `.atelier/defaults/policy.yaml` (shipped defaults). Policy primitives: `human_approval_required` (per stage/gate), `dry_run_default` (per action type), `cost_cap_per_run`, `cost_cap_per_day`, `cost_cap_per_model`. Ships with sensible defaults: approval at rebase-before-pr, dry-run for all git ops, configurable cost caps. Users override in their project's `.atelier/policy.yaml`. Policy checks called by W11 before destructive ops and before LLM calls.
+- **Acceptance**: (1) Default policy halts at rebase-before-pr for human approval. (2) User override in `.atelier/policy.yaml` changes cost cap — engine respects the override. (3) Cost exceeding cap halts + alerts.
+- **Output**: Configurable policy enforcement layer
 - **Blocks**: W11
 
 ### W13 — Audit Log
@@ -319,49 +314,41 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 - **Output**: Demo beat that proves swappability
 - **Blocks**: (standalone demo asset)
 
-### W21 — Phase 1 Peek: 3-Agent Tiebreaker
+### W21 — 3-Agent Council Tiebreaker
 
 - **Depends**: W02, W04
 - **Owns**: `atelier/council/tiebreaker.py`
-- **Scope**: Minimal 3-agent council. Triggered when Coder↔Reviewer deadlock 2x. Protocol: send Coder's position + Reviewer's position + full context to 3 different models. Each votes VERDICT_COMPATIBLE_WITH_{CODER,REVIEWER,NEITHER}. Majority wins; ties go to human.
+- **Scope**: 3-agent council triggered when Coder↔Reviewer deadlock after 2 rounds. Protocol: send Coder's position + Reviewer's position + full context to 3 different models. Each votes VERDICT_COMPATIBLE_WITH_{CODER,REVIEWER,NEITHER}. Majority wins; ties go to human.
 - **Acceptance**: Fixture deadlock scenario → 3 council calls → majority verdict → Evidence Pack records tiebreaker outcome.
-- **Output**: Visible Phase 1 capability in demo
-- **Blocks**: (standalone feature toggled in demo)
+- **Output**: Escalation resolution for disagreements
+- **Blocks**: (integrated into workflow engine escalation path)
 
-### W22 — Demo Target App
+### W22 — Example Project (integration test target)
 
 - **Depends**: none (parallel with everything)
-- **Owns**: `demo/app/*`
-- **Scope**: Minimal Next.js or FastAPI app with: 1 auth flow, 1 CRUD endpoint, existing tests. Something whose issue-to-shipped-code demo makes sense.
-- **Acceptance**: App runs locally, login works, tests pass, there is an obvious "feature to add" that becomes our demo issue.
-- **Output**: Curated demo codebase
+- **Owns**: `examples/app/*`
+- **Scope**: A real, minimal FastAPI app with: auth flow, CRUD endpoint, existing tests. Serves as the integration test target for E2E validation and as documentation for new users learning Atelier. Not a toy — a legitimate small project that exercises the full workflow.
+- **Acceptance**: App runs locally, login works, tests pass, there is at least one real feature request filed as an issue.
+- **Output**: Reference project for integration testing and onboarding
 - **Blocks**: W24
 
-### W23 — Demo Issue
+### W23 — Example Issue
 
 - **Depends**: W22
-- **Owns**: `demo/issue.md` (+ filed as GitHub issue once repo exists)
-- **Scope**: Write the demo issue. Should be specific, testable, adversarially-reviewable (Reviewer must find something legitimate to attack), UAT-able. Example: "Add rate limiting to /api/login endpoint — max 5 attempts per minute per IP. Must return 429 with Retry-After header."
-- **Acceptance**: Issue is concrete; acceptance criteria are testable; UAT can validate via real login attempts.
-- **Output**: Demo driver input
+- **Owns**: `examples/issue.md`
+- **Scope**: A real issue against the example project. Must be specific, testable, adversarially-reviewable (Reviewer can find legitimate edge cases), and UAT-able. Example: "Add rate limiting to /api/login — max 5 attempts per minute per IP. Must return 429 with Retry-After header."
+- **Acceptance**: Issue is concrete; acceptance criteria are testable; UAT can validate via real interaction.
+- **Output**: Reference issue for integration testing
 - **Blocks**: W24
 
-### W24 — E2E Dogfood + Warm Cache
+### W24 — Integration Tests + E2E Validation
 
 - **Depends**: W11, W15, W22, W23
-- **Owns**: `demo/warm-cache/*`, `demo/dogfood.md`
-- **Scope**: Run the full Phase 0 workflow against demo app + demo issue end-to-end. Capture every stage's output. Pre-populate `.atelier/runs/<cached-id>/` as warm-cache fallback. Validate plugin + CLI both work.
-- **Acceptance**: Full run completes. Warm cache can be replayed if live run hiccups during demo.
-- **Output**: Rehearsed, de-risked demo
-- **Blocks**: W25
-
-### W25 — Pitch Deck + Demo Script + Fallback Video
-
-- **Depends**: W24
-- **Owns**: `demo/pitch.md`, `demo/script.md`, `demo/fallback.mp4`
-- **Scope**: Pitch deck (5 slides max): problem, solution, demo, moat, ask. Demo script (beat-by-beat, ≤90s live). Fallback video of the successful dogfood run.
-- **Acceptance**: Rehearsed 5+ times. Fallback video plays if everything else fails.
-- **Output**: Hackathon presentation assets
+- **Owns**: `tests/integration/`, CI config
+- **Scope**: Run the full workflow against the example project + example issue end-to-end. Validate every component integrates correctly: Context Compiler → Persona → Workflow Engine → Evidence Pack → ADR → Git Hygiene. Write repeatable integration tests. Set up CI pipeline (GitHub Actions) so every PR runs the integration suite.
+- **Acceptance**: Full workflow run completes against example app. All stages produce correct artifacts on filesystem. Integration tests pass in CI. Tests are repeatable (not dependent on cached state).
+- **Output**: CI-verified E2E validation
+- **Blocks**: (nothing — final validation gate for Phase 0 completion)
 
 ### W26 — Git Hygiene Module
 
@@ -384,50 +371,23 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 | Persona capability declaration format | Lane A | Lane B (personas declare) |
 | Skill frontmatter schema | Lane B | Lane A (workflow engine loads) |
 | LLM adapter interface | Lane A | Lane B (personas call) |
-| HTTP API (future surfaces — optional in Phase 0) | Lane A | Future IDE / web / CI clients |
+| HTTP API (foundation for future client surfaces) | Lane A | Future IDE / web / CI clients |
 
 **Freeze deadline**: end of first integration block. After freeze, changes require cross-lane sign-off.
 
 ---
 
-## Warm-Cache / Fallback Plan
+## What's Deferred to Later Phases (reference)
 
-| Stage | Warm cache | Fallback trigger |
-|---|---|---|
-| Workflow start | pre-generated run directory | CLI fails > 5s |
-| Evidence Pack generation | pre-rendered example | LLM API rate limit or timeout |
-| Auto-ADR synthesis | pre-generated ADR file | LLM fails |
-| CLI output rendering | static `run show` output snapshot | command error |
-| Whole demo | pre-recorded terminal capture | catastrophic failure |
-
-Fallback narration: never admit "it failed." Narrate over cached output as if live. Use present tense. Rehearse this.
-
----
-
-## Demo Script (draft, 90s)
-
-**[0:00-0:10]** Hook. "When you let an AI coding agent loose on your codebase, you're trusting that tomorrow you can explain what it did and why. Today you can't. Atelier fixes that."
-
-**[0:10-0:25]** Setup. Terminal, with demo repo. "Here's a real issue: add rate limiting to /api/login. I run `atelier run --issue 42`. Atelier starts."
-
-**[0:25-0:55]** The core loop. Streaming terminal output: Coder writes spec. Reviewer attacks with real command output. Reviewer finds an edge case Coder missed — show the Evidence Pack with red finding + pasted pytest failure (`atelier run show <id> --evidence`). Coder fixes. Reviewer approves. Green.
-
-**[0:55-1:15]** UAT + ADR. UAT persona runs against live app — show 5 rate-limit attempts on a browser (headless or visible). Auto-generated ADR appears — judges see real MADR 3.0 format via `cat docs/adr/*.md`.
-
-**[1:15-1:30]** The reproducibility moment. `ls .atelier/runs/<id>/stages/`. "Every packet, every transcript, every decision — on disk. Replayable. Swap Claude for Codex and run it again. Same workflow. Different brain. That's Atelier."
-
-**[1:30 stretch]** Rebase analysis. `atelier run show <id> --rebase`. "And when you're ready to merge, Atelier never decides for you. It reports the exact conflicts and commands — you stay in control of destructive operations."
-
----
-
-## What's Explicitly NOT in Phase 0 (reference)
-
-See `roadmap.md` Phase 1+. Short list:
-- Parallel worktree orchestration
-- Full MAD / Council protocols (only tiebreaker)
-- Memory namespaces
-- Replay harness
-- VSCode
-- Web dashboard
-- Event bus
-- OTel
+See `roadmap.md` Phase 1+:
+- Parallel worktree orchestration (Phase 2)
+- Full MAD / Council protocols — only tiebreaker in Phase 0 (Phase 1)
+- Meta-Observation Gates (Phase 2)
+- Memory namespaces — repo-local only in Phase 0 (Phase 3)
+- MemoryBackend pluggable interface + cross-agent sync evaluation (Phase 3)
+- Replay / eval harness (Phase 3)
+- Full rule precedence — 2 levels in Phase 0, 5 levels later (Phase 3)
+- Event bus, OpenTelemetry (Phase 4)
+- IDE extensions — VSCode, Zed (Phase 5)
+- Web dashboard, GitHub App (Phase 6)
+- Team / org scaling (Phase 7)

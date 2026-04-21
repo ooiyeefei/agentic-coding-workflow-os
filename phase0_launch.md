@@ -17,7 +17,7 @@
    ```
 2. Open two side-by-side terminals in that worktree directory.
 3. Paste the **Coder prompt** into terminal 1 (suggested: Codex, OpenAI Codex CLI, or Claude Code).
-4. Paste the **Reviewer prompt** into terminal 2 (suggested: the OTHER LLM than the coder — for hackathon demos we're pairing 2 Codex instances but any pair works).
+4. Paste the **Reviewer prompt** into terminal 2 (suggested: use a DIFFERENT LLM than the coder for diversity — e.g., if coder is Claude, reviewer is Codex, or vice versa).
 5. Work the agents through the flow: `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`.
 6. After each phase, paste Reviewer feedback into Coder's terminal. Iterate until Reviewer APPROVES.
 7. Disagreement between Coder and Reviewer? Ask them to debate. Don't converge until consensus. If stuck after 2 rounds, invoke the 3-agent tiebreaker (W21 peek — once built).

@@ -27,16 +27,17 @@ Not an agent framework. A reproducibility system for agentic engineering work.
 ## Structure
 
 - [`roadmap.md`](./roadmap.md) — full end-to-end product roadmap, Phase 0 through Phase 8+
-- [`phase0_plan.md`](./phase0_plan.md) — hackathon execution plan with parallel worktree DAG
-- [`phase0_launch.md`](./phase0_launch.md) — paste-ready git worktree commands + coder/reviewer prompts for all 26 worktrees
-- `atelier/` — Python control plane (to be scaffolded)
-- `.atelier/defaults/` — shipped opinionated defaults (personas, skills, rules, workflows)
-- `demo/` — curated demo app + issue + dogfood artifacts
+- [`phase0_plan.md`](./phase0_plan.md) — Phase 0 execution plan with parallel worktree DAG
+- [`phase0_launch.md`](./phase0_launch.md) — paste-ready git worktree commands + coder/reviewer prompts
+- `atelier/` — Python control plane
+- `.atelier/defaults/` — shipped opinionated defaults (personas, skills, rules, workflows, policy)
+- `examples/` — reference project + issue for integration testing and onboarding
+- `tests/` — unit + integration tests
 - `docs/adr/` — Architecture Decision Records (MADR 3.0)
 
 ## Status
 
-Design validated across 7 rounds of critique with multiple independent LLM agents converging on the same architecture. Phase 0 build starting.
+Phase 0 build in progress. 16 of 24 components merged to main. Remaining: Workflow Engine (dynamic), Audit Log, Auto-ADR Synthesis, Git Hygiene, CLI, HTTP Daemon, Integration Tests.
 
 ## License
 
