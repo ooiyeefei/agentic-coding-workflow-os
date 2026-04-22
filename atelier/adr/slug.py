@@ -4,7 +4,6 @@ import hashlib
 import re
 import unicodedata
 
-
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
 

@@ -2,19 +2,17 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 import yaml
-
 from atelier.evidence.schema import EvidencePack, Verdict
-from atelier.policy.engine import PolicyEngine
 from atelier.workflow.engine import (
-    AdvanceResult,
+    _ASYNC_RUN_LOCKS,
     RunStatus,
     WorkflowEngine,
-    _ASYNC_RUN_LOCKS,
     _read_state,
 )
 from atelier.workflow.loader import WorkflowNotFoundError, load_workflow
@@ -24,9 +22,8 @@ from atelier.workflow.schema import (
     WorkflowDefinition,
     parse_on_reject,
 )
-from atelier.workflow.stages import StageExecutorDeps, StageResult
+from atelier.workflow.stages import PersonaCallResult, StageExecutorDeps
 from atelier.workflow.transitions import (
-    Transition,
     TransitionKind,
     resolve_transition,
 )
@@ -55,13 +52,13 @@ def _make_evidence(verdict: Verdict) -> EvidencePack:
 
 
 class MockPersonaCaller:
-    def __init__(self, responses: dict[str, str] | None = None) -> None:
-        self._responses = responses or {}
+    def __init__(self, responses: Mapping[str, str | PersonaCallResult] | None = None) -> None:
+        self._responses = dict(responses or {})
         self.calls: list[tuple[str, str, str]] = []
 
     async def call(
         self, persona_name: str, context: str, *, skill: str, run_id: str
-    ) -> str:
+    ) -> str | PersonaCallResult:
         self.calls.append((persona_name, context, skill))
         await asyncio.sleep(0)
         return self._responses.get(persona_name, f"output from {persona_name}")
@@ -88,9 +85,13 @@ class MockEvidenceWriter:
         self.calls: list[tuple[str, str, Verdict, str]] = []
 
     def write(
-        self, run_id: str, stage_id: str, verdict: Verdict, content: str
+        self,
+        run_id: str,
+        stage_id: str,
+        verdict: Verdict,
+        persona_result: PersonaCallResult,
     ) -> EvidencePack:
-        self.calls.append((run_id, stage_id, verdict, content))
+        self.calls.append((run_id, stage_id, verdict, persona_result.content))
         return _make_evidence(verdict)
 
 
@@ -137,7 +138,12 @@ class TestSchema:
                 name="bad",
                 version="1.0.0",
                 stages=[
-                    StageDefinition(id="a", persona="coder", skill="s", on_reject="revert_to:missing"),
+                    StageDefinition(
+                        id="a",
+                        persona="coder",
+                        skill="s",
+                        on_reject="revert_to:missing",
+                    ),
                 ],
             )
 
@@ -237,7 +243,12 @@ class TestLoader:
             "version": "1.0.0",
             "stages": [
                 {"id": "implement", "persona": "coder", "skill": "speckit.implement"},
-                {"id": "review", "persona": "reviewer", "skill": "speckit.implement", "gate_type": "review"},
+                {
+                    "id": "review",
+                    "persona": "reviewer",
+                    "skill": "speckit.implement",
+                    "gate_type": "review",
+                },
             ],
         }), encoding="utf-8")
 
@@ -260,7 +271,14 @@ class TestTransitions:
             name="test",
             version="1.0.0",
             stages=[
-                StageDefinition(id="a", persona="coder", skill="s", gate_type="review", retry_max=2, on_reject="revise"),
+                StageDefinition(
+                    id="a",
+                    persona="coder",
+                    skill="s",
+                    gate_type="review",
+                    retry_max=2,
+                    on_reject="revise",
+                ),
                 StageDefinition(id="b", persona="coder", skill="s"),
             ],
         )

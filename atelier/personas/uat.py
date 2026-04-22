@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -71,12 +71,14 @@ class UAT(Persona):
 
     def _redact_payload(self, value: Any, *, secrets: list[str]) -> Any:
         if isinstance(value, dict):
-            return {
-                key: self._redact_payload(item, secrets=secrets)
-                for key, item in value.items()
-            }
+            value_dict = cast("dict[str, Any]", value)
+            redacted: dict[str, Any] = {}
+            for key, item in value_dict.items():
+                redacted[key] = self._redact_payload(item, secrets=secrets)
+            return redacted
         if isinstance(value, list):
-            return [self._redact_payload(item, secrets=secrets) for item in value]
+            value_list = cast("list[Any]", value)
+            return [self._redact_payload(item, secrets=secrets) for item in value_list]
         if isinstance(value, str):
             return redact(value, secrets=secrets)
         return value

@@ -3,11 +3,10 @@ from __future__ import annotations
 import asyncio
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
-from atelier.evidence.schema import Verdict
 from atelier.policy.engine import PolicyEngine
 from atelier.rungraph.lock import run_lock
 from atelier.rungraph.tree import create_run, create_stage, mark_stage_complete
@@ -339,7 +338,7 @@ def _read_state(run_id: str) -> dict[str, Any]:
     parsed = yaml.safe_load(raw)
     if not isinstance(parsed, dict):
         raise ValueError(f"invalid workflow state for run {run_id}")
-    return parsed
+    return cast("dict[str, Any]", parsed)
 
 
 def _current_stage_id(run_id: str, stage_def: Any) -> str:
@@ -389,7 +388,11 @@ def _snapshot_result(run_id: str) -> AdvanceResult:
         return _terminal_result(status.value)
     if status in (RunStatus.WAITING_APPROVAL, RunStatus.WAITING_COUNCIL):
         return _waiting_result(state)
-    kind = TransitionKind(state["last_transition"]) if "last_transition" in state else TransitionKind.ADVANCE
+    kind = (
+        TransitionKind(state["last_transition"])
+        if "last_transition" in state
+        else TransitionKind.ADVANCE
+    )
     reason = state.get("last_transition_reason", "concurrent advance already completed")
     return AdvanceResult(
         transition=Transition(kind, reason=reason),

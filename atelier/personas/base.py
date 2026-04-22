@@ -9,6 +9,13 @@ from typing import Any, cast
 import frontmatter
 from pydantic import BaseModel, ConfigDict, Field
 
+from atelier.defaults import (
+    DEFAULT_MODELS_DIR,
+    DEFAULT_PERSONAS_DIR,
+)
+from atelier.defaults import (
+    DEFAULT_SKILLS_DIR as BUNDLED_SKILLS_DIR,
+)
 from atelier.llm import (
     AnthropicAdapter,
     CapabilityManifest,
@@ -26,10 +33,9 @@ from atelier.llm import (
 from atelier.llm.adapter import CostPolicy, JsonValue
 from atelier.policy import PolicyEngine
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL_DIR = _REPO_ROOT / ".atelier/defaults/models"
-DEFAULT_PERSONA_DIR = _REPO_ROOT / ".atelier/defaults/personas"
-DEFAULT_SKILLS_DIR = _REPO_ROOT / ".atelier/defaults/skills"
+DEFAULT_MODEL_DIR = DEFAULT_MODELS_DIR
+DEFAULT_PERSONA_DIR = DEFAULT_PERSONAS_DIR
+DEFAULT_SKILLS_DIR = BUNDLED_SKILLS_DIR
 
 AdapterFactory = Callable[[CapabilityManifest], LLMAdapter]
 

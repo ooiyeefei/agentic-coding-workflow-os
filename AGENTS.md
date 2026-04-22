@@ -1,6 +1,6 @@
 # agentic-coding-workflow-os Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-20
+Auto-generated from all feature plans. Last updated: 2026-04-22
 
 ## Active Technologies
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os` (008-uat-persona-integration)
@@ -20,6 +20,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-20
 - Python 3.11 + pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio (005-council-tiebreaker)
 - Filesystem-backed council report records under `.atelier/memory/council_reports/` plus in-process Pydantic models (005-council-tiebreaker)
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio (004-persona-library)
+- Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `atelier.compiler`, `atelier.personas`, `atelier.workflow`, `atelier.evidence`, `atelier.memory`, `atelier.adr`, and `atelier.git` modules (acw-w24)
+- Temporary filesystem state under `.atelier/runs/`, `.atelier/memory/`, and `docs/adr/` inside isolated test repositories (acw-w24)
 
 ## Project Structure
 
@@ -37,15 +39,9 @@ cd src && pytest && ruff check .
 Python 3.11: Follow standard conventions
 
 ## Recent Changes
+- acw-w24: Added Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `atelier.compiler`, `atelier.personas`, `atelier.workflow`, `atelier.evidence`, `atelier.memory`, `atelier.adr`, and `atelier.git` modules
 - 008-uat-persona-integration: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os`
 - 007-rungraph-tree-ops: Added Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `atelier.util.fs` helpers
-- 006-secret-redaction: Added Python 3.11 + Python `re` and `typing` from the standard library, plus `pytest` for validation
-- 006-context-compiler: Added Python 3.11 + pydantic v2, pathlib, pytest
-- 005-typed-memory-records: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest
-- 012-policy-engine: Added Python 3.11 + pydantic v2, pathlib, pytest
-- 005-swappability-demo: Added Python 3.11 + anthropic SDK, openai SDK, pydantic v2, python-frontmatter, pathlib, pytest
-- 005-council-tiebreaker: Added Python 3.11 + pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio
-- 004-persona-library: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

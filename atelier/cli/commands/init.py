@@ -5,9 +5,9 @@ from pathlib import Path
 import click
 
 from atelier.cli.formatters import build_help_epilog, echo_json
+from atelier.defaults import DEFAULT_WORKFLOWS_DIR
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_DEFAULT_WORKFLOW = _REPO_ROOT / ".atelier" / "defaults" / "workflows" / "speckit-loop.yaml"
+_DEFAULT_WORKFLOW = DEFAULT_WORKFLOWS_DIR / "speckit-loop.yaml"
 _README_CONTENT = (
     "# Atelier Workspace\n\n"
     "This directory stores workflow state, audit logs, and user-editable workflow overrides.\n"

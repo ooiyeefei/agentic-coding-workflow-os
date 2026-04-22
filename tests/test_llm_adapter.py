@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from anthropic.types import Message as AnthropicMessage
+from atelier.defaults import DEFAULT_MODELS_DIR
 from atelier.llm.adapter import (
     LLMProviderError,
     Message,
@@ -48,7 +48,7 @@ def test_route_persona_to_model_raises_on_unsupported_capability() -> None:
 
 
 def test_load_capability_manifests_reads_default_yaml_files() -> None:
-    manifests = load_capability_manifests(Path(".atelier/defaults/models"))
+    manifests = load_capability_manifests(DEFAULT_MODELS_DIR)
 
     assert {manifest.model for manifest in manifests} == {
         "claude-haiku-4-5",
@@ -60,7 +60,7 @@ def test_load_capability_manifests_reads_default_yaml_files() -> None:
 
 
 def test_shipped_manifests_include_reviewer_compatible_model() -> None:
-    manifests = load_capability_manifests(Path(".atelier/defaults/models"))
+    manifests = load_capability_manifests(DEFAULT_MODELS_DIR)
 
     selected = route_persona_to_model(
         CapabilityRequirements(

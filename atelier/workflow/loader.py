@@ -4,10 +4,10 @@ from pathlib import Path
 
 import yaml
 
+from atelier.defaults import DEFAULT_WORKFLOWS_DIR as BUNDLED_WORKFLOWS_DIR
 from atelier.workflow.schema import WorkflowDefinition
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_WORKFLOWS_DIR = _REPO_ROOT / ".atelier" / "defaults" / "workflows"
+DEFAULT_WORKFLOWS_DIR = BUNDLED_WORKFLOWS_DIR
 USER_WORKFLOWS_DIR = Path(".atelier") / "workflows"
 
 

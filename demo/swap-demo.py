@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from atelier.defaults import DEFAULT_MODELS_DIR, DEFAULT_PERSONAS_DIR  # noqa: E402
 from atelier.llm import (  # noqa: E402
     AnthropicAdapter,
     CapabilityManifest,
@@ -123,9 +124,12 @@ class MockDemoAdapter(LLMAdapter):
         messages: list[Message],
         tools: list[ToolDefinition] | None = None,
         required_capabilities: CapabilityRequirements | None = None,
+        *,
+        run_id: str | None = None,
+        policy: Any = None,
     ) -> Response:
         self.ensure_supported(required_capabilities)
-        del tools  # The mock uses the same tool names but does not inspect schemas.
+        del tools, run_id, policy  # The mock uses the same tool names but does not inspect schemas.
 
         if not any(message.role == "tool" for message in messages):
             return Response(
@@ -224,8 +228,7 @@ def normalize_mode(raw_mode: str) -> str:
 
 
 def load_manifest_map() -> dict[str, CapabilityManifest]:
-    model_dir = REPO_ROOT / ".atelier" / "defaults" / "models"
-    manifests = load_capability_manifests(model_dir)
+    manifests = load_capability_manifests(DEFAULT_MODELS_DIR)
     manifest_map = {manifest.model: manifest for manifest in manifests}
     manifest_map[DEMO_TOOL_LESS_MODEL] = build_demo_tool_less_manifest()
     return manifest_map
@@ -260,7 +263,7 @@ def resolve_single_manifest(
 
 
 def load_reviewer_prompt_body() -> str:
-    prompt_path = REPO_ROOT / ".atelier" / "defaults" / "personas" / "reviewer.md"
+    prompt_path = DEFAULT_PERSONAS_DIR / "reviewer.md"
     post = frontmatter.load(str(prompt_path))
     return post.content.strip()
 
