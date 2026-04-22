@@ -22,6 +22,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-22
 - Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio (004-persona-library)
 - Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `atelier.compiler`, `atelier.personas`, `atelier.workflow`, `atelier.evidence`, `atelier.memory`, `atelier.adr`, and `atelier.git` modules (acw-w24)
 - Temporary filesystem state under `.atelier/runs/`, `.atelier/memory/`, and `docs/adr/` inside isolated test repositories (acw-w24)
+- Python 3.11 + FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `atelier.audit`, `atelier.workflow`, and `atelier.cli.commands.run` helpers (014-http-daemon-sse)
+- Filesystem-only state under `.atelier/runs/` plus a repo-local daemon secret fallback under `.atelier/daemon/` when `LOCAL_DAEMON_SECRET` is unset (014-http-daemon-sse)
 
 ## Project Structure
 
@@ -39,6 +41,7 @@ cd src && pytest && ruff check .
 Python 3.11: Follow standard conventions
 
 ## Recent Changes
+- 014-http-daemon-sse: Added Python 3.11 + FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `atelier.audit`, `atelier.workflow`, and `atelier.cli.commands.run` helpers
 - acw-w24: Added Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `atelier.compiler`, `atelier.personas`, `atelier.workflow`, `atelier.evidence`, `atelier.memory`, `atelier.adr`, and `atelier.git` modules
 - 008-uat-persona-integration: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os`
 - 007-rungraph-tree-ops: Added Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `atelier.util.fs` helpers
