@@ -1,0 +1,1 @@
+{"content": "1. Open /login.\n2. Submit invalid credentials enough times to trigger the limiter.\n3. Confirm the visible wait message and Retry-After guidance.\n\nUAT: 3/3 passed", "persona": "uat", "skill": "uat-test", "timestamp": "2026-04-22T07:37:17.838016+00:00"}

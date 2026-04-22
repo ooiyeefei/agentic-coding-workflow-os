@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 from ulid import ULID
 
-
 _CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _FIXED_ULID_PREFIX = "01ARZ3NDEKTSV4RRFFQ69G5F"
 

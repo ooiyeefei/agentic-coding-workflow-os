@@ -20,6 +20,18 @@ FindingReference = Annotated[str, StringConstraints(strip_whitespace=True, min_l
 AuditReference = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
+def _finding_list() -> list[Finding]:
+    return []
+
+
+def _command_output_list() -> list[CommandOutput]:
+    return []
+
+
+def _audit_reference_list() -> list[AuditReference]:
+    return []
+
+
 class Verdict(StrEnum):
     APPROVED = "APPROVED"
     NEEDS_REVISION = "NEEDS_REVISION"
@@ -60,9 +72,9 @@ class EvidencePack(BaseModel):
     verdict: Verdict
     confidence: float = Field(ge=0.0, le=1.0)
     summary: str = ""
-    findings: list[Finding] = Field(default_factory=list)
-    execution: list[CommandOutput] = Field(default_factory=list)
-    audit_chain: list[AuditReference] = Field(default_factory=list, min_length=1)
+    findings: list[Finding] = Field(default_factory=_finding_list)
+    execution: list[CommandOutput] = Field(default_factory=_command_output_list)
+    audit_chain: list[AuditReference] = Field(default_factory=_audit_reference_list, min_length=1)
     timestamp: datetime
     reviewer_persona_id: NonEmptyText
 

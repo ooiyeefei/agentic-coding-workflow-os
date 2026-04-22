@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.config import Settings
 from app.main import create_app
+from fastapi.testclient import TestClient
 
 DEMO_USER = "demo@atelier.dev"
 DEMO_PASSWORD = "demo1234"

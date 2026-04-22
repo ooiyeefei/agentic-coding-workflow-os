@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "verdict": "APPROVED",
+  "confidence": 0.95,
+  "summary": "003-plan completed with APPROVED",
+  "findings": [],
+  "execution": [
+    {
+      "command": "integration-stage 003-plan",
+      "stdout": "Next command: /speckit.specify\nThe packet is actionable, the stage can proceed, and the filesystem artifacts should be written for replay.",
+      "stderr": "",
+      "exit_code": 0,
+      "finding_ids": []
+    }
+  ],
+  "audit_chain": [
+    "01KPT1YDKVZWHC7DDA2QK9875A"
+  ],
+  "timestamp": "2026-04-22T07:37:17.691062Z",
+  "reviewer_persona_id": "reviewer.integration"
+}

@@ -70,7 +70,11 @@ def _handle_needs_revision(
     if action == "revert_to":
         assert target is not None
         workflow.stage_index(target)
-        return Transition(TransitionKind.REVERT, next_stage_id=target, reason=f"reverting to {target}")
+        return Transition(
+            TransitionKind.REVERT,
+            next_stage_id=target,
+            reason=f"reverting to {target}",
+        )
     return Transition(TransitionKind.HALT, reason="retries exhausted, halting")
 
 
@@ -79,7 +83,11 @@ def _handle_rejected(workflow: WorkflowDefinition, stage: StageDefinition) -> Tr
     if action == "revert_to":
         assert target is not None
         workflow.stage_index(target)
-        return Transition(TransitionKind.REVERT, next_stage_id=target, reason=f"rejected, reverting to {target}")
+        return Transition(
+            TransitionKind.REVERT,
+            next_stage_id=target,
+            reason=f"rejected, reverting to {target}",
+        )
     if action == "council":
         return Transition(TransitionKind.COUNCIL, reason="rejected, escalating to council")
     return Transition(TransitionKind.HALT, reason="rejected")

@@ -6,10 +6,10 @@ from typing import cast
 
 import yaml
 
+from atelier.defaults import DEFAULT_SKILLS_DIR as BUNDLED_SKILLS_DIR
 from atelier.skills.schema import Skill, SkillFrontmatter
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SKILLS_DIR = REPO_ROOT / ".atelier" / "defaults" / "skills"
+DEFAULT_SKILLS_DIR = BUNDLED_SKILLS_DIR
 _FRONTMATTER_RE = re.compile(r"\A---\r?\n(?P<meta>.*?)\r?\n---\r?\n", re.DOTALL)
 
 

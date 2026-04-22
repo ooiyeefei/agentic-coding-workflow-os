@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "verdict": "APPROVED",
+  "confidence": 1.0,
+  "summary": "UAT: 3/3 passed",
+  "findings": [],
+  "execution": [
+    {
+      "command": "mock-uat /home/fei/fei/code/hackathon/acw-w24/demo/app",
+      "stdout": "1. Open /login.\n2. Submit invalid credentials enough times to trigger the limiter.\n3. Confirm the visible wait message and Retry-After guidance.",
+      "stderr": "",
+      "exit_code": 0,
+      "finding_ids": []
+    }
+  ],
+  "audit_chain": [
+    "01KPT1YDRD89RGTD01E0EXDKCT"
+  ],
+  "timestamp": "2026-04-22T07:37:17.837853Z",
+  "reviewer_persona_id": "uat.integration"
+}

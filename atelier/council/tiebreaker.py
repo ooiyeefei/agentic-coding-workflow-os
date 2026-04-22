@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from atelier.council.schema import CouncilReport, CouncilVote, Verdict
+from atelier.defaults import DEFAULT_MODELS_DIR as BUNDLED_MODELS_DIR
 from atelier.llm import (
     AnthropicAdapter,
     CapabilityManifest,
@@ -23,8 +24,7 @@ from atelier.llm import (
 )
 from atelier.memory import DEFAULT_COUNCIL_MEMORY_DIR, write_council_report
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL_DIR = REPO_ROOT / ".atelier" / "defaults" / "models"
+DEFAULT_MODEL_DIR = BUNDLED_MODELS_DIR
 DEFAULT_COUNCIL_MODELS: tuple[str, str, str] = (
     "claude-opus-4-7",
     "gpt-5",

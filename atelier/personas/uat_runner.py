@@ -9,7 +9,7 @@ import sys
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
@@ -320,8 +320,9 @@ def _parse_json_report(report_text: str) -> tuple[str, list[Finding]] | None:
     if not isinstance(payload, dict):
         return None
 
-    summary = str(payload.get("summary") or "")
-    findings_payload = payload.get("findings", [])
+    payload_dict = cast("dict[str, Any]", payload)
+    summary = str(payload_dict.get("summary") or "")
+    findings_payload = payload_dict.get("findings", [])
     findings = _parse_json_findings(findings_payload)
     if not summary and findings:
         summary = f"UAT completed with {len(findings)} finding(s)"
@@ -332,8 +333,9 @@ def _parse_json_findings(payload: Any) -> list[Finding]:
     if not isinstance(payload, list):
         return []
 
+    payload_list = cast("list[Any]", payload)
     findings: list[Finding] = []
-    for item in payload:
+    for item in payload_list:
         if isinstance(item, str):
             findings.append(
                 _build_finding(
@@ -347,19 +349,27 @@ def _parse_json_findings(payload: Any) -> list[Finding]:
         if not isinstance(item, dict):
             continue
 
-        severity = normalize_severity(item.get("severity") or item.get("status"))
-        description = str(item.get("description") or item.get("title") or "").strip()
+        item_dict = cast("dict[str, Any]", item)
+
+        severity = normalize_severity(item_dict.get("severity") or item_dict.get("status"))
+        description = str(item_dict.get("description") or item_dict.get("title") or "").strip()
         if not severity or not description:
             continue
 
-        line_value = item.get("line")
+        line_value = item_dict.get("line")
         findings.append(
             _build_finding(
                 index=len(findings) + 1,
                 severity=severity,
                 description=description,
-                verification=str(item.get("verification") or item.get("details") or "").strip(),
-                file=str(item.get("file")).strip() if item.get("file") else "uat-report",
+                verification=str(
+                    item_dict.get("verification") or item_dict.get("details") or ""
+                ).strip(),
+                file=(
+                    str(item_dict.get("file")).strip()
+                    if item_dict.get("file")
+                    else "uat-report"
+                ),
                 line=line_value if isinstance(line_value, int) else None,
             )
         )

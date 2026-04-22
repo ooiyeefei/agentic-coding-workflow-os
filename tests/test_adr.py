@@ -4,7 +4,6 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
-import atelier.memory.records as memory_records
 import pytest
 from atelier.adr.numbering import next_adr_number
 from atelier.adr.slug import slugify
