@@ -2,15 +2,19 @@
 
 > Working name: **Atelier** (final naming TBD)
 
-A **reproducibility system** for AI-assisted software engineering. Every decision traceable. Every review replayable. Every context reconstructable. LLM-agnostic by design. Files-first by philosophy.
+The **shared knowledge substrate** for AI-assisted engineering. Markdown files in git — readable by any agent tool, writable by any agent tool, syncable by git. No new platform to adopt. No switching cost. Decisions persist. Context follows you.
 
 **Origin**: Distilled from a battle-tested workflow on a safety-critical HAZOP/LOPA AI system where wrong outputs could kill people.
 
 ## The Thesis
 
-Coding agents don't lack capability — they lack **workflow, discipline, and memory**. This product provides all three as an opinionated-but-extensible control plane that turns vibe coding into production engineering.
+Developers use individual agent tools — Claude Code, Codex, Cursor, ChatGPT, Gemini, Cowork. These are personal and individualistic. Context dies with each session. Decisions evaporate. Switching tools means starting from zero.
 
-Not an agent framework. A reproducibility system for agentic engineering work.
+Atelier solves this with **files in git** as the shared substrate. Not a platform. Not another tool to adopt. A `.atelier/` directory in your repo that every agent tool can read, containing decisions, evidence, context, and rules in markdown.
+
+**Session swap**: `atelier resume --agent claude-code` — picks up where Codex left off, full context.
+**Multi-agent**: `atelier prompt --role coder --agent codex` + `atelier prompt --role reviewer --agent claude-code` — each gets the right context for their role.
+**Team collaboration**: Alice uses Claude Code, Bob uses Codex. Both read/write `.atelier/memory/`. Git syncs. No shared platform needed.
 
 ## Core Ideas (one-liners)
 
@@ -37,7 +41,7 @@ Not an agent framework. A reproducibility system for agentic engineering work.
 
 ## Status
 
-Phase 0 build in progress. 16 of 24 components merged to main. Remaining: Workflow Engine (dynamic), Audit Log, Auto-ADR Synthesis, Git Hygiene, CLI, HTTP Daemon, Integration Tests.
+Phase 0 build in progress. 21 of 24 original components merged to main. Architectural reframe underway: replacing direct LLM API approach with **Tool Adapter Layer** (Claude Code, Codex adapters) + **Session Continuity** (resume, prompt, context commands). 3 new worktrees added (W27, W28, W29). See [`phase0_plan.md`](./phase0_plan.md) for current progress and next steps.
 
 ## License
 

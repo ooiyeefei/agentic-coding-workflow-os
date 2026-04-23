@@ -1,120 +1,194 @@
 # Agentic Coding Workflow OS — Product Roadmap
 
 > **Working name**: _Atelier_ (placeholder — final naming TBD)
-> **Status**: Phase 0 build in progress. 16 of 24 components merged to main.
+> **Status**: Phase 0 in progress. 21 of 24 original components merged. Architectural reframe underway — tool adapter layer + session continuity replacing direct LLM API approach.
 > **Origin**: Distilled from battle-tested workflow on a safety-critical HAZOP/LOPA AI system (TIROS) where wrong outputs could kill people.
 
 ---
 
 ## Product Sentence
 
-A **reproducibility system** for AI-assisted software engineering. Every decision traceable. Every review replayable. Every context reconstructable. LLM-agnostic by design. Files-first by philosophy.
+The **shared knowledge substrate** for AI-assisted engineering. Markdown files in git — readable by any agent tool, writable by any agent tool, syncable by git. No new platform to adopt. No switching cost. Decisions persist. Context follows you.
 
 ## Vision
 
-Coding agents don't lack capability — they lack **workflow, discipline, and memory**. This product provides all three as an opinionated-but-extensible control plane that turns vibe coding into production engineering.
+### The problem
 
-**The core reframe**: this is not an agent framework. It is a reproducibility system for agentic engineering work.
+Developers use **individual** agent tools — Claude Code, Codex, Cursor, ChatGPT, Gemini, Cowork. These are personal and individualistic. No team will agree on one tool, and they shouldn't have to.
 
-- Packets become reproducible context
-- Evidence becomes reproducible proof
-- Memory becomes reproducible decisions
-- Workflows become reproducible delivery
+But this creates three unsolved problems:
+
+1. **Context dies with the session.** You spend 2 hours building context in Codex. Switch to Claude Code — start from zero. Context compaction deletes your earlier discussion mid-session.
+2. **Decisions evaporate.** You and your agent decided to use approach X over Y. Next session, the agent doesn't know. Next teammate, they don't know. The decision exists nowhere but your memory.
+3. **Collaboration requires same-tool lock-in.** Old-world: everyone uses Slack/Linear/Notion. New-world: Alice uses Claude Code, Bob uses Codex, Carol uses Cursor. How do they share context without forcing one tool?
+
+### The wrong answer
+
+"Use our new tool that connects all your tools." That's just another platform to adopt — another vendor lock-in, another switching cost. Mesh Code, Conductor, Hyperspell all fall into this trap.
+
+### The right answer
+
+Find the **fundamental shared layer** that ALL agent tools already use, and make THAT the collaboration substrate.
+
+What's universal across every agent tool?
+- **Files on disk** — every agent reads and writes files
+- **Git** — every coding tool works with git
+- **Markdown** — every LLM can read it, every human can read it
+
+The substrate is: **a `.atelier/` directory in your git repo, containing decisions, evidence, context, and rules as markdown files.** Every tool can read them. Git handles sync. No infrastructure. No accounts. No SaaS.
+
+### How it works
+
+```
+Alice (Claude Code)                    Bob (Codex)                    Carol (Cursor)
+       │                                    │                              │
+       │ writes decisions to                │ reads decisions from         │ reads from
+       │ .atelier/memory/                   │ .atelier/memory/             │ .atelier/memory/
+       │                                    │                              │
+       └──────── git push ──── repo ──── git pull ──── git pull ───────────┘
+
+No shared platform. No new tool. Just git.
+```
+
+**Session swap with zero context loss:**
+```
+Day 1: You use Codex (730K token session)
+  → Atelier captures decisions + context to .atelier/memory/
+
+Day 2: You switch to Claude Code
+  → atelier resume --agent claude-code
+  → Claude Code gets a Context Packet built from .atelier/memory/
+  → Zero re-explaining. Full continuity.
+```
+
+### The core reframe
+
+Atelier is NOT an agent framework. It is NOT a platform. It is the **shared knowledge substrate** for agentic engineering work.
+
+- `.atelier/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative)
+- `.atelier/runs/` = reproducible delivery (Run Graph with Evidence Packs)
+- `.atelier/workflows/` = reproducible process (workflow-as-code YAML)
+- `docs/adr/` = reproducible architecture (auto-generated ADRs)
+- Git = the sync mechanism, audit trail, and collaboration layer
+
+The competitive moat is not the format (anyone can read markdown). The moat is the **adapter ecosystem** — Atelier knows how to read Claude Code's session JSONL, Codex's transcripts, Cursor's Composer history, and how to format Context Packets for each tool's conventions.
+
+---
 
 ## Design Principles (non-negotiable)
 
 1. **Files first, indexes second.** Markdown + YAML frontmatter for every persistent entity. Any DB added later is a rebuildable cache, never source of truth.
 2. **CLI is the real product.** Plugins and web UIs are thin surfaces over the same control plane.
-3. **Agent-agnostic.** Claude, Codex, Qwen, DeepSeek, local models — anything that implements tool use via a capability manifest.
-4. **Human-in-the-loop at destructive gates.** Never auto-resolve meaningful merge conflicts. Never auto-push. Never auto-accept council verdicts on significant changes.
-5. **Steering without locking.** Ship opinionated defaults. Users override with explicit `reason:`. Deviations logged to audit.
-6. **Parallelization as default.** Workflow engine always scans for parallelizable work. Sequential only when dependencies require it.
-7. **Dry-run first.** Every destructive action has `--dry-run`. Live execution requires explicit confirmation.
-8. **Dogfood all the way down.** The product is built with the product.
-9. **Evidence over vibes.** The Reviewer must paste real command output. Approval without execution evidence is incomplete.
-10. **MAD at gates only.** Multi-Agent Debate is expensive. Reserve for disagreement escalation, not routine work.
+3. **Tool-agnostic, not just model-agnostic.** Claude Code, Codex, Cursor, ChatGPT, Cowork, Gemini — any agent tool. Atelier is the middle layer, not a replacement.
+4. **Format over platform.** Don't build an app people have to adopt. Build files people already have in their repo. The `.atelier/` directory IS the product. Think RSS, not Facebook.
+5. **Zero migration cost.** Switching agent tools preserves all context. No export/import. No data hostage. Files stay in git.
+6. **Human-in-the-loop at destructive gates.** Never auto-resolve meaningful merge conflicts. Never auto-push. Never auto-accept council verdicts on significant changes.
+7. **Steering without locking.** Ship opinionated defaults. Users override with explicit `reason:`. Deviations logged to audit.
+8. **Parallelization as default.** Workflow engine always scans for parallelizable work. Sequential only when dependencies require it.
+9. **Dry-run first.** Every destructive action has `--dry-run`. Live execution requires explicit confirmation.
+10. **Evidence over vibes.** The Reviewer must paste real command output. Approval without execution evidence is incomplete.
+11. **Dogfood all the way down.** The product is built with the product.
+
+---
 
 ## Architecture Overview
 
 ```
-┌───────────────────────── CLIENTS (thin surfaces) ──────────────────────────┐
-│   CLI (Phase 0)  │  VSCode ext  │  Web dashboard  │  GitHub App            │
-└──────────────────────────────────┬─────────────────────────────────────────┘
-                                   │ HTTP/SSE · Subprocess
-┌──────────────────────────────────▼─────────────────────────────────────────┐
-│                          CONTROL PLANE (the product)                       │
-│                                                                            │
-│  ┌──────────────────────────────────────────────────────────────────────┐ │
-│  │                     WORKFLOW ENGINE (workflow-as-code)               │ │
-│  │    stage transitions · review gates · MAD escalation · resume        │ │
-│  └──────────────────────────────────────────────────────────────────────┘ │
-│                                                                            │
-│  ┌────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐   │
-│  │ CONTEXT        │  │ PERSONA LIBRARY  │  │   SKILLS LIBRARY        │   │
-│  │ COMPILER       │  │                  │  │                         │   │
-│  │                │  │ Coder · Reviewer │  │  /speckit.specify       │   │
-│  │ priority tiers │  │ Guide · UAT      │  │  /speckit.clarify       │   │
-│  │ token budgets  │  │ Debate Panelist  │  │  /speckit.plan          │   │
-│  │ provenance     │  │                  │  │  /speckit.tasks         │   │
-│  │ dedupe         │  │ capability-gated │  │  /speckit.implement     │   │
-│  │                │  │ LLM-agnostic     │  │  /rebase-before-pr      │   │
-│  │                │  │                  │  │  /cleanup-worktree      │   │
-│  │                │  │                  │  │  /uat-test              │   │
-│  └────────┬───────┘  └────────┬─────────┘  └────────────┬────────────┘   │
-│           │                   │                          │                 │
-│  ┌────────▼───────────────────▼──────────────────────────▼─────────────┐  │
-│  │                    KNOWLEDGE PLANE (cross-cutting)                  │  │
-│  │                                                                     │  │
-│  │  ┌─────────────────┐          ┌─────────────────────────────────┐  │  │
-│  │  │ RULES           │          │ MEMORY (typed records)          │  │  │
-│  │  │ (what MUST be)  │          │  · Decision                     │  │  │
-│  │  │ path-matched    │          │  · Constraint                   │  │  │
-│  │  │ precedence      │          │  · RejectedAlternative          │  │  │
-│  │  │ override+reason │          │  · IssueLearning                │  │  │
-│  │  └─────────────────┘          │  · ReviewFinding                │  │  │
-│  │                                │  · MergeConflictResolution      │  │  │
-│  │                                │  · ReleaseChange                │  │  │
-│  │                                │  → derives ADRs, changelogs     │  │  │
-│  │                                └─────────────────────────────────┘  │  │
-│  └─────────────────────────────────────────────────────────────────────┘  │
-│                                                                            │
-│  ┌────────────────┐  ┌──────────────────────┐  ┌────────────────────────┐ │
-│  │ EVIDENCE PACK  │  │ GIT HYGIENE          │  │ LLM ABSTRACTION        │ │
-│  │                │  │                      │  │                        │ │
-│  │ JSON primary   │  │ worktree lifecycle   │  │ Claude · Codex · Qwen  │ │
-│  │ Markdown view  │  │ rebase-analyze-only  │  │ DeepSeek · local       │ │
-│  │ audit-linked   │  │ force-with-lease     │  │                        │ │
-│  │                │  │ cleanup              │  │ persona → model map    │ │
-│  │ replay-ready   │  │ never auto-resolve   │  │ capability manifest    │ │
-│  │                │  │ all dry-run default  │  │ fallback chains        │ │
-│  │                │  │                      │  │ cost tracking          │ │
-│  └────────────────┘  └──────────────────────┘  └────────────────────────┘ │
-│                                                                            │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │           POLICY ENGINE (separate from workflow)                   │   │
-│  │  approval gates · dry-run defaults · cost caps · override rules    │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                            │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │           ORCHESTRATOR (the conductor)                             │   │
-│  │  issue DAG · worktree planner · session router · audit log         │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────────────────────┘
-                                   │
-┌──────────────────────────────────▼─────────────────────────────────────────┐
-│                 STORAGE (filesystem-first, git-native)                     │
-│  .atelier/runs/<run_id>/stages/<stage_id>/{packet,evidence,transcript}.md  │
-│  .atelier/memory/{decisions,findings,rejected_alternatives}/*.md           │
-│  .atelier/audit/YYYY-MM-DD.jsonl (append-only)                             │
-│  docs/adr/*.md · docs/changes/*.md (user-visible, committed)               │
-└────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────── AGENT TOOLS (user's choice) ──────────────────────────┐
+│   Claude Code  │  Codex  │  Cursor  │  ChatGPT  │  Cowork  │  Gemini  │  Any MCP    │
+└────────────────────────────────────┬────────────────────────────────────────────────┘
+                                     │ reads .atelier/ · writes transcripts
+┌────────────────────────────────────▼────────────────────────────────────────────────┐
+│                     TOOL ADAPTER LAYER (the bridge)                                 │
+│                                                                                     │
+│  ┌─────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐│
+│  │ Claude Code │ │  Codex   │ │  Cursor  │ │ ChatGPT  │ │  Generic │ │   MCP    ││
+│  │  adapter    │ │ adapter  │ │ adapter  │ │ adapter  │ │ adapter  │ │  server  ││
+│  └──────┬──────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘│
+│         │             │            │             │            │            │       │
+│  Each adapter:                                                                     │
+│    1. INGEST — read tool's session state → extract decisions → .atelier/memory/    │
+│    2. FORMAT — read .atelier/memory/ → generate Context Packet for tool's format   │
+│    3. DETECT — auto-detect which tool is running                                   │
+└────────────────────────────────────┬────────────────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────────────────┐
+│                          CONTROL PLANE (the product core)                           │
+│                                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐  │
+│  │                     WORKFLOW ENGINE (workflow-as-code)                       │  │
+│  │    stage transitions · review gates · MAD escalation · resume               │  │
+│  └──────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                     │
+│  ┌───────────────────┐  ┌──────────────────┐  ┌─────────────────────────────┐     │
+│  │ CONTEXT COMPILER  │  │ PERSONA LIBRARY  │  │   SKILLS LIBRARY            │     │
+│  │                   │  │                  │  │                             │     │
+│  │ priority tiers    │  │ Coder · Reviewer │  │ /speckit.specify + clarify  │     │
+│  │ token budgets     │  │ Guide · UAT      │  │ /speckit.plan + tasks       │     │
+│  │ provenance        │  │ Debate Panelist  │  │ /speckit.implement          │     │
+│  │ dedupe            │  │                  │  │ /rebase-before-pr           │     │
+│  │                   │  │ generates prompts│  │ /cleanup-worktree           │     │
+│  │                   │  │ FOR agent tools  │  │ /uat-test                   │     │
+│  │                   │  │ (not API calls)  │  │ (extensible by users)       │     │
+│  └─────────┬─────────┘  └────────┬─────────┘  └──────────────┬──────────────┘     │
+│            │                     │                            │                     │
+│  ┌─────────▼─────────────────────▼────────────────────────────▼──────────────────┐ │
+│  │                    KNOWLEDGE PLANE (cross-cutting)                            │ │
+│  │                                                                               │ │
+│  │  ┌────────────────────┐          ┌──────────────────────────────────────┐    │ │
+│  │  │ RULES              │          │ MEMORY (typed records in markdown)   │    │ │
+│  │  │ (what MUST be)     │          │  · Decision                          │    │ │
+│  │  │ path-matched       │          │  · Constraint                        │    │ │
+│  │  │ precedence         │          │  · RejectedAlternative               │    │ │
+│  │  │ override+reason    │          │  · IssueLearning                     │    │ │
+│  │  └────────────────────┘          │  · ReviewFinding                     │    │ │
+│  │                                   │  · MergeConflictResolution           │    │ │
+│  │                                   │  · ReleaseChange                     │    │ │
+│  │                                   │  → derives ADRs, changelogs          │    │ │
+│  │                                   └──────────────────────────────────────┘    │ │
+│  └───────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                     │
+│  ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │
+│  │ EVIDENCE PACK│  │ GIT HYGIENE      │  │ POLICY ENGINE    │  │ AUXILIARY LLM  │ │
+│  │              │  │                  │  │                  │  │                │ │
+│  │ JSON+MD      │  │ worktree mgmt    │  │ approval gates   │  │ council votes  │ │
+│  │ audit-linked │  │ rebase-analyze   │  │ dry-run defaults │  │ ADR prose      │ │
+│  │ replay-ready │  │ force-with-lease │  │ cost caps        │  │ transcript     │ │
+│  │              │  │ never auto-resolve│ │ configurable     │  │   extraction   │ │
+│  └──────────────┘  └──────────────────┘  └──────────────────┘  └────────────────┘ │
+│                                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐  │
+│  │                 SESSION CONTINUITY                                           │  │
+│  │  atelier resume --agent <tool> · atelier prompt --role <role> --agent <tool> │  │
+│  │  atelier context --for <tool> · transcript ingestion · session swap          │  │
+│  └──────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐  │
+│  │                 ORCHESTRATOR                                                 │  │
+│  │  issue DAG · worktree planner · session router · audit log (JSONL)           │  │
+│  └──────────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────────────────┐
+│                 STORAGE (the shared substrate — filesystem-first, git-native)       │
+│  .atelier/runs/ · .atelier/memory/ · .atelier/workflows/ · .atelier/audit/         │
+│  docs/adr/ · docs/changes/ — all markdown, all git-tracked, all tool-readable      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key architectural distinction from prior version:**
+- **"LLM Abstraction"** is now **"Auxiliary LLM Backend"** — narrow scope, only for council votes, ADR prose synthesis, and transcript extraction. NOT for the main coding workflow.
+- **NEW: "Tool Adapter Layer"** — the bridge between Atelier and whatever agent tool the user chooses. Each adapter knows how to ingest transcripts FROM a tool and format Context Packets FOR a tool.
+- **NEW: "Session Continuity"** — the ability to resume, swap, and port context across agent tools and sessions.
+- **Personas** generate **prompts for agent tools**, not direct LLM API calls. The agent tool (Claude Code, Codex, etc.) is the executor.
+
+---
 
 ## Storage Philosophy (Filesystem-First)
 
-Every persistent entity is a markdown file with YAML frontmatter. Directory structure IS the schema. Git is the audit trail primitive. Queries use `rg`, `find`, and frontmatter parsing. No database in the core; SQLite FTS5 may be added later as a rebuildable index for >10k record scale.
+Every persistent entity is a markdown file with YAML frontmatter. Directory structure IS the schema. Git is the audit trail primitive. Queries use `rg`, `find`, and frontmatter parsing. No database in the core.
 
-**Why**: LLMs are trained on files, not SQL. Your existing `.claude/rules/*.md` and `docs/adr/*.md` pattern already proves this works. Files give you version control, diff, review, blame, and portability for free.
+**Why this is the only correct choice for a shared substrate**: files are the lowest common denominator that EVERY agent tool can read. Claude Code reads `.claude/rules/*.md`. Codex reads `AGENTS.md`. Cursor reads `.cursorrules`. ChatGPT users copy-paste from files. Git syncs files across machines and users. No API integration needed. No accounts. No vendor dependency.
 
 Canonical layout:
 ```
@@ -135,11 +209,21 @@ Canonical layout:
 │   ├── review_findings/<find_id>.md
 │   ├── rejected_alternatives/<alt_id>.md
 │   └── INDEX.md                   # auto-regenerated summary
+├── workflows/<name>.yaml          # user-defined workflows (overrides defaults)
+├── policy.yaml                    # user-defined policy (overrides defaults)
 ├── overrides.yaml                 # user's deviations from defaults + reasons
 └── audit/YYYY-MM-DD.jsonl         # cross-run daily audit
 ```
 
-Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX...`, etc.) to enable time-ordered lexicographic sort without separate timestamp columns.
+**Integration into each agent tool (zero new tools to install):**
+
+| Agent tool | How it reads `.atelier/` | How Atelier captures from it |
+|---|---|---|
+| **Claude Code** | `.claude/rules/atelier.md` references `.atelier/memory/`. CLAUDE.md says "read decisions before starting." | Atelier CLI parses `.claude/projects/` session JSONL → extracts decisions. |
+| **Codex** | `AGENTS.md` references `.atelier/memory/`. | Atelier CLI parses Codex session logs → extracts decisions. |
+| **Cursor** | `.cursorrules` references `.atelier/memory/`. | Atelier CLI parses Composer history → extracts decisions. |
+| **ChatGPT / Cowork / Gemini** | `atelier context --for chatgpt` generates paste-ready summary. | `atelier ingest --from transcript.md` for manual transcript capture. |
+| **Any MCP tool** | Atelier MCP server exposes `.atelier/` as resources. | MCP tools write to `.atelier/` via Atelier MCP. |
 
 ---
 
@@ -147,123 +231,116 @@ Identifiers are ULIDs throughout (`run_01HX...`, `stage_01HX...`, `packet_01HX..
 
 ### Phase 0 — Foundation (MVP)
 
-**Exit criteria**: A real GitHub issue flows end-to-end through a user-defined workflow (default: specify → clarify → plan → tasks → implement → review → UAT → rebase-analyze → cleanup), producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from the CLI. All components dynamic and configurable — no hardcoded workflows, no hardcoded policies.
+**Exit criteria**: A real GitHub issue flows end-to-end through a user-defined workflow, producing Evidence Pack + auto-generated ADR + Run Graph on filesystem, invokable from the CLI. Context Packets can be generated for at least Claude Code + Codex. Session continuity works (resume across tools). All components dynamic and configurable.
 
 **Must-ship**:
 - Filesystem-first storage (no DB)
 - ULID generator + path helpers
-- LLM Abstraction (Anthropic + OpenAI) with capability manifest
-- Persona Library (Coder, Reviewer) with execution-mandatory protocol
-- **Devil's-advocate Reviewer flag** (`devil_advocate_mode: true`, default `false`): when enabled, Reviewer always produces an explicit "reasons to reject" section even when the verdict is APPROVE. Low cost, high signal — makes implicit concerns visible. Opt-in per persona config.
-- Skills Library (extensible — ships with speckit.* + `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`; users add their own)
+- **Tool Adapter Layer** — at least Claude Code + Codex adapters: ingest transcripts, format Context Packets, detect running tool
+- **Session Continuity** — `atelier resume --agent <tool>`, `atelier prompt --role <role> --agent <tool>`, `atelier context --for <tool>`
+- **Auxiliary LLM Backend** (narrow scope) — Anthropic + OpenAI adapters for council tiebreaker, ADR prose synthesis, transcript decision extraction only. NOT for main workflow.
+- Persona Library (Coder, Reviewer) — generates prompts FOR agent tools, NOT direct API calls. Devil's-advocate Reviewer flag (default off).
+- Skills Library (extensible — ships with speckit.* + `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`)
 - Context Compiler (priority tiers + token budget + provenance)
-- **Workflow Engine (workflow-as-code)**: loads workflow definitions from `.atelier/workflows/*.yaml`. Ships with `speckit-loop.yaml` as default. Users define custom workflows for their project. NOT a hardcoded pipeline.
-- **Policy Engine (configurable)**: loads policy from `.atelier/policy.yaml`. Ships with sensible defaults (human-approval at destructive gates, dry-run for git ops, configurable cost caps). NOT hardcoded.
-- Knowledge Plane with 3 record types (Decision, ReviewFinding, RejectedAlternative)
+- Workflow Engine (workflow-as-code, loads from `.atelier/workflows/*.yaml`, ships with `speckit-loop.yaml`)
+- Policy Engine (configurable from `.atelier/policy.yaml`)
+- Knowledge Plane with 3 typed record types (Decision, ReviewFinding, RejectedAlternative)
 - Evidence Pack (JSON + Markdown)
 - Auto-ADR synthesis (MADR 3.0 format)
 - Git Hygiene (worktree create, rebase-analyze read-only, cleanup)
 - Secret redaction (regex-based)
 - Audit log (JSONL)
 - Rule precedence (2 levels: core + repo)
-- CLI (primary and only client surface in Phase 0)
-- UAT persona (wraps existing `ccc/skills/uat-testing`)
-- 3-agent council tiebreaker for Coder↔Reviewer escalation
+- CLI with full command set including `resume`, `prompt`, `context`
+- UAT persona
+- 3-agent council tiebreaker
 
-**Deferred to later phases** (documented, not built).
+**What changed from original Phase 0**: "LLM Abstraction" was the core. Now it's a narrow auxiliary backend. The core is the **Tool Adapter Layer** + **Session Continuity** — the ability to port context across agent tools. Personas no longer call LLM APIs for the main workflow; they generate prompts for external agent tools.
 
-### Phase 1 — Multi-Agent Debate
+### Phase 1 — Adapter Ecosystem + Multi-Agent Debate
 
-Full MAD (Du 2023) and LLM Council (Karpathy anonymization) protocols. Escalation gates:
-- Clarify gate: 3-member council on complex clarifications
-- Coder↔Reviewer deadlock after 2 rounds → council tiebreaker
-- ADR authorship for significant decisions → council drafts, human edits
-- Merge-conflict resolution recommendations (analyze + suggest, never auto-resolve)
+- Additional tool adapters: Cursor, ChatGPT, Gemini, Cowork, generic clipboard
+- Adapter auto-detection (scan for `.claude/`, Codex env vars, `.cursorrules`, etc.)
+- Full MAD (Du 2023) and LLM Council (Karpathy anonymization) protocols
+- Convergence detection, round caps, anonymized peer ranking, chairman synthesis
+- Escalation at clarify gates, deadlocks, ADR authorship, merge-conflict recommendations
 
-Convergence detection, round caps, anonymized peer ranking, chairman synthesis.
-
-### Phase 2 — Parallel Orchestration
+### Phase 2 — Parallel Orchestration + Meta-Observation
 
 - Issue dependency DAG analyzer (reads GitHub issues, labels, links)
 - Worktree planner (maximum parallelism while respecting deps)
 - Concurrent agent sessions across worktrees
-- Cross-worktree memory sync (strategic decisions to main repo, tactical to worktree — automates the manual rule from TIROS CLAUDE.md)
+- Cross-worktree memory sync
 - Session router handling multi-terminal routing
-- **Meta-Observation Gate** — configurable checkpoint type the Workflow Engine can inject at stage transitions, before destructive ops, and after review verdicts. Pauses the run to ask the human: *"Anything about the previous stage that should inform the next one?"*, *"Noticed anything I should learn for future runs?"*, *"Any deviation from what you expected?"* Responses become first-class `Observation` memory records, queryable across runs. Over many runs, recurring observations surface as candidate new defaults for `.atelier/overrides.yaml`. Converts the tacit "I'll mention it next time" human habit into explicit capture.
+- **Meta-Observation Gates** at stage transitions — captures human feedback as `Observation` memory records
 
-### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness + Competitive Integration
+### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness
 
-- Full rule precedence model: `core < org < repo < workflow/stage < human override` with audit trail
-- Path-matched rule loading (per `paths:` frontmatter pattern)
-- Memory namespaces: `repo-local` / `user-private` / `org-shared` with explicit opt-in tagging
-- Replay harness: rerun old runs against new prompts/workflows/models, compare outcome + cost + latency + approval
-- Regression detection for prompt/workflow changes
-- **MemoryBackend interface**: pluggable backend for cross-agent sync. Default = `FilesBackend` (local `.atelier/memory/`). Optional = `MemoryBridgeBackend` wrapping memory-bridge or similar for Claude↔Codex state sync. Adopt existing plumbing; build application layer on top.
-- **Build vs adopt benchmark**: first task of this phase is evaluating memory-bridge, Memorix, MemClaw against Atelier's typed-record + persona-slicing requirements. Don't reinvent plumbing that already works.
+- Full rule precedence model: `core < org < repo < workflow/stage < human override`
+- Path-matched rule loading
+- Memory namespaces: `repo-local` / `user-private` / `org-shared` with opt-in tagging
+- Replay harness: rerun old runs against new prompts/workflows/models
+- **MemoryBackend interface**: pluggable backend for cross-agent sync. Evaluate memory-bridge, Memorix, MemClaw before building.
 
 ### Phase 4 — Git Hygiene Complete + Event Bus + Observability
 
-- Rebase-before-PR full automation (analyze + suggest; still human-approve destructive ops)
+- Rebase-before-PR full automation (analyze + suggest; human-approve destructive ops)
 - Force-with-lease safety wrapper
-- Worktree cleanup lifecycle automation
-- Event bus (internal pub-sub; external webhooks for Slack/Linear/PagerDuty)
-- OpenTelemetry integration (spans for every agent action, tool call, gate)
-- Cost budget enforcement with per-run/per-day/per-model caps
+- Event bus (webhooks for Slack/Linear/PagerDuty)
+- OpenTelemetry integration
+- Cost budget enforcement per-run/per-day/per-model
+- External context source adapters for Context Compiler (Hyperspell, direct GitHub/Linear/Jira API — opt-in, read-only feeds into packets)
 
 ### Phase 5 — IDE Extensions
 
-- VSCode extension (shares backend; covers Cursor, Windsurf, Void by extension)
+- VSCode extension (covers Cursor, Windsurf, Void)
 - Zed extension
-- JetBrains extensibility intentionally excluded — not in scope as of 2026-04
+- All are thin clients over the CLI / HTTP daemon
 
 ### Phase 6 — Web Dashboard + GitHub App
 
-- Web dashboard for team visibility: Memory search, Evidence Pack archive, cost analytics, Run Graph explorer
-- GitHub App: run Atelier on PRs, post Evidence Pack as PR comment, block merge on missing approvals
+- Team visibility dashboard (memory search, Evidence Pack archive, cost analytics)
+- GitHub App (run Atelier on PRs, post Evidence Packs as PR comments)
 - GitLab / Bitbucket adapters
 
 ### Phase 7 — Team / Org Scaling
 
-Team value comes from **auto-updated documentation as source of truth** (ADRs, architecture docs, typed decisions in git), NOT from real-time state sharing between users. Git is the sync mechanism, not a state fabric. Mesh Code-style live cross-user push is explicitly out of scope.
+Team value comes from **auto-updated documentation as source of truth** (ADRs, typed decisions in git), NOT from real-time state sharing. Git is the sync mechanism, not a state fabric.
 
-- **Auto-updated team knowledge**: every Atelier run auto-generates ADRs + Decision records committed to git. Teammates pull the branch and get full context. No Slack, no "hey what did you decide about X?" — read the ADR.
-- **Run resumability across users**: Bob runs `atelier run resume <alice-run-id>` — Context Compiler rebuilds the packet from Alice's Run Graph + Evidence Packs + Decisions. Zero context loss, zero manual handoff.
-- **Selective memory sharing via git subtree**: `.atelier/shared-memory/` as opt-in git subtree from a team-wide repo. Only explicitly human-promoted records appear. Not automatic sync — curated knowledge base using the same typed-record format.
+- Auto-updated team knowledge via git (ADRs + Decision records committed, teammates `git pull`)
+- Run resumability across users (`atelier run resume <alice-run-id>`)
+- Selective memory sharing via git subtree (`.atelier/shared-memory/`, opt-in, human-promoted records only)
 - Org-level rule defaults with override inheritance
-- Team approval workflows (multi-reviewer, tiered approval)
-- Role-based access (who can override which policies)
-- Audit compliance exports (SOC 2 / ISO 27001 evidence)
+- Team approval workflows, RBAC, audit compliance exports
 
 ### Phase 8+ — Ecosystem
 
-- **Evidence Pack open specification** (like SARIF for static analyzers). Publish RFC. Other tools can produce/consume.
-- Workflow marketplace (community-authored workflows for common patterns)
-- Persona marketplace (community-authored personas for specialized domains — security, ML, frontend, safety-critical)
-- Skills marketplace
+- Evidence Pack open specification (RFC)
+- Workflow / persona / skills marketplaces
 - Partner integrations (Linear, Notion, Grafana, Datadog, Honeycomb)
 
 ---
 
 ## Non-Goals (explicitly out of scope)
 
+- **Another platform to adopt.** Don't force users onto a new tool. Be files in git.
 - Generic code chat interface — use Cursor/Claude Code for that
-- Autonomous no-human-in-loop shipping — that's Devin's bet; ours is reproducible human-controlled
-- Locked-in agent framework — we are agnostic, not yet-another-framework
+- Autonomous no-human-in-loop shipping — our bet is reproducible human-controlled
 - Build system / language service / debugger replacement — we orchestrate existing tools
 - Cloud-first — local-first with opt-in team/org deployments
+- Real-time cross-user state sharing — that's Mesh Code's bet; ours is durable docs in git
 
 ## Comparison vs Existing Tools
 
-| Tool | Shape | Gaps Atelier fills |
+| Tool | What it is | What Atelier does differently |
 |---|---|---|
-| Cursor / Windsurf | Session-level IDE agent | No discipline, no ADR, no MAD, session-local memory |
-| Aider | Single-agent CLI | No workflow, no review gates, no memory layer |
-| GitHub Copilot Workspace | Closed, agent-first | No LLM flexibility, no review discipline, no audit |
-| Cognition Devin | Closed, autonomous | No human-in-loop gates, no rule enforcement, no OSS |
-| Cline / RooCode / Continue | Open IDE agent | No workflow framework, no ADR, single-agent |
-| spec-kit | Spec-driven prompts only | No orchestration, no agents, no persistence |
-| Claude Code / Codex CLI | Single-LLM CLI | Vendor-locked, no workflow, no reproducibility layer |
-| **Atelier** | **Reproducibility system + control plane + agnostic** | — |
+| **Conductor** | macOS workspace orchestrator for Claude Code + Codex | No context portability between agents, no memory persistence, no session continuity. Atelier = the knowledge layer Conductor lacks. |
+| **Mesh Code** | Real-time state sharing across agents + users | Team-first, centralized. Atelier is files-first, git-native, single-user-first. No SaaS dependency. |
+| **Mem0 / Cognee / Zep** | Memory layer for LLM API applications | Built for apps calling LLM APIs. Atelier is for humans using agent TOOLS (Claude Code, Codex). Different category. |
+| **Hyperspell** | Hosted RAG over 50+ SaaS sources | Cloud API, not files-first. Useful as optional Context Compiler source (Phase 4), not as core. |
+| **Cursor / Windsurf** | IDE agent | Session-local memory, no cross-tool portability, no ADR, no review discipline. |
+| **Claude Code / Codex CLI** | Single-vendor CLI agent | Vendor-locked session. Context dies with the session. Atelier makes their context portable. |
+| **spec-kit** | Spec-driven prompts | No orchestration, no agents, no persistence. Atelier's workflow engine drives speckit as one of many possible workflows. |
 
 ## Inspirations
 
@@ -272,8 +349,8 @@ Team value comes from **auto-updated documentation as source of truth** (ADRs, a
 - **Karpathy's LLM Council** — 3-stage ensemble with anonymized peer ranking
 - **Du et al. 2023 — Multi-Agent Debate** (ICML 2024)
 - **SARIF** — structured finding format as inspiration for Evidence Pack
-- **aidefense-framework** — pluggable adversarial attack batteries for Reviewer
-- **TIROS HAZOP engineering discipline** — execution-mandatory review, data integrity, safety fallback conventions, Producer→Consumer tracing
+- **TIROS HAZOP engineering discipline** — execution-mandatory review, data integrity, safety fallback conventions
+- **RSS** — format-over-platform philosophy (be the files, not the app)
 
 ## License
 

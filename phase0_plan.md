@@ -4,17 +4,28 @@
 >
 > **Operational companion**: [`phase0_launch.md`](./phase0_launch.md) contains paste-ready git worktree commands + coder/reviewer prompts for each worktree. Open that file when you're ready to start work; this file is the design spec.
 
-## Current Progress
+## Current Progress (post-architectural reframe)
 
 | Status | Count | Worktrees |
 |---|---|---|
-| **Merged to main** | 16 | W01, W02, W03, W04, W05, W06, W07, W08, W09, W10, W12, W18, W19, W21, W22, W23 |
-| **Descoped** | 2 | W17, W20 (JetBrains plugin — CLI is sole Phase 0 surface) |
-| **Closed** | 1 | W25 (hackathon pitch — removed post-hackathon) |
-| **Ready to launch (Wave 3)** | 4 | **W11, W13, W14, W26** — all deps met, can start in parallel NOW |
-| **Blocked on Wave 3** | 3 | W15 (needs W11), W16 (needs W15), W24 (needs W11 + W15) |
+| **Merged to main** | 21 | W01, W02, W03, W04, W05, W06, W07, W08, W09, W10, W11, W12, W13, W14, W15, W18, W19, W21, W22, W23, W26 |
+| **Descoped** | 3 | W17, W20 (JetBrains plugin), W25 (hackathon pitch) |
+| **Needs rework** | 2 | **W02** (LLM Abstraction → reframe as Auxiliary LLM Backend), **W04** (Personas → reframe to generate prompts for agent tools, not direct API calls) |
+| **Open (original)** | 2 | W16 (HTTP daemon), W24 (integration tests) |
+| **NEW worktrees** | 3 | **W27** (Tool Adapter Layer), **W28** (Session Continuity), **W29** (Persona Rework) |
 
-**Critical path**: W11 (Workflow Engine) → W15 (CLI) → W24 (Integration Tests)
+**Critical path**: W27 (Tool Adapters) + W28 (Session Continuity) → W29 (Persona rework) → W24 (Integration Tests)
+
+### Architectural reframe (2026-04-23)
+
+The original architecture assumed Atelier calls LLM APIs directly (Personas call Anthropic/OpenAI). The correct architecture is:
+
+- **Atelier is the middle layer** — it generates Context Packets for agent tools (Claude Code, Codex, Cursor) and captures what they produce. It does NOT replace the agent tool.
+- **W02 (LLM Abstraction)** is now the **Auxiliary LLM Backend** — narrow scope for council tiebreaker, ADR prose synthesis, transcript decision extraction. The code is correct; the scope is narrower than originally framed.
+- **W04 (Personas)** needs rework — `Persona.respond()` currently calls `self.adapter.generate()` (direct API). It should generate formatted prompts for the target agent tool instead. The `PersonaCaller` Protocol in `stages.py` is correctly abstract and does NOT need changing.
+- **NEW W27 (Tool Adapter Layer)** — the bridge: ingest transcripts from each tool, format Context Packets for each tool, auto-detect running tool.
+- **NEW W28 (Session Continuity)** — `atelier resume`, `atelier prompt`, `atelier context` commands enabling session swap across tools.
+- **NEW W29 (Persona Rework)** — refactor Personas from direct-API callers to prompt generators for agent tools. Keep existing code as `DirectAPICaller` for auxiliary use; add `AgentToolCaller` as the main path.
 
 ## Scope Summary
 
@@ -49,8 +60,10 @@ CLI surfaces for each run:
 |---|---|---|
 | Repo scaffolding (pyproject, tooling, dir structure) | Lane A | `pyproject.toml`, `atelier/__init__.py`, dir layout |
 | ULID generator + path helpers | Lane A | `atelier/util/ulid.py`, `atelier/util/paths.py` |
-| LLM Abstraction (Anthropic + OpenAI) + capability manifest | Lane A | `atelier/llm/*.py`, `atelier/llm/models/*.yaml` |
-| Persona Library (Coder, Reviewer) + `devil_advocate_mode` flag (default off) | Lane B | `atelier/personas/*.py`, `.atelier/defaults/personas/*.md` |
+| ~~LLM Abstraction~~ → **Auxiliary LLM Backend** (narrow: council, ADR prose, transcript extraction only) | Lane A | `atelier/llm/*.py` — DONE, needs reframing not rewrite |
+| **Tool Adapter Layer** (Claude Code + Codex adapters: ingest, format, detect) | Lane A | `atelier/adapters/*.py`, `atelier/adapters/manifests/*.yaml` |
+| **Session Continuity** (`resume`, `prompt`, `context` commands) | Lane A | `atelier/session/*.py`, CLI commands |
+| Persona Library (generates prompts FOR agent tools, NOT direct API calls) + `devil_advocate_mode` flag | Lane B | `atelier/personas/*.py` — DONE, needs rework (W29) |
 | Skills Library (imports + additions) | Lane B | `.atelier/defaults/skills/*.md` |
 | Context Compiler | Lane A | `atelier/compiler/*.py` |
 | Knowledge Plane record schemas + file I/O | Lane B | `atelier/memory/*.py` |
@@ -371,6 +384,47 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 - **Output**: Safe git automation
 - **Blocks**: W18 (integrated into workflow at rebase-before-pr stage)
 
+### W27 — Tool Adapter Layer (NEW — post-reframe)
+
+- **Depends**: W01, W03, W06 (memory reader/writer)
+- **Owns**: `atelier/adapters/base.py`, `atelier/adapters/claude_code.py`, `atelier/adapters/codex.py`, `atelier/adapters/generic.py`, `atelier/adapters/manifests/claude-code.yaml`, `atelier/adapters/manifests/codex.yaml`
+- **Scope**: The bridge between Atelier and agent tools. Each adapter implements three operations:
+  - **Ingest**: read the tool's session state → extract decisions, findings, context → write to `.atelier/memory/`. Claude Code adapter reads `.claude/projects/` JSONL. Codex adapter reads session logs. Generic adapter accepts markdown transcript paste.
+  - **Format**: read `.atelier/memory/` + run context → generate Context Packet formatted for the tool's conventions (e.g., Claude Code expects CLAUDE.md-style instructions; Codex expects AGENTS.md-style).
+  - **Detect**: auto-detect which tool is running (check for `.claude/`, Codex env vars, etc.)
+  - Agent tool manifests (YAML): what each tool can do (MCP support, tool use, file access, context window, session format).
+- **Acceptance**: (1) Claude Code adapter reads a fixture `.claude/projects/` JSONL → extracts 3+ decisions. (2) Codex adapter reads a fixture session log → extracts decisions. (3) Format generates a valid Context Packet for Claude Code with memory references. (4) Detect correctly identifies Claude Code vs Codex vs unknown.
+- **Output**: Pluggable tool adapter ecosystem
+- **Blocks**: W28, W29
+
+### W28 — Session Continuity (NEW — post-reframe)
+
+- **Depends**: W27, W15 (CLI), W07 (Context Compiler)
+- **Owns**: `atelier/session/resume.py`, `atelier/session/prompt.py`, `atelier/session/context.py`, CLI commands: `atelier resume`, `atelier prompt`, `atelier context`
+- **Scope**: The session portability layer.
+  - `atelier resume --agent claude-code --run <run-id>`: Reads Run Graph + memory from a prior run (possibly done in a different tool). Generates a Context Packet formatted for Claude Code. User pastes it into Claude Code → full context continuity.
+  - `atelier prompt --role coder --agent codex --run <run-id>`: Generates the Coder persona prompt formatted for Codex, including all context from the run.
+  - `atelier prompt --role reviewer --agent claude-code --run <run-id>`: Same but for Reviewer, formatted for Claude Code.
+  - `atelier context --for chatgpt`: Generates a paste-ready summary of `.atelier/memory/` for non-CLI tools (ChatGPT, Gemini, Cowork).
+  - `atelier ingest --from transcript.md`: Manual transcript ingestion for tools without native adapter.
+- **Acceptance**: (1) Start a run in Codex, write decisions. Run `atelier resume --agent claude-code`. The output prompt contains all decisions from the Codex run. (2) `atelier prompt --role coder` and `--role reviewer` produce different prompts with appropriate context for each role. (3) `atelier context --for chatgpt` produces a self-contained summary under 4K tokens.
+- **Output**: Zero-context-loss tool switching
+- **Blocks**: W24 (integration tests should cover session swap)
+
+### W29 — Persona Rework (NEW — post-reframe)
+
+- **Depends**: W27, W04 (existing persona code)
+- **Owns**: `atelier/personas/base.py` (modify), `atelier/personas/callers.py` (new)
+- **Scope**: Refactor Personas from direct-API callers to prompt generators for agent tools.
+  - Keep `PersonaCaller` Protocol in `stages.py` unchanged (already correctly abstract).
+  - Add `AgentToolCaller` — implements `PersonaCaller` by generating a prompt (using the tool adapter from W27), presenting it, and waiting for output (file watch or manual paste-back).
+  - Keep existing `DirectAPICaller` — implements `PersonaCaller` by calling LLM APIs directly. Used ONLY for auxiliary calls (council tiebreaker, ADR prose synthesis).
+  - `Persona.respond()` no longer calls `self.adapter.generate()` by default. Instead, it generates a formatted prompt for the target agent tool.
+  - Workflow engine wires `AgentToolCaller` for main stages, `DirectAPICaller` for auxiliary stages.
+- **Acceptance**: (1) `AgentToolCaller.call()` produces a prompt string formatted for Claude Code (not an API call). (2) `DirectAPICaller.call()` still works for council tiebreaker. (3) Workflow engine uses the correct caller per stage.
+- **Output**: Personas generate prompts for agent tools instead of calling APIs
+- **Blocks**: W24
+
 ---
 
 ## Integration Contracts (freeze early)
@@ -378,12 +432,13 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 | Contract | Owner | Consumers |
 |---|---|---|
 | CLI command contract (args, `--json` output shape) | Lane A | All users; scripts; CI |
-| Evidence Pack JSON schema | Lane B | Lane A (audit linkage, CLI `show --evidence`), future clients |
-| Context Packet markdown structure | Lane A + Lane B | Lane B (personas consume) |
-| Persona capability declaration format | Lane A | Lane B (personas declare) |
+| Evidence Pack JSON schema | Lane B | Lane A (audit, CLI `show --evidence`), future clients |
+| Context Packet markdown structure | Lane A + Lane B | Lane B (personas consume), W27 (adapters format) |
+| **Tool Adapter interface** (ingest, format, detect ABC) | W27 | W28 (session continuity), W29 (persona rework) |
+| **Agent tool manifest schema** (YAML: capabilities, session format, config paths) | W27 | Adapter implementations |
+| PersonaCaller Protocol (unchanged from W11) | Lane A | W29 (AgentToolCaller + DirectAPICaller implementations) |
 | Skill frontmatter schema | Lane B | Lane A (workflow engine loads) |
-| LLM adapter interface | Lane A | Lane B (personas call) |
-| HTTP API (foundation for future client surfaces) | Lane A | Future IDE / web / CI clients |
+| Auxiliary LLM adapter interface (for council/ADR only) | Lane A | Council tiebreaker, ADR synthesis |
 
 **Freeze deadline**: end of first integration block. After freeze, changes require cross-lane sign-off.
 
