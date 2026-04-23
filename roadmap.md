@@ -144,6 +144,8 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 │  │  └────────────────────┘          │  · ReviewFinding                     │    │ │
 │  │                                   │  · MergeConflictResolution           │    │ │
 │  │                                   │  · ReleaseChange                     │    │ │
+│  │                                   │  · Observation (Phase 2)             │    │ │
+│  │                                   │  · UXTastePreference (Phase 2)       │    │ │
 │  │                                   │  → derives ADRs, changelogs          │    │ │
 │  │                                   └──────────────────────────────────────┘    │ │
 │  └───────────────────────────────────────────────────────────────────────────────┘ │
