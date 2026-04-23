@@ -52,6 +52,8 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 
 ## Wave structure (dependency graph)
 
+Status as of 2026-04-23. 23 of 26 active worktrees merged to main. Three remain — all tied to the architectural reframe.
+
 | Wave | Worktrees | Status |
 |---|---|---|
 | **0** | W01, W22 | **DONE** |
@@ -60,28 +62,43 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 | **1c** | W07 | **DONE** |
 | **1d** | W18, W19, W21, W23 | **DONE** |
 | **3** | W11, W13, W14, W26 | **DONE** |
-| **4** | W15 | **DONE** |
+| **4** | W15, W16 | **DONE** |
+| **pre-reframe final** | W24 (v1) | **DONE** — merged, but scope needs extension for W27/W28/W29 coverage (tracked as W24-followup below) |
 | **~~descoped~~** | ~~W17, W20, W25~~ | Removed |
-| **5 — CURRENT (parallel)** | **W27** (Tool Adapter Layer), **W16** (HTTP daemon) | **START NOW** — all deps met |
-| **6** — after W27 | **W28** (Session Continuity), **W29** (Persona Rework) — can run in parallel | Blocked on W27 |
-| **7** — final gate | **W24** (Integration Tests + CI) | Blocked on W28 + W29 |
+| **5 — CURRENT** | **W27** (Tool Adapter Layer) | **START NOW** — sole bottleneck for Phase 0 close-out |
+| **6** — after W27 | **W28** (Session Continuity) + **W29** (Persona Rework) — run in parallel | Blocked on W27 |
+| **7** — final gate | **W24-followup** — extend integration tests to cover adapters, session swap, AgentToolCaller vs DirectAPICaller routing | Blocked on W28 + W29 |
 
 ### Dependency diagram (remaining work)
 
 ```
-W27 (Tool Adapter Layer) ──────────────────┐
-  │                                         │
-  ├──► W28 (Session Continuity)             │  W16 (HTTP daemon)
-  │       atelier resume/prompt/context     │    (independent, parallel)
-  │                                         │
-  ├──► W29 (Persona Rework)                 │
-  │       AgentToolCaller + DirectAPICaller  │
-  │                                         │
-  └──► W24 (Integration Tests + CI) ◄───────┘
-          (final gate — covers ALL components including adapters + session swap)
+                      W27 (Tool Adapter Layer)
+                         • atelier/adapters/base.py (ABC)
+                         • atelier/adapters/claude_code.py
+                         • atelier/adapters/codex.py
+                         • atelier/adapters/generic.py
+                         • atelier/adapters/manifests/*.yaml
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │                               │
+                    ▼                               ▼
+          W28 (Session Continuity)         W29 (Persona Rework)
+          • atelier resume                 • AgentToolCaller
+          • atelier prompt                 • DirectAPICaller
+          • atelier context                • workflow engine rewiring
+          • atelier ingest                 • preserves existing tests
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    │
+                                    ▼
+                       W24-followup (Integration)
+                       • adapter round-trip tests
+                       • session swap E2E
+                       • AgentToolCaller vs DirectAPICaller
+                       • Codex→Claude Code handoff fixture
 ```
 
-**W27 is the bottleneck.** It defines the adapter interface W28 and W29 consume. W16 is independent.
+**W27 is the single bottleneck for Phase 0 close-out.** W16 (previously parallel with W27) has already landed. Once W27 merges, W28 and W29 can run in parallel.
 
 ---
 
@@ -1908,7 +1925,7 @@ Learnings carried:
 
 ---
 
-# Wave 5 — CURRENT: Tool Adapter Layer + HTTP Daemon (start in parallel)
+# Wave 5 — CURRENT: Tool Adapter Layer (sole Phase 0 bottleneck)
 
 ## W27: Tool Adapter Layer — Claude Code + Codex adapters
 
@@ -2053,9 +2070,7 @@ Learnings carried:
 
 ---
 
-## W16: HTTP daemon + SSE (unchanged — parallel with W27)
-
-Already defined above in Wave 4 section. Start in parallel with W27. No dependency between them.
+**Note**: W16 (HTTP daemon + SSE) was previously marked parallel with W27. It merged via PR #50 before W27 kicked off — no longer part of the remaining work.
 
 ---
 
@@ -2297,13 +2312,25 @@ Learnings carried:
 
 # Wave 7 — Final gate
 
-## W24: Integration Tests + E2E Validation (updated scope)
+## W24-followup: Extended Integration Tests (covers W27/W28/W29)
 
-Already defined above. Updated scope: integration tests must now also cover:
-- Tool adapter ingest/format round-trip
-- Session continuity (`atelier resume` + `atelier prompt` produce correct output)
-- Persona callers: workflow engine uses AgentToolCaller for main stages, DirectAPICaller for auxiliary
-- Full workflow with mock agent tool (simulate paste-in/paste-out cycle)
+**Parent issue**: W24 (pre-reframe integration suite, already merged via PR #49)
+**Depends on**: W27, W28, W29 (all merged)
+**Owns**: additions to `tests/integration/`, updates to `.github/workflows/ci.yaml` if needed
+
+The original W24 shipped integration tests + CI for everything up to W26. After the 2026-04-23 architectural reframe, three worktrees were added (W27/W28/W29) that need coverage. File this as a follow-up PR on top of the existing `tests/integration/` suite — not a rewrite.
+
+**New scope**:
+- **Adapter round-trip** — fixture Claude Code JSONL → ingest → memory records → format Context Packet → assert content preservation and per-tool formatting difference
+- **Session swap E2E** — start a run in a "Codex fixture" (captured session file), run `atelier resume --agent claude-code`, assert the Claude Code prompt contains all decisions from the Codex fixture with zero loss
+- **Role-specific prompt** — `atelier prompt --role coder` vs `--role reviewer` for same run produce different prompts with appropriate context
+- **AgentToolCaller vs DirectAPICaller routing** — workflow engine uses AgentToolCaller for main stages (specify, clarify, plan, tasks, implement, review), DirectAPICaller for auxiliary (council tiebreaker, ADR synthesis). Assert correct wiring.
+- **Mock agent tool paste-back cycle** — simulate the full "generate prompt → human pastes into agent tool → agent tool produces output → Atelier captures" flow using fixture stdin/stdout.
+- **CI pipeline update** — existing `.github/workflows/ci.yaml` should already run the new tests (no new job needed unless adapter fixtures require extra setup).
+
+**Acceptance**: All new integration tests pass in CI. Existing integration suite continues to pass (zero regression). Clean-slate run (delete `.atelier/`, re-init, run full E2E) still works.
+
+File a new GitHub issue when W28+W29 are close to landing. No prompts generated here — this is a smaller scope and the W27 coder can self-direct once the pattern is established.
 
 ---
 

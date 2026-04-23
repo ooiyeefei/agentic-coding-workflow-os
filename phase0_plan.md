@@ -6,15 +6,17 @@
 
 ## Current Progress (post-architectural reframe)
 
+Status as of 2026-04-23.
+
 | Status | Count | Worktrees |
 |---|---|---|
-| **Merged to main** | 21 | W01, W02, W03, W04, W05, W06, W07, W08, W09, W10, W11, W12, W13, W14, W15, W18, W19, W21, W22, W23, W26 |
+| **Merged to main** | 23 | W01, W02, W03, W04, W05, W06, W07, W08, W09, W10, W11, W12, W13, W14, W15, **W16**, W18, W19, W21, W22, W23, **W24** (v1), W26 |
 | **Descoped** | 3 | W17, W20 (JetBrains plugin), W25 (hackathon pitch) |
-| **Needs rework** | 2 | **W02** (LLM Abstraction → reframe as Auxiliary LLM Backend), **W04** (Personas → reframe to generate prompts for agent tools, not direct API calls) |
-| **Open (original)** | 2 | W16 (HTTP daemon), W24 (integration tests) |
-| **NEW worktrees** | 3 | **W27** (Tool Adapter Layer), **W28** (Session Continuity), **W29** (Persona Rework) |
+| **Needs rework (non-blocking)** | 2 | **W02** scope narrowed (LLM Abstraction → Auxiliary LLM Backend — code unchanged, framing only), **W04** to be refactored during W29 (Personas generate prompts for agent tools, not direct API calls) |
+| **Remaining open** | 3 | **W27** (Tool Adapter Layer) — sole Wave 5 bottleneck, **W28** (Session Continuity) — Wave 6, **W29** (Persona Rework) — Wave 6 |
+| **Deferred follow-up** | 1 | **W24-followup** — extend integration suite to cover adapters, session swap, persona caller routing (files after W27/W28/W29 land) |
 
-**Critical path**: W27 (Tool Adapters) + W28 (Session Continuity) → W29 (Persona rework) → W24 (Integration Tests)
+**Critical path**: W27 (Tool Adapters) → W28 (Session Continuity) + W29 (Persona Rework, parallel) → W24-followup (Integration coverage extension)
 
 ### Architectural reframe (2026-04-23)
 
