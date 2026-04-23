@@ -54,34 +54,34 @@ Full architecture: [`roadmap.md`](./roadmap.md). Full Phase 0 scope: [`phase0_pl
 
 | Wave | Worktrees | Status |
 |---|---|---|
-| **0** | W01, W22 | **DONE** — merged to main |
-| **1a** | W02, W03, W05, W10, W12 | **DONE** — merged to main |
-| **1b** | W04, W06, W08, W09 | **DONE** — merged to main |
-| **1c** | W07 | **DONE** — merged to main |
-| **1d** (parallel) | W18, W19, W21, W23 | **DONE** — merged to main |
-| **~~descoped~~** | ~~W17, W20~~ (JetBrains plugin) | Removed — CLI is sole Phase 0 surface |
-| **~~removed~~** | ~~W25~~ (pitch deck) | Closed — not a product artifact |
-| **3 — CURRENT** | **W11, W13, W14, W26** | **READY NOW** — all deps met, launch in parallel |
-| **4** — after W11 | W15 (+W11), W16 (+W15) | Blocked on W11 |
-| **5** — after W15 | W24 (+W11, W15, W22, W23) | Blocked on W15 |
+| **0** | W01, W22 | **DONE** |
+| **1a** | W02, W03, W05, W10, W12 | **DONE** |
+| **1b** | W04, W06, W08, W09 | **DONE** |
+| **1c** | W07 | **DONE** |
+| **1d** | W18, W19, W21, W23 | **DONE** |
+| **3** | W11, W13, W14, W26 | **DONE** |
+| **4** | W15 | **DONE** |
+| **~~descoped~~** | ~~W17, W20, W25~~ | Removed |
+| **5 — CURRENT (parallel)** | **W27** (Tool Adapter Layer), **W16** (HTTP daemon) | **START NOW** — all deps met |
+| **6** — after W27 | **W28** (Session Continuity), **W29** (Persona Rework) — can run in parallel | Blocked on W27 |
+| **7** — final gate | **W24** (Integration Tests + CI) | Blocked on W28 + W29 |
 
-At any time, multiple worktrees across different waves can be running in parallel as long as each worktree's own dependencies have landed.
+### Dependency diagram (remaining work)
 
-### Parallelizing beyond wave boundaries via the stub pattern
+```
+W27 (Tool Adapter Layer) ──────────────────┐
+  │                                         │
+  ├──► W28 (Session Continuity)             │  W16 (HTTP daemon)
+  │       atelier resume/prompt/context     │    (independent, parallel)
+  │                                         │
+  ├──► W29 (Persona Rework)                 │
+  │       AgentToolCaller + DirectAPICaller  │
+  │                                         │
+  └──► W24 (Integration Tests + CI) ◄───────┘
+          (final gate — covers ALL components including adapters + session swap)
+```
 
-Some Wave 1b/2/3 worktrees depend on INTERFACES from prior waves (e.g., W04 needs `LLMAdapter` from W02), not full implementations. For these, you can parallelize beyond the wave boundary by **stubbing the interface locally**:
-
-1. The downstream Coder writes a local Protocol/ABC matching the contract defined in `phase0_plan.md` for the upstream worktree.
-2. Works against the stub until the upstream worktree merges.
-3. Post-merge, swaps imports from local stub → real module in a follow-up commit.
-
-Worktrees where stubbing is recommended (each Coder prompt below includes the stub snippet):
-- **W04** → stub `LLMAdapter` from W02
-- **W07** → stub `LLMAdapter` from W02 (reuse W04's stub if both run concurrently)
-- **W18** → stub `Persona` base from W04 (reuse W04's if that landed)
-- **W21** → stub `LLMAdapter` from W02
-
-Without stubbing, treat wave boundaries as strict ordering: Wave 1a must merge before Wave 1b starts, etc.
+**W27 is the bottleneck.** It defines the adapter interface W28 and W29 consume. W16 is independent.
 
 ---
 
@@ -1906,23 +1906,409 @@ Learnings carried:
 - Every artifact type must be asserted. "It ran without error" is not enough — verify what's on disk.
 ```
 
+---
 
-Domain findings:
-- If script exceeds 90s: RED (cut ruthlessly).
-- If moat isn't named explicitly (reproducibility + LLM-agnostic + execution-mandatory): ORANGE.
-- If fallback video has audio issues: RED (re-record).
+# Wave 5 — CURRENT: Tool Adapter Layer + HTTP Daemon (start in parallel)
 
-Output + verification + confidence as standard.
+## W27: Tool Adapter Layer — Claude Code + Codex adapters
+
+**Issue**: [#51](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/51)
+**Depends on**: W01, W03, W06 (all merged)
+**Blocks**: W28 (Session Continuity), W29 (Persona Rework), W24 (Integration Tests)
+
+**Git commands**:
+```bash
+cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
+git fetch origin && git rebase origin/main
+git worktree add ../acw-w27 -b acw-w27 main
+cd ../acw-w27
+```
+
+**Coder prompt**:
+```
+You are the Coder agent for W27 — Tool Adapter Layer (issue #51).
+
+CRITICAL CONTEXT — READ FIRST:
+Atelier is NOT an LLM API caller. It is the shared knowledge substrate for agent tools.
+The user uses Claude Code, Codex, Cursor, etc. as their coding agents. Atelier is the MIDDLE
+LAYER that generates context for those tools and captures what they produce.
+
+This worktree builds the BRIDGE between Atelier and agent tools. Each adapter knows three things:
+1. INGEST — how to read the tool's session state and extract decisions/findings into .atelier/memory/
+2. FORMAT — how to read .atelier/memory/ and generate a Context Packet for the tool's conventions
+3. DETECT — how to auto-detect which tool is running in the current environment
+
+Strategic context: The user's real pain (happening right now): they have a 730K-token Codex session.
+If they switch to Claude Code, all context is lost. Atelier solves this by capturing decisions to
+.atelier/memory/ (markdown files) and generating Context Packets for the target tool. This adapter
+layer is the mechanism that makes that possible.
+
+Objective: Build atelier/adapters/ with base ABC + Claude Code adapter + Codex adapter + generic fallback.
+
+Files you own:
+- atelier/adapters/__init__.py
+- atelier/adapters/base.py — ToolAdapter ABC with:
+    - ingest_transcript(session_path) -> list[MemoryRecord] (reads tool session, extracts decisions)
+    - format_context_packet(run_id, role, memory_records) -> str (generates paste-ready prompt)
+    - detect() -> bool (checks if this tool is the active one)
+    - tool_name: str (e.g., "claude-code", "codex")
+    - session_format: str (e.g., "jsonl", "markdown")
+- atelier/adapters/claude_code.py — Claude Code adapter:
+    - ingest: reads .claude/projects/<project>/session.jsonl, parses user+assistant messages,
+      uses auxiliary LLM (W02) to extract Decision/ReviewFinding records
+    - format: generates prompt in Claude Code's conventions (references CLAUDE.md, .claude/rules/)
+    - detect: checks for .claude/ directory + CLAUDE.md existence
+- atelier/adapters/codex.py — Codex adapter:
+    - ingest: reads Codex session logs (find the format — check ~/.codex/ or env vars)
+    - format: generates prompt in Codex's conventions (references AGENTS.md)
+    - detect: checks for AGENTS.md + Codex env vars
+- atelier/adapters/generic.py — fallback adapter:
+    - ingest: reads a plain markdown transcript file (user pastes conversation into transcript.md)
+    - format: generates a self-contained markdown prompt with full context
+    - detect: always returns False (manual selection only)
+- atelier/adapters/manifests/claude-code.yaml — what Claude Code can do:
+    capabilities: [tool_use, file_access, bash, git, mcp, memory]
+    session_format: jsonl
+    config_paths: [.claude/, CLAUDE.md, .claude/rules/]
+    context_injection: ".claude/rules/*.md referenced from CLAUDE.md"
+- atelier/adapters/manifests/codex.yaml — what Codex can do:
+    capabilities: [tool_use, file_access, bash, git]
+    session_format: jsonl
+    config_paths: [AGENTS.md, codex.md]
+    context_injection: "AGENTS.md in repo root"
+- tests/test_adapters.py
+
+How to start:
+1. Read the existing atelier/memory/records.py + atelier/memory/writer.py to understand the
+   typed record format (Decision, ReviewFinding, RejectedAlternative)
+2. Read the existing atelier/compiler/compiler.py to understand how Context Packets are assembled
+3. /speckit.specify "Tool Adapter Layer: ABC + Claude Code adapter + Codex adapter + generic fallback,
+   with ingest/format/detect operations and YAML manifests"
+4. /speckit.clarify — Claude Code session JSONL format (find in .claude/projects/<hash>/<session>.jsonl),
+   Codex session format (research: check ~/.codex/ or Codex docs), decision extraction strategy
+   (use auxiliary LLM from atelier/llm/ to extract decisions from raw transcripts, or use regex/heuristic
+   for Phase 0), how format_context_packet differs per tool.
+5. /speckit.plan → /speckit.tasks → /speckit.implement.
+6. Review iterations.
+
+Acceptance criteria:
+- Claude Code adapter reads a fixture .claude/projects/ JSONL → extracts 3+ Decision records → writes to .atelier/memory/
+- Codex adapter reads a fixture session log → extracts decisions
+- Generic adapter reads a paste-formatted markdown transcript → extracts decisions
+- format_context_packet for Claude Code includes: prior decisions summary, relevant ADRs, current run state, formatted as CLAUDE.md-style instructions
+- format_context_packet for Codex includes: same info formatted as AGENTS.md-style instructions
+- detect() correctly identifies Claude Code (has .claude/) vs Codex (has AGENTS.md + env) vs unknown
+- Agent tool manifests validate with Pydantic
+- All tests pass with fixture data (no real LLM calls in unit tests)
+
+Credentials: ANTHROPIC_API_KEY only if using auxiliary LLM for decision extraction (optional — can use heuristic for Phase 0).
+```
+
+**Reviewer prompt**:
+```
+You are the Reviewer agent for W27 — Tool Adapter Layer (issue #51).
+
+Strategic context — THIS IS THE ARCHITECTURAL REFRAME:
+The entire product was reframed on 2026-04-23. Atelier is NOT an LLM API caller. It is the shared
+knowledge substrate. This adapter layer is the BRIDGE that makes context portable across agent tools.
+If this is wrong, everything downstream (session continuity, persona rework, integration tests) fails.
+
+Read: ../../roadmap.md (rewritten 2026-04-23) for the full architectural context.
+Read: ../../phase0_plan.md section W27 for acceptance criteria.
+
+Review scope: atelier/adapters/, tests/test_adapters.py, atelier/adapters/manifests/*.yaml.
+
+Review guidelines (execution-mandatory):
+1. `uv run pytest tests/test_adapters.py -v` — paste output.
+2. Ingest test: provide a fixture Claude Code JSONL with 5 user+assistant exchanges including
+   an explicit architecture decision. Run ingest. Confirm a Decision record appears in output.
+   Paste the extracted record.
+3. Format test: generate a Context Packet for Claude Code. Confirm it references .claude/rules/,
+   includes prior decisions, and reads naturally as an instruction prompt. Paste first 50 lines.
+4. Format test: generate a Context Packet for Codex from the SAME memory records. Confirm it
+   references AGENTS.md and differs in formatting from Claude Code's packet. Paste first 50 lines.
+5. Detect test: in a directory with .claude/, detect() returns claude-code. Without it, returns unknown. Paste.
+6. Manifest validation: load both YAML manifests, confirm Pydantic validation passes. Paste.
+
+Domain findings to apply:
+- If adapter calls LLM API for the MAIN workflow (not just decision extraction): RED. Atelier generates
+  prompts FOR agent tools. It does NOT call LLMs to do the coding/reviewing work.
+- If ingest modifies the tool's session files: RED (read-only).
+- If format_context_packet is identical for Claude Code and Codex: RED (each tool has different
+  conventions — CLAUDE.md vs AGENTS.md, different system prompt styles).
+- If detect() requires user configuration instead of auto-detecting: ORANGE.
+- If manifests are hardcoded in Python instead of YAML files: ORANGE.
+- If no generic/fallback adapter for unsupported tools: RED (must degrade gracefully).
+
+Output format + verification + confidence as standard.
 
 Learnings carried:
-- "I've been building safety-critical AI in HAZOP, where wrong outputs can kill people" is a compelling cold open.
-- One clear transition per slide.
+- Atelier is a MIDDLE LAYER. It reads from agent tools and writes to agent tools. It is not the agent.
+- Claude Code stores sessions in .claude/projects/<hash>/<session>.jsonl
+- Each tool has different conventions for receiving instructions (CLAUDE.md vs AGENTS.md vs .cursorrules)
+- The adapter must format Context Packets differently per tool — same content, different wrapping.
+- Decision extraction from raw transcripts is an NLP task. Phase 0 can use heuristics (look for
+  "decided", "chose", "rejected", "because") or auxiliary LLM. Don't over-engineer — accuracy improves later.
 ```
+
+---
+
+## W16: HTTP daemon + SSE (unchanged — parallel with W27)
+
+Already defined above in Wave 4 section. Start in parallel with W27. No dependency between them.
+
+---
+
+# Wave 6 — After W27 lands (start W28 + W29 in parallel)
+
+## W28: Session Continuity — resume, prompt, context commands
+
+**Issue**: [#52](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/52)
+**Depends on**: W27 (Tool Adapter Layer), W15 (CLI), W07 (Context Compiler) — all merged or landing
+**Blocks**: W24 (Integration Tests)
+
+**Git commands**:
+```bash
+cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
+git fetch origin && git rebase origin/main
+git worktree add ../acw-w28 -b acw-w28 main
+cd ../acw-w28
+```
+
+**Coder prompt**:
+```
+You are the Coder agent for W28 — Session Continuity (issue #52).
+
+CRITICAL CONTEXT: This is the feature that solves the user's core pain. Right now, switching
+from Codex to Claude Code means losing all context. This worktree makes that problem disappear.
+
+Strategic context: Atelier captures decisions to .atelier/memory/ (markdown files). The Tool
+Adapter Layer (W27, already merged) knows how to format Context Packets for each agent tool.
+This worktree wires those capabilities into CLI commands that the user actually runs.
+
+Objective: Build atelier/session/ with resume, prompt, context, and ingest commands.
+
+Files you own:
+- atelier/session/__init__.py
+- atelier/session/resume.py — `resume(run_id, target_agent) -> str`:
+    1. Read Run Graph (.atelier/runs/<id>/) — all stages, decisions, evidence, findings
+    2. Read current .atelier/memory/ for cross-run context
+    3. Use W07 Context Compiler to assemble prioritized packet
+    4. Use W27 tool adapter to format for target agent (claude-code, codex, generic)
+    5. Return paste-ready prompt string
+- atelier/session/prompt.py — `generate_prompt(run_id, role, target_agent) -> str`:
+    Role-specific prompt generation. Coder gets implementation-focused context.
+    Reviewer gets review-focused context with execution-mandatory protocol.
+    Uses W27 adapter to format for the target tool.
+- atelier/session/context.py — `generate_context(target, token_limit) -> str`:
+    Generates a self-contained context summary from .atelier/memory/ for non-CLI tools
+    (ChatGPT, Gemini, Cowork). Token-budgeted. Standalone — no run_id needed.
+- atelier/session/ingest.py — `ingest_transcript(path, source_tool) -> list[MemoryRecord]`:
+    Manual transcript ingestion. Reads a markdown/text file, extracts decisions.
+    Wraps W27 adapter's ingest_transcript.
+- atelier/cli/commands/resume.py — CLI: `atelier resume --agent claude-code --run <id>`
+- atelier/cli/commands/prompt.py — CLI: `atelier prompt --role coder --agent codex --run <id>`
+- atelier/cli/commands/context.py — CLI: `atelier context --for chatgpt --limit 4000`
+- atelier/cli/commands/ingest.py — CLI: `atelier ingest --from transcript.md --tool codex`
+- tests/test_session.py
+
+How to start:
+1. Read atelier/adapters/base.py (W27) to understand the ToolAdapter interface
+2. Read atelier/compiler/compiler.py (W07) to understand Context Compiler
+3. Read atelier/cli/main.py (W15) to understand CLI command registration
+4. /speckit.specify "Session continuity: resume across agent tools, role-specific prompts,
+   context generation for non-CLI tools, transcript ingestion"
+5. /speckit.clarify — output format (should it print to stdout for piping, or copy to clipboard,
+   or both?), how resume differs from prompt (resume = pick up where a run left off;
+   prompt = generate fresh prompt for a role on a run), token budget for context command
+   (default 4000 for ChatGPT, configurable).
+6. /speckit.plan → /speckit.tasks → /speckit.implement.
+7. Review iterations.
+
+Acceptance criteria:
+- `atelier resume --agent claude-code --run <fixture-id>` outputs a prompt that contains:
+  all decisions from the run, current stage, what's done vs pending. Formatted for Claude Code.
+- Same command with `--agent codex` produces a DIFFERENT format with same content (AGENTS.md style).
+- `atelier prompt --role coder --agent codex` produces implementation-focused prompt.
+- `atelier prompt --role reviewer --agent claude-code` produces review-focused prompt with
+  execution-mandatory protocol instructions.
+- `atelier context --for chatgpt --limit 4000` produces a standalone summary under 4000 tokens.
+- `atelier ingest --from transcript.md` extracts decisions and writes to .atelier/memory/.
+- All commands support --json flag for scripting.
+- All tests pass.
+
+Credentials: none required for unit tests.
+```
+
+**Reviewer prompt**:
+```
+You are the Reviewer agent for W28 — Session Continuity (issue #52).
+
+Strategic context — THIS IS THE KILLER FEATURE:
+If this works, a developer can switch from Codex to Claude Code mid-project with zero context loss.
+If this fails, Atelier is just another documentation tool. The bar is high.
+
+Read: ../../roadmap.md "Vision" section for the paradigm shift.
+Read: ../../phase0_plan.md section W28 for full scope.
+
+Review scope: atelier/session/, atelier/cli/commands/{resume,prompt,context,ingest}.py, tests/test_session.py.
+
+Review guidelines (execution-mandatory):
+1. `uv run pytest tests/test_session.py -v` — paste output.
+2. Resume test: create a fixture run with 3 stages + 2 decisions. Run `atelier resume --agent claude-code --run <id>`.
+   Paste the output. Verify it contains BOTH decisions and references the correct stage.
+3. Cross-tool test: run resume with --agent codex for the SAME run. Paste output. Verify the FORMAT
+   differs (AGENTS.md style vs CLAUDE.md style) but CONTENT is equivalent.
+4. Prompt role test: `atelier prompt --role coder` vs `--role reviewer` for same run. Paste both.
+   Verify coder gets implementation context, reviewer gets execution-mandatory protocol + review checklist.
+5. Context budget test: `atelier context --for chatgpt --limit 2000`. Paste. Count tokens (rough:
+   len/4). Must be under 2000.
+6. Ingest test: create a markdown transcript with a clear decision ("We decided to use PostgreSQL
+   because..."). Run `atelier ingest --from transcript.md`. Check .atelier/memory/decisions/ for
+   the new record. Paste.
+
+Domain findings to apply:
+- If resume output is identical for claude-code and codex: RED (adapters must format differently).
+- If resume misses any Decision record from the run: RED (context loss = product failure).
+- If prompt --role reviewer doesn't include execution-mandatory protocol: RED.
+- If context --for chatgpt exceeds token limit: RED.
+- If ingest silently produces zero records on valid transcript: RED.
+- If any command writes to agent tool's own config files (.claude/, AGENTS.md) without asking: RED.
+
+Output format + verification + confidence as standard.
+
+Learnings carried:
+- This feature IS the product. Zero context loss is the promise.
+- Format differs per tool. Content must be complete.
+- The reviewer prompt must embed the execution-mandatory protocol — it's Atelier's signature discipline.
+```
+
+---
+
+## W29: Persona Rework — prompt generators for agent tools
+
+**Issue**: [#53](https://github.com/ooiyeefei/agentic-coding-workflow-os/issues/53)
+**Depends on**: W27 (Tool Adapter Layer), W04 (Persona Library — already merged)
+**Blocks**: W24 (Integration Tests)
+
+**Git commands**:
+```bash
+cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
+git fetch origin && git rebase origin/main
+git worktree add ../acw-w29 -b acw-w29 main
+cd ../acw-w29
+```
+
+**Coder prompt**:
+```
+You are the Coder agent for W29 — Persona Rework (issue #53).
+
+CRITICAL CONTEXT: The existing Persona code (W04, merged) was built with the wrong assumption —
+it calls LLM APIs directly via self.adapter.generate(). The correct architecture: Personas generate
+prompts FOR agent tools (Claude Code, Codex, etc.), not API calls.
+
+The PersonaCaller Protocol in atelier/workflow/stages.py is correctly abstract:
+    class PersonaCaller(Protocol):
+        async def call(self, persona_name, context, *, skill, run_id) -> str | PersonaCallResult
+
+This Protocol does NOT need changing. What needs changing is the IMPLEMENTATION.
+
+Objective: Add AgentToolCaller alongside the existing DirectAPICaller.
+
+Files you own:
+- atelier/personas/callers.py (NEW) — two implementations of PersonaCaller:
+    - AgentToolCaller: uses W27 ToolAdapter to generate a formatted prompt for the target agent tool.
+      Returns the prompt string. The human pastes it into their agent tool. The agent tool does the work.
+      For Phase 0 this is synchronous — generate prompt, print, wait for human to paste back output.
+    - DirectAPICaller: wraps the existing Persona.respond() logic. Calls LLM API directly.
+      Used ONLY for auxiliary tasks (council tiebreaker, ADR prose synthesis).
+- atelier/personas/base.py (MODIFY) — refactor respond() to delegate to a caller.
+  Keep backward compat: if no caller specified, default to DirectAPICaller for existing tests.
+  Add respond_via_tool(agent_tool, context) → generates prompt via AgentToolCaller.
+- atelier/workflow/engine.py (MODIFY) — wire AgentToolCaller for main workflow stages,
+  DirectAPICaller for council/ADR auxiliary stages. The engine already uses PersonaCaller Protocol —
+  just pass the right implementation.
+- tests/test_persona_callers.py
+
+How to start:
+1. Read atelier/personas/base.py (current Persona.respond() — understand what it does)
+2. Read atelier/workflow/stages.py (PersonaCaller Protocol — the contract to implement)
+3. Read atelier/adapters/base.py (W27 ToolAdapter — how to format prompts per tool)
+4. /speckit.specify "Persona rework: AgentToolCaller (generates prompts for agent tools) +
+   DirectAPICaller (existing API path for auxiliary use). Wire into workflow engine."
+5. /speckit.clarify — how AgentToolCaller returns results (Phase 0: generate prompt, print to
+   stdout, human pastes back output via CLI; Phase 2+: automated via tool APIs).
+6. /speckit.plan → /speckit.tasks → /speckit.implement.
+7. Review iterations.
+
+Acceptance criteria:
+- AgentToolCaller.call() returns a prompt string formatted for the target agent tool (NOT an API response)
+- DirectAPICaller.call() still works — existing council tiebreaker tests pass unchanged
+- Workflow engine uses AgentToolCaller for main stages (specify, clarify, plan, tasks, implement, review)
+- Workflow engine uses DirectAPICaller for auxiliary stages (council tiebreaker, ADR synthesis)
+- Existing tests in tests/test_personas.py + tests/test_workflow.py still pass (backward compat)
+- New tests verify AgentToolCaller generates tool-specific formatted prompts
+
+Credentials: ANTHROPIC_API_KEY for DirectAPICaller backward-compat tests only.
+```
+
+**Reviewer prompt**:
+```
+You are the Reviewer agent for W29 — Persona Rework (issue #53).
+
+Strategic context: This is a refactor of the WRONG architecture. The original Personas called
+LLM APIs directly (Persona.respond() → self.adapter.generate()). The correct architecture:
+Personas generate prompts for agent tools. The agent tool does the work.
+
+The critical risk: breaking backward compatibility. Council tiebreaker (W21) and existing tests
+depend on DirectAPICaller (the old path). Both must still work.
+
+Read: ../../roadmap.md Architecture section for the reframe.
+Read: ../../phase0_plan.md section W29.
+
+Review scope: atelier/personas/callers.py, atelier/personas/base.py (changes), atelier/workflow/engine.py (changes), tests/test_persona_callers.py.
+
+Review guidelines (execution-mandatory):
+1. `uv run pytest tests/ -v --ignore=tests/integration` — paste output. ALL existing tests must pass.
+2. Verify AgentToolCaller does NOT call any LLM API: `rg -n "generate\(|adapter\." atelier/personas/callers.py` —
+   AgentToolCaller section should have ZERO hits. Paste.
+3. Verify DirectAPICaller DOES call LLM API: same grep on DirectAPICaller section should have hits. Paste.
+4. Verify workflow engine wiring: `rg -n "AgentToolCaller\|DirectAPICaller" atelier/workflow/engine.py` —
+   confirm main stages use AgentToolCaller, auxiliary uses DirectAPICaller. Paste.
+5. Council tiebreaker test: `uv run pytest tests/test_council.py -v` — must still pass with
+   DirectAPICaller. Paste.
+
+Domain findings to apply:
+- If AgentToolCaller calls ANY LLM API: RED (it generates prompts, not API calls).
+- If DirectAPICaller is removed: RED (council tiebreaker needs it).
+- If existing tests break: RED (backward compat is non-negotiable in a refactor).
+- If workflow engine still uses DirectAPICaller for main stages: RED (the whole point of W29).
+- If AgentToolCaller doesn't use W27 ToolAdapter for formatting: ORANGE (should delegate, not duplicate).
+
+Output format + verification + confidence as standard.
+
+Learnings carried:
+- This is a refactor, not a rewrite. Old path stays. New path added alongside.
+- PersonaCaller Protocol is correctly abstract — don't change it.
+- The test suite is the safety net. If tests break, the refactor is wrong.
+```
+
+---
+
+# Wave 7 — Final gate
+
+## W24: Integration Tests + E2E Validation (updated scope)
+
+Already defined above. Updated scope: integration tests must now also cover:
+- Tool adapter ingest/format round-trip
+- Session continuity (`atelier resume` + `atelier prompt` produce correct output)
+- Persona callers: workflow engine uses AgentToolCaller for main stages, DirectAPICaller for auxiliary
+- Full workflow with mock agent tool (simulate paste-in/paste-out cycle)
 
 ---
 
 # End
 
-This file is the Phase 0 manual Packet Engine. Once W07 (Context Compiler) ships, Atelier can generate this file automatically from phase0_plan.md + issue metadata. The irony is intentional — we dogfood the pain we're productizing.
+This file is the Phase 0 manual Packet Engine. Once Atelier ships, it can generate this file automatically from phase0_plan.md + issue metadata. The irony is intentional — we dogfood the pain we're productizing.
 
-**Next step**: Pick your lane (A/B/C/D/E from phase0_plan.md) and start with the Wave 0 worktree for that lane. Open two terminals, paste prompts, go.
+**Next step**: Start W27 (Tool Adapter Layer) + W16 (HTTP daemon) in parallel. W27 is the critical path — everything else flows from it.
