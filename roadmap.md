@@ -257,15 +257,16 @@ Canonical layout:
 
 **What changed from original Phase 0**: "LLM Abstraction" was the core. Now it's a narrow auxiliary backend. The core is the **Tool Adapter Layer** + **Session Continuity** — the ability to port context across agent tools. Personas no longer call LLM APIs for the main workflow; they generate prompts for external agent tools.
 
-### Phase 1 — Adapter Ecosystem + Multi-Agent Debate
+### Phase 1 — Adapter Ecosystem + Multi-Agent Debate + Simulation Mode
 
 - Additional tool adapters: Cursor, ChatGPT, Gemini, Cowork, generic clipboard
 - Adapter auto-detection (scan for `.claude/`, Codex env vars, `.cursorrules`, etc.)
 - Full MAD (Du 2023) and LLM Council (Karpathy anonymization) protocols
 - Convergence detection, round caps, anonymized peer ranking, chairman synthesis
 - Escalation at clarify gates, deadlocks, ADR authorship, merge-conflict recommendations
+- **Simulation / dry-run mode for workflows**: workflow YAML gains a `simulation:` block declaring `enabled`, `fixture` path (JSONL of recorded agent responses), and `assertion` expressions. When enabled, the Workflow Engine replays fixtures instead of invoking agent tools. Unlocks: (a) testing workflow design without LLM cost, (b) deterministic CI for workflow changes, (c) foundation for Phase 3 meta-improvement. Pattern inspired by observed agent-to-agent eval loops — formalizes "harness of a harness" as a first-class primitive. Fixtures are captured from real runs via `atelier run record <id>`.
 
-### Phase 2 — Parallel Orchestration + Meta-Observation
+### Phase 2 — Parallel Orchestration + Meta-Observation + UX Taste Capture
 
 - Issue dependency DAG analyzer (reads GitHub issues, labels, links)
 - Worktree planner (maximum parallelism while respecting deps)
@@ -273,14 +274,31 @@ Canonical layout:
 - Cross-worktree memory sync
 - Session router handling multi-terminal routing
 - **Meta-Observation Gates** at stage transitions — captures human feedback as `Observation` memory records
+- **UX Taste Capture system** — solves the "human QA is the bottleneck for UX-heavy products" problem:
+  - New typed record: `UXTastePreference` (rule, rationale, applies_to_paths, confidence, source: user_rejection / golden_example / codified_rule, linked accepted + rejected examples)
+  - New persona: `UXReviewer` — execution-mandatory protocol adapted for UI:
+    1. Reads all `.atelier/memory/ux_preferences/` matching the diff's file paths
+    2. Captures screenshots of rendered UI via Playwright (or equivalent) through a new `ScreenshotAdapter`
+    3. Compares against golden examples
+    4. Generates Evidence Pack with specific violations referencing preference record IDs
+  - Capture command: `atelier taste capture --run <id> --reject "too cramped, buttons too close"` — uses auxiliary LLM to extract rule + applicable path patterns + link to rejected artifact
+  - Over 20-30 captures, agent builds rich corpus of user's taste. Exportable via git. Team-shareable.
+  - Pattern: "taste is not unlearnable — it's just undocumented." Captures the rejection reasons before they evaporate.
 
-### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness
+### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness + Meta-Improvement
 
 - Full rule precedence model: `core < org < repo < workflow/stage < human override`
 - Path-matched rule loading
 - Memory namespaces: `repo-local` / `user-private` / `org-shared` with opt-in tagging
 - Replay harness: rerun old runs against new prompts/workflows/models
 - **MemoryBackend interface**: pluggable backend for cross-agent sync. Evaluate memory-bridge, Memorix, MemClaw before building.
+- **Meta-Improvement workflow** (extends Replay Harness) — makes the "auto-*" paradigm first-class:
+  - Takes an existing completed run + a proposed change (new instruction set, persona prompt, workflow YAML, or model routing) → reruns with the change → compares Evidence Packs, cost, latency, approval counts, and review-finding quality against baseline
+  - Eval Monitor persona: judges whether v2 instructions produce better outcomes than v1 — produces a structured verdict Evidence Pack
+  - Long-horizon improvement loops: agent modifies instruction set → replay against corpus of past runs → Eval Monitor scores → agent iterates
+  - All iterations are Decision records in git — every improvement is auditable, reversible, comparable
+  - Solves the problem observed in agent-to-agent eval loops: improvement without durable memory is lossy and un-reproducible. Our files-first substrate makes the iteration graph queryable and portable.
+  - CLI: `atelier meta improve --target-run <id> --change persona:coder=v2.md` → produces side-by-side comparison report.
 
 ### Phase 4 — Git Hygiene Complete + Event Bus + Observability
 
