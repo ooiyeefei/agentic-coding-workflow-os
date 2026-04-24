@@ -92,6 +92,25 @@ async def execute_stage(
     persona_result = _coerce_persona_result(await deps.persona_caller.call(
         stage_def.persona, full_context, skill=stage_def.skill, run_id=run_id
     ))
+    return await finalize_persona_result(
+        run_id=run_id,
+        stage_id=stage_id,
+        stage_def=stage_def,
+        deps=deps,
+        persona_result=persona_result,
+        retry_count=retry_count,
+    )
+
+
+async def finalize_persona_result(
+    *,
+    run_id: str,
+    stage_id: str,
+    stage_def: StageDefinition,
+    deps: StageExecutorDeps,
+    persona_result: PersonaCallResult,
+    retry_count: int = 0,
+) -> StageResult:
     agent_content = persona_result.content
     persona_evidence = persona_result.evidence_pack()
 
@@ -126,4 +145,5 @@ __all__ = [
     "StageExecutorDeps",
     "StageResult",
     "execute_stage",
+    "finalize_persona_result",
 ]
