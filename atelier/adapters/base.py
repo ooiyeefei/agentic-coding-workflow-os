@@ -32,6 +32,15 @@ _INFERRED_DECISION_PATTERN = re.compile(
     r"^(?:use|keep|store|support|reference|treat|emit|format|load|parse|ingest|detect)\b",
     re.IGNORECASE,
 )
+_NATURAL_LANGUAGE_DECISION_PATTERN = re.compile(
+    (
+        r"^(?:(?:we|i|the team)\s+)?"
+        r"(?:decided|chose|agreed|resolved)\s+to\s+"
+        r"(?P<body>.+)$"
+        r"|^the decision (?:is|was)\s+to\s+(?P<decision_body>.+)$"
+    ),
+    re.IGNORECASE,
+)
 _ADR_FILE_PATTERN = re.compile(r"^(?P<number>\d{4})-")
 
 
@@ -147,6 +156,23 @@ def _summarize_body(body: str) -> str:
     return "No summary available."
 
 
+def _sentence_case(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+    return stripped[0].upper() + stripped[1:]
+
+
+def _natural_language_decision_body(line: str) -> str | None:
+    match = _NATURAL_LANGUAGE_DECISION_PATTERN.match(line)
+    if match is None:
+        return None
+    body = match.group("body") or match.group("decision_body")
+    if body is None:
+        return None
+    return _sentence_case(body)
+
+
 def _build_record(
     record_class: type[Decision] | type[ReviewFinding] | type[RejectedAlternative],
     *,
@@ -198,6 +224,12 @@ def extract_records_from_entries(
                 record_class = Decision
                 body = line.strip()
                 confidence = 0.65
+            elif entry.role == "assistant" and (
+                natural_body := _natural_language_decision_body(line)
+            ):
+                record_class = Decision
+                body = natural_body
+                confidence = 0.85
             else:
                 continue
 

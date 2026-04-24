@@ -4,9 +4,13 @@ import click
 
 from atelier import __version__
 from atelier.cli.commands.cleanup import cleanup_command
+from atelier.cli.commands.context import context_command
 from atelier.cli.commands.daemon import daemon_group
 from atelier.cli.commands.grep import grep_command
+from atelier.cli.commands.ingest import ingest_command
 from atelier.cli.commands.init import init_command
+from atelier.cli.commands.prompt import prompt_command
+from atelier.cli.commands.resume import resume_command
 from atelier.cli.commands.run import run_command
 from atelier.cli.formatters import build_help_epilog
 
@@ -24,6 +28,10 @@ from atelier.cli.formatters import build_help_epilog
             "atelier run list --repo . --json",
             "atelier run show run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
             "atelier cleanup run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
+            "atelier resume --agent claude-code --run run_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "atelier prompt --role coder --agent codex --run run_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "atelier context --for chatgpt --limit 4000",
+            "atelier ingest --from transcript.md --tool generic",
             "atelier daemon status --repo .",
             "atelier grep 'issue #42' --repo .",
         ),
@@ -41,5 +49,9 @@ def main(ctx: click.Context) -> None:
 main.add_command(init_command)
 main.add_command(run_command)
 main.add_command(cleanup_command)
+main.add_command(resume_command)
+main.add_command(prompt_command)
+main.add_command(context_command)
+main.add_command(ingest_command)
 main.add_command(daemon_group)
 main.add_command(grep_command)
