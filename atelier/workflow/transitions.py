@@ -18,6 +18,7 @@ class TransitionKind(StrEnum):
     HALT = "halt"
     DONE = "done"
     WAITING_APPROVAL = "waiting_approval"
+    WAITING_AGENT_TOOL = "waiting_agent_tool"
     COUNCIL = "council"
 
 

@@ -1,4 +1,4 @@
-from .engine import AdvanceResult, RunStatus, WorkflowEngine
+from .engine import AdvanceResult, RunStatus, WorkflowEngine, default_stage_executor_deps
 from .loader import WorkflowNotFoundError, load_workflow
 from .schema import (
     GateType,
@@ -22,6 +22,7 @@ __all__ = [
     "WorkflowDefinition",
     "WorkflowEngine",
     "WorkflowNotFoundError",
+    "default_stage_executor_deps",
     "execute_stage",
     "load_workflow",
     "resolve_transition",

@@ -105,7 +105,11 @@ def _record_result_events(repo_root: Path, run_id: str, result: AdvanceResult) -
             repo_root=repo_root,
         )
 
-    if result.run_status in (RunStatus.WAITING_APPROVAL, RunStatus.WAITING_COUNCIL):
+    if result.run_status in (
+        RunStatus.WAITING_APPROVAL,
+        RunStatus.WAITING_COUNCIL,
+        RunStatus.WAITING_AGENT_TOOL,
+    ):
         record = load_run_record(repo_root, run_id)
         audit_log(
             run_id,

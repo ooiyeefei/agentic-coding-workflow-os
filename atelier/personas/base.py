@@ -138,6 +138,40 @@ class Persona(ABC):
         return {}
 
     async def respond(self, context_packet: Any) -> AgentResponse:
+        from atelier.personas.callers import DirectAPICaller
+
+        resolved_run_id = self._resolve_run_id(context_packet) or ""
+        caller = DirectAPICaller(persona_factory=lambda _name: self)
+        return await caller.call_response(
+            self.name,
+            context_packet,
+            skill="respond",
+            run_id=resolved_run_id,
+        )
+
+    async def respond_via_tool(
+        self,
+        agent_tool: Any,
+        context_packet: Any,
+        *,
+        skill: str = "respond",
+        run_id: str | None = None,
+    ) -> str:
+        from atelier.personas.callers import AgentToolCaller
+
+        resolved_run_id = run_id or self._resolve_run_id(context_packet) or ""
+        caller = AgentToolCaller(
+            agent_tool=agent_tool,
+            persona_factory=lambda _name: self,
+        )
+        return await caller.call(
+            self.name,
+            context_packet,
+            skill=skill,
+            run_id=resolved_run_id,
+        )
+
+    async def _respond_direct(self, context_packet: Any) -> AgentResponse:
         resolved_run_id = self._resolve_run_id(context_packet)
         policy = self.policy_engine if resolved_run_id is not None else None
         response = await self.adapter.generate(

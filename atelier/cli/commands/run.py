@@ -255,6 +255,27 @@ def _resume_gate_wait(repo_path: Path, run_id: str) -> RunRecord:
     return load_run_record_for_cli(repo_path, run_id)
 
 
+def _resume_agent_tool_wait(repo_path: Path, run_id: str, agent_output: str) -> RunRecord:
+    from atelier.workflow.engine import WorkflowEngine
+
+    with pushd(repo_path):
+        engine = WorkflowEngine()
+        asyncio.run(engine.resume(run_id, agent_output=agent_output))
+
+    return load_run_record_for_cli(repo_path, run_id)
+
+
+def _resolve_agent_output(
+    agent_output: str | None,
+    agent_output_file: Path | None,
+) -> str | None:
+    if agent_output is not None and agent_output_file is not None:
+        raise click.ClickException("Use either --agent-output or --agent-output-file, not both.")
+    if agent_output_file is not None:
+        return agent_output_file.read_text(encoding="utf-8")
+    return agent_output
+
+
 def _add_subcommands(commands: Iterable[click.Command]) -> None:
     for command in commands:
         run_command.add_command(command)
@@ -361,12 +382,16 @@ def run_command(
     epilog=build_help_epilog(
         notes=(
             "Without --approve this command only reports the current blocked state.",
+            "Use --agent-output or --agent-output-file to resume a run waiting "
+            "for pasted agent tool output.",
             "CLI approval currently supports gate waits only; policy and council "
             "waits still need an execution backend.",
         ),
         examples=(
             "atelier run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
             "atelier run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo . --approve",
+            "atelier run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo . "
+            "--agent-output-file output.md",
             "atelier run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo . --approve --json",
         ),
     ),
@@ -377,18 +402,33 @@ def run_command(
     is_flag=True,
     help="Advance a run that is blocked on a completed gate approval.",
 )
+@click.option(
+    "--agent-output",
+    help="Resume a waiting_agent_tool run using pasted agent tool output text.",
+)
+@click.option(
+    "--agent-output-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Resume a waiting_agent_tool run using agent tool output read from a file.",
+)
 @click.option("--json", "json_output", is_flag=True, help="Emit machine-readable JSON.")
 @click.pass_context
 def resume_command(
     ctx: click.Context,
     run_id: str,
     approve: bool,
+    agent_output: str | None,
+    agent_output_file: Path | None,
     json_output: bool,
 ) -> None:
     """Inspect a run resume point or approve a completed gate."""
 
     repo_path = get_repo_from_context(ctx)
     record = load_run_record_for_cli(repo_path, run_id)
+    resolved_agent_output = _resolve_agent_output(agent_output, agent_output_file)
+
+    if approve and resolved_agent_output is not None:
+        raise click.ClickException("Use either --approve or --agent-output, not both.")
 
     if approve:
         if record.status != "waiting_approval":
@@ -402,6 +442,14 @@ def resume_command(
             )
         record = _resume_gate_wait(repo_path, run_id)
 
+    if resolved_agent_output is not None:
+        if record.status != "waiting_agent_tool":
+            raise click.ClickException(
+                f"Run {run_id} is {record.status}; only waiting_agent_tool runs accept "
+                "agent output."
+            )
+        record = _resume_agent_tool_wait(repo_path, run_id, resolved_agent_output)
+
     payload = record.to_payload()
     if json_output:
         echo_json(payload)
@@ -409,6 +457,8 @@ def resume_command(
 
     if approve:
         click.echo(f"Approved gate and resumed {run_id}")
+    elif resolved_agent_output is not None:
+        click.echo(f"Submitted agent output and resumed {run_id}")
     else:
         click.echo(f"Run {run_id} is {record.status}")
     if record.current_stage:
