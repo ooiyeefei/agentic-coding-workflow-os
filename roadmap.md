@@ -286,6 +286,7 @@ See `docs/proposed_features.md` for additional Phase 1 candidates currently in e
 - Session router handling multi-terminal routing
 - **Meta-Observation Gates** at stage transitions — captures human feedback as `Observation` memory records
 - **Skill self-improvement loop** — agents that capture their own outcomes (`SkillOutcome` records, shipped) and derive concrete review rules from weak runs (initial implementation: deterministic pattern-matching against `.atelier/defaults/feedback_rules/*.yaml`; future: LLM-derived rules from clustered failure patterns). CLI: `atelier skill_feedback derive --entry <outcome.json>`. The rules library is user-extensible — `.atelier/feedback_rules/` overrides the defaults. Pairs naturally with Meta-Observation Gates (which capture human-side observations) and Insight Channels (which capture agent-side observations during runs). Together they form a closed loop: act → observe outcome → derive rule → apply rule → improve next act.
+- **Insight channels** — extends the Evidence Pack schema with a typed `insights` field where personas emit observations tagged by channel (`domain` | `orchestration` | `meta` | `process`). Domain insights stay anchored to the project context (e.g., "rate limiting needs IPv6 handling"). Orchestration insights surface meta-level workflow guidance (e.g., "this stage benefits from `announce_and_proceed` because the human needs an interrupt window"). The CLI gains `atelier run show <id> --insights --channel <name>` filters; default rendering visually separates channels so they don't tangle in long sessions. Pairs naturally with Meta-Observation Gates — Gates capture human-side observations during pauses; Insight Channels capture agent-side observations during stage execution. Both feed `.atelier/memory/observations/`.
 - **UX Taste Capture system** — solves the "human QA is the bottleneck for UX-heavy products" problem:
   - New typed record: `UXTastePreference` (rule, rationale, applies_to_paths, confidence, source: user_rejection / golden_example / codified_rule, linked accepted + rejected examples)
   - New persona: `UXReviewer` — execution-mandatory protocol adapted for UI:
@@ -296,6 +297,8 @@ See `docs/proposed_features.md` for additional Phase 1 candidates currently in e
   - Capture command: `atelier taste capture --run <id> --reject "too cramped, buttons too close"` — uses auxiliary LLM to extract rule + applicable path patterns + link to rejected artifact
   - Over 20-30 captures, agent builds rich corpus of user's taste. Exportable via git. Team-shareable.
   - Pattern: "taste is not unlearnable — it's just undocumented." Captures the rejection reasons before they evaporate.
+
+See `docs/proposed_features.md` for additional Phase 2 candidates currently in evaluation.
 
 ### Phase 3 — Rules Engine + Memory Namespaces + Replay Harness + Meta-Improvement
 
