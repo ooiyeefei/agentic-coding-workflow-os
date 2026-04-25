@@ -23,7 +23,6 @@ from atelier.adapters import CodexAdapter
 from atelier.memory import Decision, RejectedAlternative, ReviewFinding, write_record
 from atelier.session import generate_context, generate_prompt, resume
 
-
 _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "adapters"
 _CODEX_FIXTURE = (
     _FIXTURE_ROOT / "codex" / "sessions" / "2026" / "04" / "23" / "rollout-sample.jsonl"

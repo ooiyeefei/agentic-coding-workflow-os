@@ -32,7 +32,6 @@ from atelier.memory import (
     write_record,
 )
 
-
 _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "adapters"
 _CLAUDE_FIXTURE = (
     _FIXTURE_ROOT / "claude" / "projects" / "sample-project" / "session.jsonl"

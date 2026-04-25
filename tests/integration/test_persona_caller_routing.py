@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """Integration coverage for the W29 Persona Rework caller wiring.
 
 The architectural reframe split the single ``Persona.respond()`` path into two
@@ -40,7 +41,6 @@ from atelier.workflow import (
 )
 from atelier.workflow.engine import _DirectReviewerCaller, _is_agent_tool_handoff_caller
 from atelier.workflow.transitions import TransitionKind
-
 
 _MAIN_STAGE_IDS: frozenset[str] = frozenset(
     [
