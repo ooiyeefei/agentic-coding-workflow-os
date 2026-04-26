@@ -268,6 +268,9 @@ Canonical layout:
 - Convergence detection, round caps, anonymized peer ranking, chairman synthesis
 - Escalation at clarify gates, deadlocks, ADR authorship, merge-conflict recommendations
 - **Simulation / dry-run mode for workflows**: workflow YAML gains a `simulation:` block declaring `enabled`, `fixture` path (JSONL of recorded agent responses), and `assertion` expressions. When enabled, the Workflow Engine replays fixtures instead of invoking agent tools. Unlocks: (a) testing workflow design without LLM cost, (b) deterministic CI for workflow changes, (c) foundation for Phase 3 meta-improvement. Pattern inspired by observed agent-to-agent eval loops — formalizes "harness of a harness" as a first-class primitive. Fixtures are captured from real runs via `atelier run record <id>`.
+- **`announce_and_proceed` gate type** — a third gate type alongside `auto`, `review`, and `approval`. The orchestrator emits a `plan_announced` audit event and waits a configurable interrupt window (default 0 seconds — pure announce-and-go), then dispatches without explicit human approval. Humans observing the SSE stream can post `POST /runs/<id>/interrupt` during the window to halt or redirect. Splits the difference between `auto` (no human in loop) and `approval` (human must explicitly say yes) — used heavily in agent orchestration patterns where speed matters and the human watches asynchronously. Workflow YAML extension: add `interrupt_window_seconds` and `on_interrupt: halt | redirect | rollback` keys per stage.
+
+See `docs/proposed_features.md` for additional Phase 1 candidates currently in evaluation.
 
 ### Phase 2 — Parallel Orchestration + Meta-Observation + UX Taste Capture
 
