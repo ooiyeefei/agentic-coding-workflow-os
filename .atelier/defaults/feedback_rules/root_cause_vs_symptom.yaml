@@ -1,0 +1,13 @@
+id: root_cause_vs_symptom
+error_types:
+  - root_cause_missed
+  - wrong_fix
+message_patterns:
+  - '\b(root cause|symptom only|shallow fix|wrong fix)\b'
+rule_text: |
+  Before proposing a fix, state the likely root cause in one sentence and tie
+  the code change or finding directly to that cause rather than only the
+  visible symptom.
+rationale: |
+  Pushes the skill toward cause-based review rather than symptom-based
+  patching.

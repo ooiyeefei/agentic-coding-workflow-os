@@ -1,0 +1,11 @@
+id: api_contract_change
+error_types:
+  - missed_bug
+  - api_contract
+message_patterns:
+  - '\b(public api|api contract|schema|response shape|breaking change)\b'
+rule_text: |
+  For public API changes, compare the before/after contract and call out any
+  changed field, status, or schema behavior as a compatibility risk.
+rationale: |
+  Prevents silent API contract regressions from being skipped in review.

@@ -12,6 +12,7 @@ from atelier.cli.commands.init import init_command
 from atelier.cli.commands.prompt import prompt_command
 from atelier.cli.commands.resume import resume_command
 from atelier.cli.commands.run import run_command
+from atelier.cli.commands.skill_feedback import skill_feedback_group
 from atelier.cli.formatters import build_help_epilog
 
 
@@ -34,6 +35,7 @@ from atelier.cli.formatters import build_help_epilog
             "atelier ingest --from transcript.md --tool generic",
             "atelier daemon status --repo .",
             "atelier grep 'issue #42' --repo .",
+            "atelier skill_feedback derive --entry path/to/outcome.json",
         ),
     ),
     invoke_without_command=True,
@@ -55,3 +57,4 @@ main.add_command(context_command)
 main.add_command(ingest_command)
 main.add_command(daemon_group)
 main.add_command(grep_command)
+main.add_command(skill_feedback_group)
