@@ -7,7 +7,14 @@ from pathlib import Path
 import atelier.memory.records as memory_records
 import frontmatter
 import pytest
-from atelier.memory import Decision, ReviewFinding, list_records, read_record, write_record
+from atelier.memory import (
+    Decision,
+    ReviewFinding,
+    SkillOutcome,
+    list_records,
+    read_record,
+    write_record,
+)
 from ulid import ULID
 
 
@@ -107,6 +114,46 @@ def test_list_records_filters_by_type_and_tags(
     results = list_records(memory_root, type="Decision", tags=["safety-critical"])
 
     assert results == [decision_match]
+
+
+def test_skill_outcome_round_trip_supports_feedback_learning(
+    tmp_path: Path,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    memory_root = tmp_path / ".atelier" / "memory"
+    record = SkillOutcome(
+        id=f"skill_outcome_{fixed_ulid_values[5]}",
+        run_id=fixed_run_id,
+        stage_id=f"stage_{fixed_ulid_values[1]}",
+        timestamp=datetime(2026, 4, 25, 22, 0, tzinfo=UTC),
+        tags=["pr-rescue", "self-improvement"],
+        source="reviewer",
+        selected_skill_id="spanweave-pr-rescue",
+        skill_version="baseline",
+        task_text="Review and rescue PR #101.",
+        result_summary="Missed the highest-risk changed execution path.",
+        success_score=0.42,
+        feedback=-0.72,
+        error_type="missed_regression",
+        error_message="Missed a user-visible null dereference.",
+        applied_rules=[
+            "Before low-severity comments, identify the highest-risk changed path.",
+        ],
+        body="Baseline PR rescue missed a null dereference in the response path.\n",
+    )
+
+    written_path = write_record(record, memory_root)
+
+    assert record.id.startswith("skill_outcome_")
+    assert written_path == memory_root / "skill_outcomes" / f"{record.id}.md"
+    assert read_record(written_path) == record
+    assert list_records(
+        memory_root,
+        type="SkillOutcome",
+        selected_skill_id="spanweave-pr-rescue",
+        error_type="missed_regression",
+    ) == [record]
 
 
 def test_write_record_redacts_secret_like_body_content(

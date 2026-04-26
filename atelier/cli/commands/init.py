@@ -68,6 +68,7 @@ def init_command(repo: Path, json_output: bool) -> None:
         atelier_root / "memory" / "decisions",
         atelier_root / "memory" / "findings",
         atelier_root / "memory" / "rejected_alternatives",
+        atelier_root / "memory" / "skill_outcomes",
         atelier_root / "memory" / "council_reports",
     ):
         if _ensure_directory(directory):
