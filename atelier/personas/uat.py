@@ -52,7 +52,7 @@ class UAT(Persona):
             "evidence_pack": evidence_pack.model_dump(mode="json"),
             "app_path": request.app_path,
         }
-        response = self._build_agent_response(llm_response, metadata=metadata)
+        response = self.build_agent_response(llm_response, metadata=metadata)
         response.content = "\n\n".join(
             part for part in (llm_response.content.strip(), evidence_pack.summary.strip()) if part
         )
