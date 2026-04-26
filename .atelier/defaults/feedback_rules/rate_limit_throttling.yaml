@@ -1,0 +1,12 @@
+id: rate_limit_throttling
+error_types:
+  - missed_bug
+  - regression_missed
+message_patterns:
+  - '\b(rate[- ]limit|retry-after|timeout|429|quota)\b'
+rule_text: |
+  When a change touches throttling, retries, or request limits, inspect the
+  failure path and confirm status codes, headers, and boundary values are
+  covered.
+rationale: |
+  Covers common PR-rescue misses in rate-limit and retry handling.

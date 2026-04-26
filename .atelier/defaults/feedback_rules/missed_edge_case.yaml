@@ -1,0 +1,13 @@
+id: missed_edge_case
+error_types:
+  - missed_bug
+  - regression_missed
+message_patterns:
+  - '\b(did not test|missing test|untested|no test)\b'
+  - '\b(edge case|zero-token|empty input|null|none)\b'
+rule_text: |
+  Before closing a review, name the highest-risk untested edge case and either
+  verify it with an existing test or call out the exact missing test coverage.
+rationale: |
+  Targets failures where the agent missed a bug because an edge path
+  was never tested.

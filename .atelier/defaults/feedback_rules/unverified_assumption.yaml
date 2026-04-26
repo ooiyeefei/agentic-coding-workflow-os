@@ -1,0 +1,13 @@
+id: unverified_assumption
+error_types:
+  - insufficient_verification
+  - missed_bug
+message_patterns:
+  - '\b(did not run|forgot to run|no verification|not verified)\b'
+rule_text: |
+  Do not mark a fix or review complete without recording the narrowest
+  verification command that proves the changed behavior or explicitly stating
+  that verification could not be run.
+rationale: |
+  Reinforces explicit verification when the failure came from unverified
+  assumptions.
