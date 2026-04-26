@@ -151,12 +151,47 @@ class RejectedAlternative(MemoryRecord):
     type: str = "RejectedAlternative"
 
 
-Record: TypeAlias = Decision | ReviewFinding | RejectedAlternative
+class SkillOutcome(MemoryRecord):
+    id_prefix = "skill_outcome"
+    collection_name = "skill_outcomes"
+    record_type = "SkillOutcome"
+
+    id: str = Field(default_factory=lambda: _new_record_id(SkillOutcome.id_prefix))
+    type: str = "SkillOutcome"
+    selected_skill_id: str = Field(min_length=1)
+    skill_version: str | None = None
+    task_text: str = Field(min_length=1)
+    result_summary: str = Field(min_length=1)
+    success_score: float = Field(ge=0.0, le=1.0)
+    feedback: float = Field(ge=-1.0, le=1.0)
+    error_type: str | None = None
+    error_message: str | None = None
+    applied_rules: list[str] = Field(default_factory=list)
+
+    @field_validator("selected_skill_id", "task_text", "result_summary")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field must contain non-whitespace content")
+        return normalized
+
+    @field_validator("skill_version", "error_type", "error_message")
+    @classmethod
+    def validate_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+Record: TypeAlias = Decision | ReviewFinding | RejectedAlternative | SkillOutcome
 
 RECORD_TYPES: dict[str, type[MemoryRecord]] = {
     "Decision": Decision,
     "ReviewFinding": ReviewFinding,
     "RejectedAlternative": RejectedAlternative,
+    "SkillOutcome": SkillOutcome,
 }
 
 __all__ = [
@@ -166,4 +201,5 @@ __all__ = [
     "RECORD_TYPES",
     "RejectedAlternative",
     "ReviewFinding",
+    "SkillOutcome",
 ]

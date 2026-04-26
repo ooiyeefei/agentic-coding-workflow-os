@@ -21,6 +21,11 @@ _LIST_FILTER_KEYS = {
     "stage_id",
     "tags",
     "version",
+    "selected_skill_id",
+    "skill_version",
+    "success_score",
+    "feedback",
+    "error_type",
 }
 
 
