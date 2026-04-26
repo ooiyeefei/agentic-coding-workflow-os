@@ -194,7 +194,7 @@ class DirectAPICaller:
         persona: Persona,
         context: Any,
     ) -> AgentResponse:
-        resolved_run_id = persona._resolve_run_id(context)
+        resolved_run_id = persona.resolve_run_id(context)
         policy = persona.policy_engine if resolved_run_id is not None else None
         response = await persona.adapter.generate(
             messages=[
@@ -205,7 +205,7 @@ class DirectAPICaller:
             run_id=resolved_run_id,
             policy=policy,
         )
-        return persona._build_agent_response(
+        return persona.build_agent_response(
             response,
             metadata=persona.response_metadata(context),
         )

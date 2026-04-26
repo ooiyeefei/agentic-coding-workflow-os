@@ -140,7 +140,7 @@ class Persona(ABC):
     async def respond(self, context_packet: Any) -> AgentResponse:
         from atelier.personas.callers import DirectAPICaller
 
-        resolved_run_id = self._resolve_run_id(context_packet) or ""
+        resolved_run_id = self.resolve_run_id(context_packet) or ""
         caller = DirectAPICaller(persona_factory=lambda _name: self)
         return await caller.call_response(
             self.name,
@@ -159,7 +159,7 @@ class Persona(ABC):
     ) -> str:
         from atelier.personas.callers import AgentToolCaller
 
-        resolved_run_id = run_id or self._resolve_run_id(context_packet) or ""
+        resolved_run_id = run_id or self.resolve_run_id(context_packet) or ""
         caller = AgentToolCaller(
             agent_tool=agent_tool,
             persona_factory=lambda _name: self,
@@ -172,7 +172,7 @@ class Persona(ABC):
         )
 
     async def _respond_direct(self, context_packet: Any) -> AgentResponse:
-        resolved_run_id = self._resolve_run_id(context_packet)
+        resolved_run_id = self.resolve_run_id(context_packet)
         policy = self.policy_engine if resolved_run_id is not None else None
         response = await self.adapter.generate(
             messages=[
@@ -183,7 +183,7 @@ class Persona(ABC):
             run_id=resolved_run_id,
             policy=policy,
         )
-        return self._build_agent_response(response, metadata=self.response_metadata(context_packet))
+        return self.build_agent_response(response, metadata=self.response_metadata(context_packet))
 
     @property
     def adapter(self) -> LLMAdapter:
@@ -201,7 +201,7 @@ class Persona(ABC):
         except TypeError:
             return str(context_packet)
 
-    def _resolve_run_id(self, context_packet: Any) -> str | None:
+    def resolve_run_id(self, context_packet: Any) -> str | None:
         if self.run_id is not None and self.run_id.strip():
             return self.run_id
         if isinstance(context_packet, BaseModel):
@@ -216,7 +216,7 @@ class Persona(ABC):
             return candidate
         return None
 
-    def _build_agent_response(
+    def build_agent_response(
         self,
         response: Response,
         *,

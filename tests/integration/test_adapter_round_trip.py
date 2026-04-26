@@ -14,6 +14,7 @@ These tests exercise the full ingest -> persist -> format round trip:
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -41,7 +42,7 @@ _CODEX_FIXTURE = (
 )
 
 
-def _record_bodies(records: list[MemoryRecord]) -> set[str]:
+def _record_bodies(records: Sequence[MemoryRecord]) -> set[str]:
     return {record.body.strip() for record in records}
 
 
