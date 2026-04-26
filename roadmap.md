@@ -65,7 +65,7 @@ Day 2: You switch to Claude Code
 
 Atelier is NOT an agent framework. It is NOT a platform. It is the **shared knowledge substrate** for agentic engineering work.
 
-- `.atelier/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative)
+- `.atelier/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
 - `.atelier/runs/` = reproducible delivery (Run Graph with Evidence Packs)
 - `.atelier/workflows/` = reproducible process (workflow-as-code YAML)
 - `docs/adr/` = reproducible architecture (auto-generated ADRs)
@@ -142,6 +142,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 │  │  │ precedence         │          │  · RejectedAlternative               │    │ │
 │  │  │ override+reason    │          │  · IssueLearning                     │    │ │
 │  │  └────────────────────┘          │  · ReviewFinding                     │    │ │
+│  │                                   │  · SkillOutcome                      │    │ │
 │  │                                   │  · MergeConflictResolution           │    │ │
 │  │                                   │  · ReleaseChange                     │    │ │
 │  │                                   │  · Observation (Phase 2)             │    │ │
@@ -246,7 +247,7 @@ Canonical layout:
 - Context Compiler (priority tiers + token budget + provenance)
 - Workflow Engine (workflow-as-code, loads from `.atelier/workflows/*.yaml`, ships with `speckit-loop.yaml`)
 - Policy Engine (configurable from `.atelier/policy.yaml`)
-- Knowledge Plane with 3 typed record types (Decision, ReviewFinding, RejectedAlternative)
+- Knowledge Plane with typed record types (Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
 - Evidence Pack (JSON + Markdown)
 - Auto-ADR synthesis (MADR 3.0 format)
 - Git Hygiene (worktree create, rebase-analyze read-only, cleanup)
@@ -276,6 +277,7 @@ Canonical layout:
 - Cross-worktree memory sync
 - Session router handling multi-terminal routing
 - **Meta-Observation Gates** at stage transitions — captures human feedback as `Observation` memory records
+- **Skill self-improvement loop** — agents that capture their own outcomes (`SkillOutcome` records, shipped) and derive concrete review rules from weak runs (initial implementation: deterministic pattern-matching against `.atelier/defaults/feedback_rules/*.yaml`; future: LLM-derived rules from clustered failure patterns). CLI: `atelier skill_feedback derive --entry <outcome.json>`. The rules library is user-extensible — `.atelier/feedback_rules/` overrides the defaults. Pairs naturally with Meta-Observation Gates (which capture human-side observations) and Insight Channels (which capture agent-side observations during runs). Together they form a closed loop: act → observe outcome → derive rule → apply rule → improve next act.
 - **UX Taste Capture system** — solves the "human QA is the bottleneck for UX-heavy products" problem:
   - New typed record: `UXTastePreference` (rule, rationale, applies_to_paths, confidence, source: user_rejection / golden_example / codified_rule, linked accepted + rejected examples)
   - New persona: `UXReviewer` — execution-mandatory protocol adapted for UI:
