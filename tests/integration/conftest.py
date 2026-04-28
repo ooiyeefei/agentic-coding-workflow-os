@@ -67,6 +67,35 @@ def _git(*args: str, cwd: Path) -> None:
     )
 
 
+def ensure_main_ref(repo_root: Path) -> None:
+    """Ensure a local ``main`` branch ref exists before worktree ops.
+
+    GitHub Actions checks out a PR branch as the local HEAD without creating
+    a local ``main`` ref, so ``git worktree add ... main`` (which the harness
+    hard-codes via ``create_worktree``'s default ``base_branch="main"``) fails
+    on every PR with ``fatal: invalid reference: main``. On checkouts of main
+    itself the probe short-circuits and this is a no-op.
+    """
+    probe = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/main"],
+        check=False,
+        cwd=repo_root,
+    )
+    if probe.returncode == 0:
+        return
+    create = subprocess.run(
+        ["git", "branch", "main", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    if create.returncode != 0:
+        raise RuntimeError(
+            f"could not create 'main' ref in {repo_root}: {create.stderr.strip()}"
+        )
+
+
 def _mock_manifest(model: str) -> CapabilityManifest:
     return CapabilityManifest.model_validate(
         {
@@ -688,6 +717,7 @@ async def run_repository_e2e(
     real_llm_enabled: bool = False,
 ) -> tuple[IntegrationHarness, WorkflowRunResult]:
     workspace = load_integration_workspace(repo_root, source_root=_SOURCE_ROOT)
+    ensure_main_ref(workspace.repo_root)
     harness = build_integration_harness(
         workspace,
         real_llm_enabled=real_llm_enabled,
