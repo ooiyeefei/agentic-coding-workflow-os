@@ -34,6 +34,56 @@ def test_resume_formats_same_run_context_for_claude_and_codex(
         assert "Pending stages: 003-review" in packet
 
 
+def test_resume_packet_embeds_recent_stage_briefings(
+    tmp_path: Path,
+    monkeypatch,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    _seed_repo(tmp_path, fixed_run_id, fixed_ulid_values)
+    _seed_rich_stage_packets(tmp_path, fixed_run_id)
+    monkeypatch.chdir(tmp_path)
+
+    packet = resume(fixed_run_id, "claude-code")
+
+    # The killer-demo pass criterion: a fresh agent reading this packet
+    # must learn the substantive choice from the specify stage, not just
+    # that "specify completed".
+    assert "rate limit threshold of 5 attempts per 60-second" in packet, (
+        "Resume packet did not embed substantive specify-stage content. "
+        "A fresh agent cannot answer 'what was decided in specify?' from "
+        "this packet alone."
+    )
+    # The briefing section should be discoverable by header.
+    assert "## Recent Stage Context" in packet or "Stage Briefings" in packet
+
+
+def test_resume_packet_briefings_survive_oversized_stage_packets(
+    tmp_path: Path,
+    monkeypatch,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    """Reproduces the original #66 scenario: stage packets large enough
+    to exceed the session budget would previously cause the compiler to
+    fall back to must-have sources only and drop all stage content.
+    The briefing path must still surface the substantive content under
+    those conditions.
+    """
+    _seed_repo(tmp_path, fixed_run_id, fixed_ulid_values)
+    _seed_oversized_stage_packets(tmp_path, fixed_run_id)
+    monkeypatch.chdir(tmp_path)
+
+    packet = resume(fixed_run_id, "claude-code")
+
+    assert "rate limit threshold of 5 attempts per 60-second" in packet, (
+        "Resume packet dropped substantive specify-stage content when "
+        "stage packets exceeded the session budget. A fresh agent "
+        "cannot answer 'what was decided in specify?' from this packet."
+    )
+    assert "## Recent Stage Context" in packet or "Stage Briefings" in packet
+
+
 def test_generate_prompt_adds_role_specific_protocols(
     tmp_path: Path,
     monkeypatch,
@@ -269,6 +319,89 @@ def _seed_run(repo_root: Path, run_id: str) -> None:
     )
     (run_root / "run.md").write_text(
         f"---\nrun_id: {run_id}\nissue_ref: issue #52\n---\n# Run\n",
+        encoding="utf-8",
+    )
+
+
+def _seed_rich_stage_packets(repo_root: Path, run_id: str) -> None:
+    """Write substantive packet.md content to seeded stages.
+
+    Mirrors the real-run shape where each stage has a ~200-line packet.md
+    capturing the issue text, acceptance criteria, and clarified constraints.
+    """
+    run_root = repo_root / ".atelier" / "runs" / run_id
+    specify_packet = run_root / "stages" / "001-specify" / "packet.md"
+    specify_packet.write_text(
+        (
+            "# Context Packet\n\n"
+            "## Objective\n"
+            "_Source: objective | objective | -_\n\n"
+            "Specify the rate limit feature for the demo app.\n\n"
+            "## Demo App: Rate limit failed POST /login attempts\n"
+            "_Source: issue_text | demo-issue | demo/issue.md_\n\n"
+            "Decided rate limit threshold of 5 attempts per 60-second rolling "
+            "window per IP. Retry-After is rounded up to the next integer "
+            "and never returns 0 while the IP is still blocked.\n\n"
+            "## Acceptance Criteria\n\n"
+            "1. Failed login attempts 1-5 process normally; attempt 6 returns 429.\n"
+            "2. Retry-After header is required on every 429.\n"
+        ),
+        encoding="utf-8",
+    )
+    implement_packet = run_root / "stages" / "002-implement" / "packet.md"
+    implement_packet.write_text(
+        (
+            "# Context Packet\n\n"
+            "## Objective\n"
+            "_Source: objective | objective | -_\n\n"
+            "Implement the rate-limit middleware behind FastAPI.\n"
+        ),
+        encoding="utf-8",
+    )
+
+
+def _seed_oversized_stage_packets(repo_root: Path, run_id: str) -> None:
+    """Mirror the real-run shape: each stage carries a ~14k-token packet.md
+    that, in aggregate, exceeds the default session budget. This forces the
+    compiler's must-only fallback path and exposes the bug from issue #66.
+    """
+    run_root = repo_root / ".atelier" / "runs" / run_id
+    filler = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 200
+    specify_packet = run_root / "stages" / "001-specify" / "packet.md"
+    specify_packet.write_text(
+        (
+            "# Context Packet\n\n"
+            "## Objective\n"
+            "_Source: objective | objective | -_\n\n"
+            "Specify the rate limit feature for the demo app.\n\n"
+            "## Demo App: Rate limit failed POST /login attempts\n"
+            "_Source: issue_text | demo-issue | demo/issue.md_\n\n"
+            "Decided rate limit threshold of 5 attempts per 60-second rolling "
+            "window per IP. Retry-After is rounded up to the next integer.\n\n"
+            f"## Filler context that pushes the packet past the budget\n\n{filler}\n"
+        ),
+        encoding="utf-8",
+    )
+    implement_packet = run_root / "stages" / "002-implement" / "packet.md"
+    implement_packet.write_text(
+        (
+            "# Context Packet\n\n"
+            "## Objective\n"
+            "_Source: objective | objective | -_\n\n"
+            "Implement the rate-limit middleware behind FastAPI.\n\n"
+            f"## Filler context\n\n{filler}\n"
+        ),
+        encoding="utf-8",
+    )
+    review_packet = run_root / "stages" / "003-review" / "packet.md"
+    review_packet.write_text(
+        (
+            "# Context Packet\n\n"
+            "## Objective\n"
+            "_Source: objective | objective | -_\n\n"
+            "Review the rate-limit implementation.\n\n"
+            f"## Filler context\n\n{filler}\n"
+        ),
         encoding="utf-8",
     )
 
