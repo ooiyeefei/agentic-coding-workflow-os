@@ -226,6 +226,67 @@ def test_patch_skill_file_is_idempotent() -> None:
     assert once == twice
 
 
+def test_patch_skill_file_appends_second_distinct_rule() -> None:
+    """A second distinct rule must accumulate, not be silently dropped."""
+    original = "# Skill\n\nIntro text.\n"
+    rule_a = "Always state the missed API contract change."
+    rule_b = "Always tie a fix to its root cause, not the symptom."
+    block_a = build_rule_block(
+        rule_a, {"run_id": "run_A", "error_type": "missed_bug"}
+    )
+    block_b = build_rule_block(
+        rule_b, {"run_id": "run_B", "error_type": "root_cause_missed"}
+    )
+
+    after_a = patch_skill_file(original, block_a)
+    after_b = patch_skill_file(after_a, block_b)
+
+    # Both rules must be present after the second application.
+    assert rule_a in after_b, "first rule was lost when adding the second"
+    assert rule_b in after_b, (
+        "second distinct rule was silently dropped (issue #65 bug 1)"
+    )
+    # Per-rule source attribution preserved for both.
+    assert "run_id=run_A" in after_b
+    assert "run_id=run_B" in after_b
+    # Single ## Learned Rules section, not two.
+    assert after_b.count("## Learned Rules") == 1
+    # Content must have actually changed on the second apply.
+    assert after_b != after_a
+
+
+def test_patch_skill_file_idempotent_for_same_rule() -> None:
+    """Regression lock: applying the same rule twice still no-ops."""
+    original = "# Skill\n\nIntro text.\n"
+    block = build_rule_block(
+        "Always state the missed check.",
+        {"run_id": "run_X", "error_type": "missed_bug"},
+    )
+
+    once = patch_skill_file(original, block)
+    twice = patch_skill_file(once, block)
+    thrice = patch_skill_file(twice, block)
+
+    assert once == twice == thrice
+    assert once.count("- Always state the missed check.") == 1
+
+
+def test_appended_heading_has_blank_line_before() -> None:
+    """The ## Learned Rules heading must be preceded by a blank line."""
+    original = "# Skill\n\nIntro text.\n"
+    block = build_rule_block("Always state the missed check.", {})
+
+    patched = patch_skill_file(original, block)
+
+    heading_index = patched.index("## Learned Rules")
+    preceding = patched[:heading_index]
+    # Heading must be preceded by exactly a blank line (\n\n at minimum).
+    assert preceding.endswith("\n\n"), (
+        "## Learned Rules heading must have a blank line before it (issue #65 bug 2);"
+        f" got preceding tail: {preceding[-10:]!r}"
+    )
+
+
 def test_render_diff_returns_unified_diff(tmp_path: Path) -> None:
     skill_path = tmp_path / "SKILL.md"
     original = "# Skill\n\nIntro.\n"
