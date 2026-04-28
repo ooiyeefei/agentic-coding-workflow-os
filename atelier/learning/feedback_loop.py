@@ -151,8 +151,8 @@ def read_entry(path: Path) -> dict[str, Any]:
     return {str(key): value for key, value in raw_dict.items()}
 
 
-def build_rule_block(rule_text: str, entry: dict[str, Any]) -> str:
-    """Render the markdown block appended to SKILL.md."""
+def _render_rule_entry(rule_text: str, entry: dict[str, Any]) -> str:
+    """Render the bullet + source-line pair for a single learned rule."""
 
     run_id = str(entry.get("run_id", "") or "").strip()
     error_type = str(entry.get("error_type", "") or "").strip()
@@ -166,29 +166,58 @@ def build_rule_block(rule_text: str, entry: dict[str, Any]) -> str:
         if source_bits
         else "Source: SkillOutcome feedback"
     )
+    return f"- {rule_text}\n  {source_line}\n"
+
+
+def build_rule_block(rule_text: str, entry: dict[str, Any]) -> str:
+    """Render the markdown block appended to SKILL.md.
+
+    The block opens with a blank line so concatenation onto an ``rstrip()``'d
+    body still leaves a blank line before the ``## Learned Rules`` heading.
+    """
+
     return (
-        "\n"
+        "\n\n"
         "## Learned Rules\n\n"
         f"{APPEND_MARKER}\n"
-        f"- {rule_text}\n"
-        f"  {source_line}\n"
+        f"{_render_rule_entry(rule_text, entry)}"
     )
 
 
 def patch_skill_file(skill_text: str, rule_block: str) -> str:
-    """Return SKILL.md text with the rule block appended (idempotent)."""
+    """Return SKILL.md text with the rule block applied.
+
+    Idempotency is per-rule: applying the same rendered rule entry twice is a
+    no-op, but a second *distinct* rule accumulates as another bullet under
+    the existing ``## Learned Rules`` section.
+    """
 
     if not skill_text.endswith("\n"):
         skill_text += "\n"
-    if APPEND_MARKER in skill_text:
+
+    rule_entry = _extract_rule_entry(rule_block)
+
+    # Per-rule dedupe: if this exact rule entry is already in the file, no-op.
+    if rule_entry and rule_entry in skill_text:
         return skill_text
-    if "## Learned Rules" in skill_text:
-        marker_split = rule_block.split(f"{APPEND_MARKER}\n", 1)
-        if len(marker_split) != 2:
-            return skill_text.rstrip() + rule_block
-        insertion = f"\n{APPEND_MARKER}\n" + marker_split[1]
-        return skill_text.rstrip() + insertion
+
+    # If a Learned Rules section already exists, append just the bullet under
+    # it rather than starting a second section with a duplicate marker/heading.
+    if "## Learned Rules" in skill_text and rule_entry:
+        if not skill_text.endswith("\n\n"):
+            skill_text = skill_text.rstrip("\n") + "\n"
+        return skill_text + rule_entry
+
     return skill_text.rstrip() + rule_block
+
+
+def _extract_rule_entry(rule_block: str) -> str:
+    """Pull the bullet + source-line pair out of a freshly built rule block."""
+
+    marker_token = f"{APPEND_MARKER}\n"
+    if marker_token in rule_block:
+        return rule_block.split(marker_token, 1)[1]
+    return ""
 
 
 def render_diff(original: str, updated: str, path: Path) -> str:
