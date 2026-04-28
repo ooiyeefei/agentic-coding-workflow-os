@@ -2,10 +2,12 @@
 date: 2026-04-28
 scenarios: 1 (session swap, partial) + 2 (multi-agent role split, mostly complete)
 operator: claude-code (autonomous, no human paste-back yet)
-result: artifact generation works; the actual swap requires a human driver
+result: artifact generation works; killer-demo content gap (Bug 3) was real and is now fixed in #70
 ---
 
 # Dogfood — Multi-Agent Role Split + Session Swap (staged)
+
+> **Status (2026-04-28, post-fix)**: the prediction in this doc that the resume packet would fail the killer-demo question is now **outdated** — PR #70 fixed the underlying content-density bug. The runbook below should now show "PASS" if you re-drive it. Bug 6 (role protocol duplication) remains open as #67.
 
 This doc covers two related scenarios. Scenario 2 (role split) is exercisable solo because it's pure prompt generation. Scenario 1 (session swap) needs a human pasting between two agent sessions — staged here as a runbook.
 
@@ -61,19 +63,11 @@ The role protocol shows up twice — once as the leading directive, once injecte
 
 This is the killer-demo scenario per the brief. It needs you (human) to paste outputs between two agent terminals.
 
-### Pre-staged inputs
-
-Already generated and present at:
-- `/tmp/resume_claude_packet.md` — packet to paste into a fresh Claude Code session
-- `/tmp/resume_codex_packet.md` — packet to paste into Codex
-- `/tmp/prompt_coder_codex.md` — coder prompt for Codex
-- `/tmp/prompt_reviewer_claude.md` — reviewer prompt for Claude Code
-
 ### Runbook to drive the killer demo
 
-You will need: two terminals (Codex + Claude Code), one open browser to the demo run.
+You will need: two terminals (Codex + Claude Code).
 
-**Step 1 — Verify state pre-swap (you can do this without an agent):**
+**Step 1 — Verify state pre-swap:**
 
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
@@ -81,38 +75,23 @@ uv run atelier run show run_01KPT1YDEK0F9MYKW4R1VMY7XY
 # Expect: 8 stages all completed, status "completed"
 ```
 
-**Step 2 — Open Claude Code in a NEW terminal (no prior context):**
+**Step 2 — Generate fresh packets and open in two terminals:**
 
 ```bash
-cat /tmp/resume_claude_packet.md     # to inspect
-# Then paste the contents into Claude Code
+uv run atelier resume --agent claude-code --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/claude_packet.md
+uv run atelier resume --agent codex        --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/codex_packet.md
+# Paste each into the corresponding agent in a fresh terminal.
 ```
 
-**Step 3 — Ask Claude Code the brief's pass-criterion question:**
+**Step 3 — Ask both agents the brief's pass-criterion question:**
 
 ```
 What was decided in specify for issue #24?
 ```
 
-**Pass criterion (per brief):** Claude Code answers correctly without asking you to re-explain.
+**Expected outcome (post-#70):** both agents should now answer with the actual specify content — `Allow at most 5 failed attempts per client IP in a rolling 60-second window`, the retry-after rules, and the five acceptance criteria. The resume packet now embeds the per-stage briefings directly.
 
-**Predicted outcome (based on Bug #3 from scenario 5 findings):** Claude Code will probably say something like "the run is completed across 8 stages including specify" but cannot answer the *content* of the specify decision (rate-limit threshold of 5/60s, retry-after math, etc.) because the resume packet doesn't surface that content.
-
-**If Claude Code can't answer:** that confirms Bug #3. File the issue.
-**If Claude Code answers correctly:** I was wrong about Bug #3 severity — the in-context inference filled in the gaps. Note that as a finding.
-
-**Step 4 — Swap to Codex:**
-
-```bash
-cat /tmp/resume_codex_packet.md
-# Paste into Codex
-```
-
-Repeat the same question. Expect identical pass/fail because the body content is the same — only framing differs.
-
-### Findings to record (after you run it)
-
-Fill in these fields in this doc once you've driven the swap:
+**Findings to record after you drive it:**
 
 ```
 - Did Claude Code answer the specify question without re-explaining? [YES/NO]
@@ -133,5 +112,5 @@ The honest answer is: this needs a human + two real terminals. Everything is sta
 
 ## Combined verdict
 
-- Scenario 2 plumbing works; one cosmetic dedupe bug.
-- Scenario 1 needs human in the loop; staged and ready. The most likely failure mode is Bug #3 (resume packet content density), already filed under scenario 5.
+- Scenario 2 plumbing works; one cosmetic dedupe bug remains as #67.
+- Scenario 1 still needs human in the loop. Post-#70, the most likely failure mode (resume packet too thin) is no longer present; remaining unknowns are framing quality differences between Claude Code and Codex that only a real swap can reveal.

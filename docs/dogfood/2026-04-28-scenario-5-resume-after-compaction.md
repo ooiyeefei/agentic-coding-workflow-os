@@ -2,10 +2,16 @@
 date: 2026-04-28
 scenario: 5 — Resume-after-compaction
 operator: claude-code (autonomous)
-result: state survives, but the resume packet has weak content density
+result: state survives; HIGH content-density bug fixed in #70; two follow-ups (#72, #73) tracked
 ---
 
 # Dogfood — Resume-After-Compaction
+
+> **Status (2026-04-28, post-fix)**:
+> - Bug 3 (HIGH, content density) — **FIXED** in PR #70 (resume packet now embeds per-stage briefings; killer-demo answer string surfaces directly).
+> - Bug 4 (MEDIUM, auto-stub Decisions) — open, tracked as **#72**.
+> - Bug 5 (LOW-MEDIUM, ADR linking) — open, tracked as **#73**.
+> - Original tracker #66 auto-closed when #70 merged.
 
 ## What I ran
 
@@ -31,57 +37,21 @@ diff claude_packet.md codex_packet.md
 
 ## What broke
 
-### BUG #3 — Resume packet does not include rich stage content (HIGH severity)
+### Bug 3 — Resume packet does not include rich stage content (HIGH) — FIXED in #70
 
-The brief's killer-demo pass criterion is: *"ask 'what was decided in specify?' — Claude Code can answer correctly without re-explaining."*
+Original finding: the resume packet was 75 lines while the source `stages/001-specify/packet.md` was 199 lines and contained the full issue text, acceptance criteria, sample curl, demo creds, and UAT plan. None of that surfaced in the resume packet — it was a table-of-contents, not a briefing.
 
-With the current resume packet, Claude Code **cannot** answer this. The resume packet is 75 lines. The original specify-stage packet (`stages/001-specify/packet.md`) is **199 lines** and contains:
+The brief's killer-demo pass criterion was: *"ask 'what was decided in specify?' — Claude Code can answer correctly without re-explaining."* With the original packet, that failed.
 
-- Full issue text (rate-limit thresholds, retry-after math, security considerations)
-- Acceptance criteria (5 numbered gates)
-- Sample curl requests
-- Demo credentials
-- UAT plan
-- 7 source-types in the provenance table
+**Outcome after #70:** the packet grew from 75 → 322 lines and now contains the killer-demo answer string `Allow at most 5 failed attempts per client IP in a rolling 60-second window` plus all five acceptance criteria. New `## Recent Stage Context` section embeds condensed per-stage briefings; the budget-aware fallback path now keeps substantive content even when raw packets would otherwise blow the token budget.
 
-None of that is in the resume packet. The resume packet only surfaces:
-- 8 vapid stub "decisions" (see Bug #4 below)
-- 1 single-line rejected alternative
-- 0 ADRs (see Bug #5 below)
-- A 2-row provenance table
+### Bug 4 — "Decisions" captured during workflow are auto-stubs (MEDIUM) — open as #72
 
-**Test the brief's pass criterion**: pretend I am a fresh Claude Code session. Question: "What was the rate-limit threshold decided in specify?" — answer must be "5 attempts per 60-second rolling window per IP." From the resume packet alone, I can't answer; I'd have to read the stage packets directly. The resume packet is a *table of contents*, not a *briefing*.
+All 8 captured `Decision` records on this run say `Persist workflow evidence for 00N-stage-name` — workflow-runner side effects, not engineering insights. Dilutes the typed-record discipline. Tracked separately for follow-up; needs either a new `WorkflowEvent` type or persona-driven Decision emission.
 
-**Suggested fix shape:** Resume packet should embed (or link to) the most recent N stage `packet.md` summaries. Most useful is probably specify + clarify + plan summaries plus all open findings.
+### Bug 5 — Existing ADRs are not linked in resume packet (LOW-MEDIUM) — open as #73
 
-### BUG #4 — "Decisions" captured during workflow are auto-stubs, not real decisions (MEDIUM severity)
-
-All 8 captured `Decision` records on this run say:
-
-```
-Persist workflow evidence for 001-specify
-Persist workflow evidence for 002-clarify
-...
-```
-
-These are auto-emitted by the workflow runner as side effects of stage completion, not real engineering decisions. Compare with the *intended* type of `Decision` (per `atelier/memory/records.py`): a typed record with `body`, `tags`, `confidence`, `source`, `related_issues`, `related_adrs` — all the affordances of a real ADR-grade insight.
-
-When a fresh agent reads the resume packet's "Prior Decisions" section, it learns nothing about WHY anything was done. This dilutes the value of the typed-record discipline.
-
-**Suggested fix shape:** Either (a) auto-stubs should not be classified as `Decision` (use a separate `WorkflowEvent` type), or (b) personas should be prompted to emit one real `Decision` per substantive stage (specify, clarify, plan).
-
-### BUG #5 — Existing ADRs are not linked in resume packet (LOW-MEDIUM severity)
-
-`docs/adr/0001-workflow-validation.md` and `docs/adr/0002-workflow-validation.md` exist on disk. The resume packet says:
-
-```
-## Relevant ADRs
-- No ADRs referenced by transferred memory.
-```
-
-The link is broken because no memory record has `related_adrs` populated. Specifically, the rejected alternative at `.atelier/memory/rejected_alternatives/rejected_alternative_01KPT1YDQ62BGERZ4XVS30YZCB.md` has `related_adrs: []` despite the rejected alternative *being the input that produced* the workflow-validation ADRs.
-
-**Suggested fix shape:** ADR generation should back-fill `related_adrs` on the source records. Or the resume packet should glob `docs/adr/` and surface ADRs that touch any tag/issue mentioned in the run.
+`docs/adr/0001-workflow-validation.md` and `0002-workflow-validation.md` exist on disk but the resume packet says "No ADRs referenced by transferred memory." Cause: `related_adrs: []` on the source records. Tracked separately for follow-up; needs either back-fill at ADR-generation time or glob-and-tag-match in the adapter base.
 
 ## What surprised me
 
@@ -91,7 +61,10 @@ The link is broken because no memory record has `related_adrs` populated. Specif
 
 ## Bugs filed
 
-- **#66** — all three bugs above filed together: HIGH (resume packet content density), MEDIUM (auto-stub Decisions dilute typed-record), LOW-MEDIUM (ADRs not linked)
+- **#66** (closed when #70 merged) — original tracker for all three bugs above
+- **#70** (merged) — fixed Bug 3 (HIGH, content density)
+- **#72** (open) — re-filed Bug 4 (MEDIUM, auto-stub Decisions)
+- **#73** (open) — re-filed Bug 5 (LOW-MEDIUM, ADR linking)
 
 ## Did not try
 
@@ -101,4 +74,4 @@ The link is broken because no memory record has `related_adrs` populated. Specif
 
 ## Verdict
 
-State survives across sessions — the plumbing thesis holds. But the *value* delivered by the resume packet is less than what's in the per-stage packets. The aggregator step is undercooked. Fixing Bug #3 alone would lift the killer-demo pass rate from "fails" to "succeeds".
+State survives across sessions — the plumbing thesis holds. The aggregator step was undercooked at the time of dogfood; PR #70 fixed that and the killer-demo pass criterion is now satisfied directly from the packet content. Two follow-up items (Bugs 4 and 5, now #72 and #73) remain — neither blocks the killer demo but both will improve resume-packet quality.

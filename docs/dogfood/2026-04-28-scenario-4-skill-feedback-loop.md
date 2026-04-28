@@ -2,10 +2,12 @@
 date: 2026-04-28
 scenario: 4 — Skill self-improvement loop
 operator: claude-code (autonomous)
-result: works end-to-end with one real bug found
+result: works end-to-end; both bugs found are now fixed in #69
 ---
 
 # Dogfood — Skill Self-Improvement Loop
+
+> **Status (2026-04-28, post-fix)**: both bugs found in this scenario were filed as #65 and shipped in **PR #69** (merged). The cumulative-rule-application path now dedupes per-rule rather than by marker presence, and the appended heading carries a leading blank line.
 
 ## What I ran
 
@@ -38,41 +40,13 @@ uv run atelier skill_feedback derive --entry strong_match.json \
 
 ## What broke
 
-### BUG #1 — `patch_skill_file` drops second rule silently (HIGH severity)
+### Bug 1 — `patch_skill_file` drops second rule silently (HIGH) — FIXED in #69
 
-When a SKILL.md already has any learned rule applied, applying a *different* rule does nothing — silently. Repro:
+When a SKILL.md already had any learned rule applied, applying a *different* rule did nothing — silently. Caused by too-coarse idempotency in `patch_skill_file` (bailing on marker presence alone). Fixed by dedupe at per-rule granularity (checking if the rendered bullet line is already present) and appending under a single `## Learned Rules` section.
 
-```bash
-# Apply rule A — works, file gets one rule.
-uv run atelier skill_feedback derive --entry strong_match.json --skill-file SKILL.md --apply
-# Apply rule B (different rule) — output says "(no changes) / No changes to apply."
-uv run atelier skill_feedback derive --entry weak_match.json --skill-file SKILL.md --apply
-# SKILL.md still has only rule A. Rule B is lost without warning.
-```
+### Bug 2 — Missing blank line before appended `## Learned Rules` heading (LOW) — FIXED in #69
 
-Root cause is `atelier/learning/feedback_loop.py:182-184`:
-
-```python
-if APPEND_MARKER in skill_text:
-    return skill_text  # too-coarse idempotency: bails on marker presence alone
-```
-
-The marker dedupes at the wrong granularity: any prior application blocks all future ones. Likely intent was per-rule dedupe.
-
-**Suggested fix shape (do not implement during dogfood):** dedupe by checking if the *specific rule_text* is already present in the file rather than just the marker. Or insert under a single `## Learned Rules` block that accumulates multiple bullet lines.
-
-### BUG #2 — Missing blank line before appended `## Learned Rules` heading (LOW severity)
-
-After `--apply`, the file looks like:
-
-```markdown
-Some pre-existing skill content here.
-## Learned Rules
-```
-
-No blank line between body content and the new heading. Markdown spec is forgiving but some strict parsers (CommonMark with paragraph-extension off) won't recognize this as a heading. `build_rule_block` starts with `"\n"` but `patch_skill_file` does `skill_text.rstrip() + rule_block`, eating the blank line that the source content provided.
-
-**Suggested fix shape:** in `build_rule_block`, change leading `"\n"` to `"\n\n"`.
+`build_rule_block` opened with `"\n"` while `patch_skill_file` did `skill_text.rstrip() + rule_block`, eating the blank line. Fixed by opening with `"\n\n"` and ensuring the heading is preceded by a blank line when extending an existing section.
 
 ## What surprised me
 
@@ -82,7 +56,8 @@ No blank line between body content and the new heading. Markdown spec is forgivi
 
 ## Bugs filed
 
-- **#65** — both bugs above filed together: HIGH (cumulative rule application broken) + LOW (missing blank line)
+- **#65** (closed when #69 merged) — both bugs above filed together
+- **#69** (merged) — fix shipped: per-rule dedupe + leading-blank-line for heading
 
 ## Did not try
 
@@ -92,4 +67,4 @@ No blank line between body content and the new heading. Markdown spec is forgivi
 
 ## Verdict
 
-The feature works as designed for first-application. The "second rule" bug is the only thing blocking real use of the loop on a corpus of failures.
+The feature works as designed for first-application. After #69 the loop also accumulates rules across multiple failures, so a corpus of SkillOutcomes can now meaningfully shape SKILL.md over time.
