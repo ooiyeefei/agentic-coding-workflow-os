@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,12 +22,27 @@ from atelier.memory import Decision, MemoryRecord, RejectedAlternative, ReviewFi
 from atelier.util.paths import run_dir
 
 _DEFAULT_SESSION_BUDGET = 12000
+_DEFAULT_BRIEFING_STAGES = 3
+_BRIEFING_BODY_BUDGET_CHARS = 1800
+_BRIEFING_DROP_SECTION_HEADERS = (
+    "Integration Rules",
+    "Provenance",
+    "Run Worktree",
+)
 
 
 @dataclass(frozen=True)
 class StageSummary:
     stage_id: str
     status: str
+    path: Path
+
+
+@dataclass(frozen=True)
+class StageBriefing:
+    stage_id: str
+    status: str
+    body: str
     path: Path
 
 
@@ -49,6 +65,14 @@ def resume(run_id: str, target_agent: str) -> str:
     adapter = _adapter_for_target(target_agent, repo_root=repo_root)
     records = _load_memory_records(repo_root)
     packet = adapter.format_context_packet(run_id, "resume", records)
+    summary = _load_run_summary(run_id, repo_root)
+    briefings = _stage_briefings(
+        summary,
+        repo_root,
+        max_stages=_DEFAULT_BRIEFING_STAGES,
+        max_chars=_BRIEFING_BODY_BUDGET_CHARS,
+    )
+    briefings_section = _render_stage_briefings_section(briefings)
     compiled = _compile_session_packet(
         run_id=run_id,
         objective=(
@@ -58,8 +82,13 @@ def resume(run_id: str, target_agent: str) -> str:
         records=records,
         repo_root=repo_root,
         budget_tokens=_DEFAULT_SESSION_BUDGET,
+        briefings=briefings,
     )
-    return _join_sections(packet, "## Compiled Run Context\n\n" + compiled.body)
+    sections = [packet]
+    if briefings_section is not None:
+        sections.append(briefings_section)
+    sections.append("## Compiled Run Context\n\n" + compiled.body)
+    return _join_sections(*sections)
 
 
 def _adapter_for_target(target_agent: str, *, repo_root: Path) -> ToolAdapter:
@@ -106,14 +135,20 @@ def _compile_session_packet(
     records: Sequence[MemoryRecord],
     repo_root: Path,
     budget_tokens: int,
+    briefings: Sequence[StageBriefing] | None = None,
 ) -> Packet:
-    sources = _session_sources(run_id=run_id, records=records, repo_root=repo_root)
+    sources = _session_sources(
+        run_id=run_id,
+        records=records,
+        repo_root=repo_root,
+        briefings=briefings,
+    )
     try:
         return compile_packet(objective, sources, budget_tokens=budget_tokens)
     except BudgetExceededError:
         return compile_packet(
             objective,
-            _must_have_sources(run_id, repo_root),
+            _must_have_sources(run_id, repo_root, briefings=briefings),
             budget_tokens=budget_tokens,
         )
 
@@ -123,6 +158,7 @@ def _session_sources(
     run_id: str,
     records: Sequence[MemoryRecord],
     repo_root: Path,
+    briefings: Sequence[StageBriefing] | None = None,
 ) -> list[Source]:
     sources: list[Source] = []
     summary = _load_run_summary(run_id, repo_root)
@@ -135,14 +171,23 @@ def _session_sources(
             path=str(summary.path.relative_to(repo_root)),
         )
     )
-    sources.extend(_run_artifact_sources(summary, repo_root))
+    briefing_paths = {briefing.path.resolve() for briefing in briefings or ()}
+    sources.extend(_briefing_sources(briefings or (), repo_root))
+    sources.extend(
+        _run_artifact_sources(summary, repo_root, exclude_paths=briefing_paths)
+    )
     sources.extend(_memory_sources(records, run_id=run_id))
     return sources
 
 
-def _must_have_sources(run_id: str, repo_root: Path) -> list[Source]:
+def _must_have_sources(
+    run_id: str,
+    repo_root: Path,
+    *,
+    briefings: Sequence[StageBriefing] | None = None,
+) -> list[Source]:
     summary = _load_run_summary(run_id, repo_root)
-    return [
+    sources: list[Source] = [
         WorktreeRef(
             source_id=f"{run_id}:state",
             priority="must",
@@ -151,6 +196,8 @@ def _must_have_sources(run_id: str, repo_root: Path) -> list[Source]:
             path=str(summary.path.relative_to(repo_root)),
         )
     ]
+    sources.extend(_briefing_sources(briefings or (), repo_root))
+    return sources
 
 
 def _load_run_summary(run_id: str, repo_root: Path) -> RunSummary:
@@ -213,14 +260,27 @@ def _render_run_summary(summary: RunSummary) -> str:
     return "\n".join(lines)
 
 
-def _run_artifact_sources(summary: RunSummary, repo_root: Path) -> list[Source]:
+def _run_artifact_sources(
+    summary: RunSummary,
+    repo_root: Path,
+    *,
+    exclude_paths: set[Path] | None = None,
+) -> list[Source]:
     sources: list[Source] = []
     for stage in summary.stages:
-        sources.extend(_stage_artifact_sources(stage, repo_root))
+        sources.extend(
+            _stage_artifact_sources(stage, repo_root, exclude_paths=exclude_paths)
+        )
     return sources
 
 
-def _stage_artifact_sources(stage: StageSummary, repo_root: Path) -> Iterable[Source]:
+def _stage_artifact_sources(
+    stage: StageSummary,
+    repo_root: Path,
+    *,
+    exclude_paths: set[Path] | None = None,
+) -> Iterable[Source]:
+    excluded = exclude_paths or set()
     artifact_names = (
         "stage.md",
         "packet.md",
@@ -230,6 +290,8 @@ def _stage_artifact_sources(stage: StageSummary, repo_root: Path) -> Iterable[So
     )
     for name in artifact_names:
         path = stage.path / name
+        if path.resolve() in excluded:
+            continue
         source = _source_from_file(path, stage=stage, repo_root=repo_root)
         if source is not None:
             yield source
@@ -239,6 +301,8 @@ def _stage_artifact_sources(stage: StageSummary, repo_root: Path) -> Iterable[So
         if not folder.is_dir():
             continue
         for path in sorted(candidate for candidate in folder.rglob("*") if candidate.is_file()):
+            if path.resolve() in excluded:
+                continue
             source = _source_from_file(path, stage=stage, repo_root=repo_root, title_prefix=title)
             if source is not None:
                 yield source
@@ -347,6 +411,190 @@ def _optional_text(value: object) -> str | None:
 
 def _join_sections(*sections: str) -> str:
     return "\n\n".join(section.strip() for section in sections if section.strip()) + "\n"
+
+
+def _stage_briefings(
+    summary: RunSummary,
+    repo_root: Path,
+    *,
+    max_stages: int,
+    max_chars: int,
+) -> list[StageBriefing]:
+    """Pick the most-relevant N stages and emit a compact briefing for each.
+
+    Files-first invariant: reads from each stage's `packet.md` directly. The
+    selection prefers the current stage and the most recently completed
+    stages, so a fresh agent inherits the substantive context that matters
+    for resuming work.
+    """
+    if max_stages <= 0:
+        return []
+
+    selected = _pick_briefing_stages(summary.stages, max_stages)
+    briefings: list[StageBriefing] = []
+    for stage in selected:
+        packet_path = stage.path / "packet.md"
+        if not packet_path.is_file():
+            continue
+        body = _condense_packet_body(
+            packet_path.read_text(encoding="utf-8", errors="ignore"),
+            max_chars=max_chars,
+        )
+        if not body:
+            continue
+        briefings.append(
+            StageBriefing(
+                stage_id=stage.stage_id,
+                status=stage.status,
+                body=body,
+                path=packet_path,
+            )
+        )
+    return briefings
+
+
+def _pick_briefing_stages(
+    stages: Sequence[StageSummary], max_stages: int
+) -> list[StageSummary]:
+    """Pick stages that carry the most resume-relevant context.
+
+    Always include the current stage (a resuming agent starts there).
+    Then prefer the earliest completed stages — specify/clarify/plan
+    typically encode the substantive decisions a fresh agent needs to
+    answer "what was decided?" — over later mechanical stages.
+    """
+    if not stages:
+        return []
+    current = [stage for stage in stages if stage.status == "current"]
+    completed = [stage for stage in stages if stage.status == "completed"]
+    pending = [stage for stage in stages if stage.status == "pending"]
+
+    ordered: list[StageSummary] = []
+    seen_ids: set[str] = set()
+    for stage in [*current, *completed, *pending]:
+        if stage.stage_id in seen_ids:
+            continue
+        seen_ids.add(stage.stage_id)
+        ordered.append(stage)
+        if len(ordered) >= max_stages:
+            break
+    return sorted(ordered, key=lambda stage: stage.stage_id)
+
+
+_PACKET_SECTION_HEADER = re.compile(
+    r"^##\s+(?P<title>.+?)\s*$\n(?P<after>(?:\n)?_Source:[^\n]*\n)?",
+    re.MULTILINE,
+)
+_BRIEFING_DROP_SOURCE_TOKENS = (
+    "| integration-rules |",
+    "| acceptance_gate |",
+)
+
+
+def _condense_packet_body(raw: str, *, max_chars: int) -> str:
+    """Strip noise from a stage packet and bound it to a char budget.
+
+    Removes sections that repeat across every stage packet (the
+    integration-rules dump from AGENTS.md, the run-worktree path, and
+    the trailing provenance footer) so the briefing surfaces the issue
+    text, acceptance criteria, and clarified constraints — the
+    substantive content a resuming agent needs.
+    """
+    sections = _split_packet_sections(raw)
+    kept: list[str] = []
+    for title, block in sections:
+        if title is None:
+            cleaned = block.strip()
+            if cleaned:
+                kept.append(cleaned)
+            continue
+        if any(token in title for token in _BRIEFING_DROP_SECTION_HEADERS):
+            continue
+        if any(token in block for token in _BRIEFING_DROP_SOURCE_TOKENS):
+            continue
+        kept.append(block.strip())
+    condensed = "\n\n".join(part for part in kept if part)
+    condensed = condensed.strip()
+    if len(condensed) <= max_chars:
+        return condensed
+    truncated = condensed[: max(0, max_chars - 1)].rstrip()
+    return truncated + "…"
+
+
+def _split_packet_sections(raw: str) -> list[tuple[str | None, str]]:
+    """Split a markdown packet into (header_title, block) pairs.
+
+    Only ``## `` headings that are immediately followed by a ``_Source:``
+    annotation are treated as real packet sections; ``##`` headings that
+    appear inside an embedded body (e.g., the ``Active Technologies``
+    sub-headings inside the integration-rules block) stay attached to
+    their parent section. The first block carries ``None`` as its title.
+    """
+    sections: list[tuple[str | None, str]] = []
+    matches = [
+        match
+        for match in _PACKET_SECTION_HEADER.finditer(raw)
+        if match.group("after")
+    ]
+    if not matches:
+        return [(None, raw)]
+    if matches[0].start() > 0:
+        sections.append((None, raw[: matches[0].start()]))
+    for index, match in enumerate(matches):
+        title = match.group("title").strip()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(raw)
+        block = raw[match.start() : end]
+        sections.append((title, block))
+    return sections
+
+
+def _render_stage_briefings_section(
+    briefings: Sequence[StageBriefing],
+) -> str | None:
+    if not briefings:
+        return None
+    parts = [
+        "## Recent Stage Context",
+        (
+            "Condensed briefings from the most relevant stage packets so a "
+            "fresh agent can answer 'what was decided in <stage>?' without "
+            "re-reading every file."
+        ),
+    ]
+    for briefing in briefings:
+        relative = briefing.path
+        try:
+            relative = briefing.path.relative_to(Path.cwd())
+        except ValueError:
+            relative = briefing.path
+        parts.append(
+            f"### {briefing.stage_id} [{briefing.status}]\n"
+            f"_Source: stage_packet | {briefing.stage_id} | {relative}_\n\n"
+            f"{briefing.body}"
+        )
+    return "\n\n".join(parts)
+
+
+def _briefing_sources(
+    briefings: Sequence[StageBriefing], repo_root: Path
+) -> list[Source]:
+    sources: list[Source] = []
+    for briefing in briefings:
+        try:
+            relative = briefing.path.relative_to(repo_root).as_posix()
+        except ValueError:
+            relative = briefing.path.as_posix()
+        priority: PriorityTier = "must" if briefing.status == "current" else "should"
+        sources.append(
+            WorktreeRef(
+                source_id=f"{briefing.stage_id}:briefing",
+                priority=priority,
+                title=f"{briefing.stage_id} briefing [{briefing.status}]",
+                content=briefing.body,
+                path=relative,
+            )
+        )
+    return sources
 
 
 __all__ = ["resume"]
