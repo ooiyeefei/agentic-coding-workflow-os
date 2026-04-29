@@ -20,9 +20,9 @@ Status as of 2026-04-23.
 
 ### Architectural reframe (2026-04-23)
 
-The original architecture assumed Atelier calls LLM APIs directly (Personas call Anthropic/OpenAI). The correct architecture is:
+The original architecture assumed Spanweave calls LLM APIs directly (Personas call Anthropic/OpenAI). The correct architecture is:
 
-- **Atelier is the middle layer** — it generates Context Packets for agent tools (Claude Code, Codex, Cursor) and captures what they produce. It does NOT replace the agent tool.
+- **Spanweave is the middle layer** — it generates Context Packets for agent tools (Claude Code, Codex, Cursor) and captures what they produce. It does NOT replace the agent tool.
 - **W02 (LLM Abstraction)** is now the **Auxiliary LLM Backend** — narrow scope for council tiebreaker, ADR prose synthesis, transcript decision extraction. The code is correct; the scope is narrower than originally framed.
 - **W04 (Personas)** needs rework — `Persona.respond()` currently calls `self.adapter.generate()` (direct API). It should generate formatted prompts for the target agent tool instead. The `PersonaCaller` Protocol in `stages.py` is correctly abstract and does NOT need changing.
 - **NEW W27 (Tool Adapter Layer)** — the bridge: ingest transcripts from each tool, format Context Packets for each tool, auto-detect running tool.
@@ -31,7 +31,7 @@ The original architecture assumed Atelier calls LLM APIs directly (Personas call
 
 ## Scope Summary
 
-Ship the functional MVP of Atelier: a real GitHub issue flows end-to-end through a user-defined workflow, producing Evidence Packs, auto-generated ADRs, and a Run Graph — all persisted as files, replayable, reviewer-attacked, and human-approved at destructive gates. Invokable from the CLI. All components dynamic and configurable.
+Ship the functional MVP of Spanweave: a real GitHub issue flows end-to-end through a user-defined workflow, producing Evidence Packs, auto-generated ADRs, and a Run Graph — all persisted as files, replayable, reviewer-attacked, and human-approved at destructive gates. Invokable from the CLI. All components dynamic and configurable.
 
 ## MVP User Flow
 
@@ -154,7 +154,7 @@ One strong Python engineer. Owns orchestration, workflow, LLM abstraction, conte
 
 **Lane B — Personas, Memory, Evidence**
 `W04 → W05 → W06 → W08 → W14 → (W21 if time)`
-One engineer with prompt-craft + Python. Owns the IP that makes Atelier different — Reviewer execution-mandatory protocol, Evidence Pack templates, auto-ADR synthesis, Phase 1 council tiebreaker.
+One engineer with prompt-craft + Python. Owns the IP that makes Spanweave different — Reviewer execution-mandatory protocol, Evidence Pack templates, auto-ADR synthesis, Phase 1 council tiebreaker.
 
 **Lane C — Git, UAT, Security**
 `W10 → W13 → W26 → W18`
@@ -354,7 +354,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 
 - **Depends**: none (parallel with everything)
 - **Owns**: `examples/app/*`
-- **Scope**: A real, minimal FastAPI app with: auth flow, CRUD endpoint, existing tests. Serves as the integration test target for E2E validation and as documentation for new users learning Atelier. Not a toy — a legitimate small project that exercises the full workflow.
+- **Scope**: A real, minimal FastAPI app with: auth flow, CRUD endpoint, existing tests. Serves as the integration test target for E2E validation and as documentation for new users learning Spanweave. Not a toy — a legitimate small project that exercises the full workflow.
 - **Acceptance**: App runs locally, login works, tests pass, there is at least one real feature request filed as an issue.
 - **Output**: Reference project for integration testing and onboarding
 - **Blocks**: W24
@@ -390,7 +390,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 
 - **Depends**: W01, W03, W06 (memory reader/writer)
 - **Owns**: `atelier/adapters/base.py`, `atelier/adapters/claude_code.py`, `atelier/adapters/codex.py`, `atelier/adapters/generic.py`, `atelier/adapters/manifests/claude-code.yaml`, `atelier/adapters/manifests/codex.yaml`
-- **Scope**: The bridge between Atelier and agent tools. Each adapter implements three operations:
+- **Scope**: The bridge between Spanweave and agent tools. Each adapter implements three operations:
   - **Ingest**: read the tool's session state → extract decisions, findings, context → write to `.atelier/memory/`. Claude Code adapter reads `.claude/projects/` JSONL. Codex adapter reads session logs. Generic adapter accepts markdown transcript paste.
   - **Format**: read `.atelier/memory/` + run context → generate Context Packet formatted for the tool's conventions (e.g., Claude Code expects CLAUDE.md-style instructions; Codex expects AGENTS.md-style).
   - **Detect**: auto-detect which tool is running (check for `.claude/`, Codex env vars, etc.)

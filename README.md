@@ -1,6 +1,8 @@
-# Agentic Coding Workflow OS
+# Spanweave
 
-> Working name: **Atelier** (final naming TBD)
+> **Name**: Spanweave (the agentic coding workflow OS)
+>
+> _The Python package, CLI command, and `.atelier/` config directory are named `atelier` for historical reasons; a separate Phase 1 task will align them with the product name._
 
 The **shared knowledge substrate** for AI-assisted engineering. Markdown files in git — readable by any agent tool, writable by any agent tool, syncable by git. No new platform to adopt. No switching cost. Decisions persist. Context follows you.
 
@@ -10,7 +12,7 @@ The **shared knowledge substrate** for AI-assisted engineering. Markdown files i
 
 Developers use individual agent tools — Claude Code, Codex, Cursor, ChatGPT, Gemini, Cowork. These are personal and individualistic. Context dies with each session. Decisions evaporate. Switching tools means starting from zero.
 
-Atelier solves this with **files in git** as the shared substrate. Not a platform. Not another tool to adopt. A `.atelier/` directory in your repo that every agent tool can read, containing decisions, evidence, context, and rules in markdown.
+Spanweave solves this with **files in git** as the shared substrate. Not a platform. Not another tool to adopt. A `.atelier/` directory in your repo that every agent tool can read, containing decisions, evidence, context, and rules in markdown.
 
 **Session swap**: `atelier resume --agent claude-code` — picks up where Codex left off, full context.
 **Multi-agent**: `atelier prompt --role coder --agent codex` + `atelier prompt --role reviewer --agent claude-code` — each gets the right context for their role.

@@ -1,8 +1,10 @@
-# Agentic Coding Workflow OS — Product Roadmap
+# Spanweave — Product Roadmap
 
-> **Working name**: _Atelier_ (placeholder — final naming TBD)
+> **Name**: Spanweave (the agentic coding workflow OS)
 > **Status**: Phase 0 in progress. 21 of 24 original components merged. Architectural reframe underway — tool adapter layer + session continuity replacing direct LLM API approach.
 > **Origin**: Distilled from battle-tested workflow on a safety-critical HAZOP/LOPA AI system (TIROS) where wrong outputs could kill people.
+>
+> _The Python package, CLI command, and `.atelier/` config directory are named `atelier` for historical reasons; a separate Phase 1 task will align them with the product name._
 
 ---
 
@@ -53,7 +55,7 @@ No shared platform. No new tool. Just git.
 **Session swap with zero context loss:**
 ```
 Day 1: You use Codex (730K token session)
-  → Atelier captures decisions + context to .atelier/memory/
+  → Spanweave captures decisions + context to .atelier/memory/
 
 Day 2: You switch to Claude Code
   → atelier resume --agent claude-code
@@ -63,7 +65,7 @@ Day 2: You switch to Claude Code
 
 ### The core reframe
 
-Atelier is NOT an agent framework. It is NOT a platform. It is the **shared knowledge substrate** for agentic engineering work.
+Spanweave is NOT an agent framework. It is NOT a platform. It is the **shared knowledge substrate** for agentic engineering work.
 
 - `.atelier/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
 - `.atelier/runs/` = reproducible delivery (Run Graph with Evidence Packs)
@@ -71,7 +73,7 @@ Atelier is NOT an agent framework. It is NOT a platform. It is the **shared know
 - `docs/adr/` = reproducible architecture (auto-generated ADRs)
 - Git = the sync mechanism, audit trail, and collaboration layer
 
-The competitive moat is not the format (anyone can read markdown). The moat is the **adapter ecosystem** — Atelier knows how to read Claude Code's session JSONL, Codex's transcripts, Cursor's Composer history, and how to format Context Packets for each tool's conventions.
+The competitive moat is not the format (anyone can read markdown). The moat is the **adapter ecosystem** — Spanweave knows how to read Claude Code's session JSONL, Codex's transcripts, Cursor's Composer history, and how to format Context Packets for each tool's conventions.
 
 ---
 
@@ -79,7 +81,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 
 1. **Files first, indexes second.** Markdown + YAML frontmatter for every persistent entity. Any DB added later is a rebuildable cache, never source of truth.
 2. **CLI is the real product.** Plugins and web UIs are thin surfaces over the same control plane.
-3. **Tool-agnostic, not just model-agnostic.** Claude Code, Codex, Cursor, ChatGPT, Cowork, Gemini — any agent tool. Atelier is the middle layer, not a replacement.
+3. **Tool-agnostic, not just model-agnostic.** Claude Code, Codex, Cursor, ChatGPT, Cowork, Gemini — any agent tool. Spanweave is the middle layer, not a replacement.
 4. **Format over platform.** Don't build an app people have to adopt. Build files people already have in their repo. The `.atelier/` directory IS the product. Think RSS, not Facebook.
 5. **Zero migration cost.** Switching agent tools preserves all context. No export/import. No data hostage. Files stay in git.
 6. **Human-in-the-loop at destructive gates.** Never auto-resolve meaningful merge conflicts. Never auto-push. Never auto-accept council verdicts on significant changes.
@@ -181,7 +183,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 
 **Key architectural distinction from prior version:**
 - **"LLM Abstraction"** is now **"Auxiliary LLM Backend"** — narrow scope, only for council votes, ADR prose synthesis, and transcript extraction. NOT for the main coding workflow.
-- **NEW: "Tool Adapter Layer"** — the bridge between Atelier and whatever agent tool the user chooses. Each adapter knows how to ingest transcripts FROM a tool and format Context Packets FOR a tool.
+- **NEW: "Tool Adapter Layer"** — the bridge between Spanweave and whatever agent tool the user chooses. Each adapter knows how to ingest transcripts FROM a tool and format Context Packets FOR a tool.
 - **NEW: "Session Continuity"** — the ability to resume, swap, and port context across agent tools and sessions.
 - **Personas** generate **prompts for agent tools**, not direct LLM API calls. The agent tool (Claude Code, Codex, etc.) is the executor.
 
@@ -220,13 +222,13 @@ Canonical layout:
 
 **Integration into each agent tool (zero new tools to install):**
 
-| Agent tool | How it reads `.atelier/` | How Atelier captures from it |
+| Agent tool | How it reads `.atelier/` | How Spanweave captures from it |
 |---|---|---|
-| **Claude Code** | `.claude/rules/atelier.md` references `.atelier/memory/`. CLAUDE.md says "read decisions before starting." | Atelier CLI parses `.claude/projects/` session JSONL → extracts decisions. |
-| **Codex** | `AGENTS.md` references `.atelier/memory/`. | Atelier CLI parses Codex session logs → extracts decisions. |
-| **Cursor** | `.cursorrules` references `.atelier/memory/`. | Atelier CLI parses Composer history → extracts decisions. |
+| **Claude Code** | `.claude/rules/atelier.md` references `.atelier/memory/`. CLAUDE.md says "read decisions before starting." | Spanweave CLI parses `.claude/projects/` session JSONL → extracts decisions. |
+| **Codex** | `AGENTS.md` references `.atelier/memory/`. | Spanweave CLI parses Codex session logs → extracts decisions. |
+| **Cursor** | `.cursorrules` references `.atelier/memory/`. | Spanweave CLI parses Composer history → extracts decisions. |
 | **ChatGPT / Cowork / Gemini** | `atelier context --for chatgpt` generates paste-ready summary. | `atelier ingest --from transcript.md` for manual transcript capture. |
-| **Any MCP tool** | Atelier MCP server exposes `.atelier/` as resources. | MCP tools write to `.atelier/` via Atelier MCP. |
+| **Any MCP tool** | Spanweave MCP server exposes `.atelier/` as resources. | MCP tools write to `.atelier/` via Spanweave MCP. |
 
 ---
 
@@ -333,7 +335,7 @@ See `docs/proposed_features.md` for additional Phase 2 candidates currently in e
 ### Phase 6 — Web Dashboard + GitHub App
 
 - Team visibility dashboard (memory search, Evidence Pack archive, cost analytics)
-- GitHub App (run Atelier on PRs, post Evidence Packs as PR comments)
+- GitHub App (run Spanweave on PRs, post Evidence Packs as PR comments)
 - GitLab / Bitbucket adapters
 
 ### Phase 7 — Team / Org Scaling
@@ -365,15 +367,15 @@ Team value comes from **auto-updated documentation as source of truth** (ADRs, t
 
 ## Comparison vs Existing Tools
 
-| Tool | What it is | What Atelier does differently |
+| Tool | What it is | What Spanweave does differently |
 |---|---|---|
-| **Conductor** | macOS workspace orchestrator for Claude Code + Codex | No context portability between agents, no memory persistence, no session continuity. Atelier = the knowledge layer Conductor lacks. |
-| **Mesh Code** | Real-time state sharing across agents + users | Team-first, centralized. Atelier is files-first, git-native, single-user-first. No SaaS dependency. |
-| **Mem0 / Cognee / Zep** | Memory layer for LLM API applications | Built for apps calling LLM APIs. Atelier is for humans using agent TOOLS (Claude Code, Codex). Different category. |
+| **Conductor** | macOS workspace orchestrator for Claude Code + Codex | No context portability between agents, no memory persistence, no session continuity. Spanweave = the knowledge layer Conductor lacks. |
+| **Mesh Code** | Real-time state sharing across agents + users | Team-first, centralized. Spanweave is files-first, git-native, single-user-first. No SaaS dependency. |
+| **Mem0 / Cognee / Zep** | Memory layer for LLM API applications | Built for apps calling LLM APIs. Spanweave is for humans using agent TOOLS (Claude Code, Codex). Different category. |
 | **Hyperspell** | Hosted RAG over 50+ SaaS sources | Cloud API, not files-first. Useful as optional Context Compiler source (Phase 4), not as core. |
 | **Cursor / Windsurf** | IDE agent | Session-local memory, no cross-tool portability, no ADR, no review discipline. |
-| **Claude Code / Codex CLI** | Single-vendor CLI agent | Vendor-locked session. Context dies with the session. Atelier makes their context portable. |
-| **spec-kit** | Spec-driven prompts | No orchestration, no agents, no persistence. Atelier's workflow engine drives speckit as one of many possible workflows. |
+| **Claude Code / Codex CLI** | Single-vendor CLI agent | Vendor-locked session. Context dies with the session. Spanweave makes their context portable. |
+| **spec-kit** | Spec-driven prompts | No orchestration, no agents, no persistence. Spanweave's workflow engine drives speckit as one of many possible workflows. |
 
 ## Inspirations
 
