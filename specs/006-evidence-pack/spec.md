@@ -18,13 +18,13 @@
 
 As a workflow stage, I can persist one Evidence Pack as both JSON and Markdown inside the run tree, so downstream automation and human reviewers both receive the same proof-of-execution artifact.
 
-**Why this priority**: Dual-format persistence is the core deliverable. If a review cannot emit both files together, Atelier has no durable receipt for approval or rejection.
+**Why this priority**: Dual-format persistence is the core deliverable. If a review cannot emit both files together, Spanweave has no durable receipt for approval or rejection.
 
 **Independent Test**: Construct an `EvidencePack`, call `generate(run_id, stage_id, pack)`, and verify that both `evidence.json` and `evidence.md` exist under the expected stage directory and can be opened immediately.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid `run_id`, `stage_id`, and `EvidencePack`, **When** `generate(...)` is called, **Then** the generator writes `evidence.json` and `evidence.md` under `.atelier/runs/<run_id>/stages/<stage_id>/`.
+1. **Given** a valid `run_id`, `stage_id`, and `EvidencePack`, **When** `generate(...)` is called, **Then** the generator writes `evidence.json` and `evidence.md` under `.spanweave/runs/<run_id>/stages/<stage_id>/`.
 2. **Given** an existing stage directory, **When** `generate(...)` replaces a prior Evidence Pack, **Then** the new JSON and Markdown contents replace the old contents without leaving partial temp files behind.
 3. **Given** an invalid `run_id` or unsafe `stage_id`, **When** `generate(...)` is called, **Then** it fails fast instead of writing outside the run tree.
 
@@ -72,7 +72,7 @@ As a human reviewer or demo judge, I can read the Markdown Evidence Pack and imm
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define an `EvidencePack` schema in `atelier/evidence/schema.py` with required fields `schema_version`, `verdict`, `confidence`, `findings`, `execution`, `audit_chain`, `timestamp`, and `reviewer_persona_id`.
+- **FR-001**: The system MUST define an `EvidencePack` schema in `spanweave/evidence/schema.py` with required fields `schema_version`, `verdict`, `confidence`, `findings`, `execution`, `audit_chain`, `timestamp`, and `reviewer_persona_id`.
 - **FR-002**: `schema_version` MUST default to the fixed string `"1.0"` and reject other values.
 - **FR-003**: `verdict` MUST accept only `APPROVED`, `NEEDS_REVISION`, or `REJECTED`.
 - **FR-004**: `confidence` MUST accept only numeric values in the inclusive range `0.0` through `1.0`.
@@ -82,9 +82,9 @@ As a human reviewer or demo judge, I can read the Markdown Evidence Pack and imm
 - **FR-008**: `CommandOutput.finding_ids` MUST reference `Finding.finding_id` values so execution evidence can be correlated back to findings.
 - **FR-009**: `audit_chain` MUST contain one or more ULID references stored as strings.
 - **FR-010**: `timestamp` MUST be timezone-aware and serialized in a stable machine-readable format.
-- **FR-011**: `generate(run_id, stage_id, pack)` in `atelier/evidence/generator.py` MUST write `evidence.json` and `evidence.md` to `.atelier/runs/<run_id>/stages/<stage_id>/`.
+- **FR-011**: `generate(run_id, stage_id, pack)` in `spanweave/evidence/generator.py` MUST write `evidence.json` and `evidence.md` to `.spanweave/runs/<run_id>/stages/<stage_id>/`.
 - **FR-012**: The generator MUST validate `run_id` and reject unsafe `stage_id` values containing traversal or path separators.
-- **FR-013**: The generator MUST render Markdown using a Jinja2 template stored at `atelier/evidence/templates/evidence.md.j2`.
+- **FR-013**: The generator MUST render Markdown using a Jinja2 template stored at `spanweave/evidence/templates/evidence.md.j2`.
 - **FR-014**: The Markdown output MUST include a header, verdict banner, grouped findings, execution output sections with fenced code blocks, and audit-chain links.
 - **FR-015**: The generator MUST apply redaction to execution stdout and stderr before writing JSON or Markdown output.
 - **FR-016**: The generator MUST replace both evidence files as one logical operation so a failed write does not leave mismatched JSON and Markdown artifacts behind.
@@ -109,7 +109,7 @@ As a human reviewer or demo judge, I can read the Markdown Evidence Pack and imm
 
 ## Assumptions
 
-- `run_id` uses the existing prefixed ULID format already validated by `atelier.util`.
+- `run_id` uses the existing prefixed ULID format already validated by `spanweave.util`.
 - `stage_id` is the run-graph directory label such as `001-review`, not a prefixed ULID.
 - Findings may omit `line` for file-wide issues, but `file` remains required in this first schema version.
 - W10 may later centralize redaction logic, but W08 still needs redacted evidence output now.

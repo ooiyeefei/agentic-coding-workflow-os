@@ -1,4 +1,4 @@
-# Contract: atelier.council Public API
+# Contract: spanweave.council Public API
 
 ## Council Schema
 

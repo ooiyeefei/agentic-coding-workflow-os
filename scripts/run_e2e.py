@@ -11,7 +11,7 @@ from tests.integration.conftest import run_repository_e2e
 
 async def _main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
-    real_llm_enabled = os.getenv("ATELIER_INTEGRATION_REAL_LLM", "").strip().casefold() in {
+    real_llm_enabled = os.getenv("SPANWEAVE_INTEGRATION_REAL_LLM", "").strip().casefold() in {
         "1",
         "true",
         "yes",
@@ -31,7 +31,7 @@ async def _main() -> int:
         json.dumps(
             {
                 "run_id": result.run_id,
-                "run_path": f".atelier/runs/{result.run_id}",
+                "run_path": f".spanweave/runs/{result.run_id}",
                 "stage_ids": result.stage_ids,
                 "verified_artifact_files": artifact_files,
             },

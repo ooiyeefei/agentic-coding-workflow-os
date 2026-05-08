@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 
 import pytest
-from atelier.evidence import EvidencePack, Verdict
-from atelier.rungraph import create_run, create_stage, list_stages
-from atelier.workflow import RunStatus, WorkflowEngine
+from spanweave.evidence import EvidencePack, Verdict
+from spanweave.rungraph import create_run, create_stage, list_stages
+from spanweave.workflow import RunStatus, WorkflowEngine
 
 from .conftest import IntegrationHarness
 

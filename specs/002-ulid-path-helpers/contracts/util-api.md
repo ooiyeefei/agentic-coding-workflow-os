@@ -1,4 +1,4 @@
-# Contract: atelier.util Public API
+# Contract: spanweave.util Public API
 
 ## ULID Helpers
 
@@ -29,8 +29,8 @@
 
 - Every function returns a `pathlib.Path`.
 - Invalid IDs, invalid stage sequences, and invalid stage names raise validation errors.
-- Stage-scoped paths resolve underneath `.atelier/runs/<run_id>/stages/<NNN-slug>/`.
-- The audit log path resolves to `.atelier/runs/<run_id>/audit.jsonl`.
+- Stage-scoped paths resolve underneath `.spanweave/runs/<run_id>/stages/<NNN-slug>/`.
+- The audit log path resolves to `.spanweave/runs/<run_id>/audit.jsonl`.
 
 ## Filesystem Helpers
 

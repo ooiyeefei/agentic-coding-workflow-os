@@ -7,7 +7,8 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
-from atelier.audit import (
+from pydantic import ValidationError
+from spanweave.audit import (
     AuditEvent,
     CostAccruedEvent,
     DecisionLoggedEvent,
@@ -21,7 +22,6 @@ from atelier.audit import (
     log,
     sum_cost_for_run,
 )
-from pydantic import ValidationError
 
 
 def _non_blank_lines(text: str) -> list[str]:
@@ -217,8 +217,8 @@ class TestWriter:
             _today=today,
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
-        daily_log = repo / ".atelier" / "audit" / "2026-04-21.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
+        daily_log = repo / ".spanweave" / "audit" / "2026-04-21.jsonl"
 
         assert run_log.exists()
         assert daily_log.exists()
@@ -245,7 +245,7 @@ class TestWriter:
                 _today=today,
             )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         lines = _non_blank_lines(run_log.read_text())
         assert len(lines) == 5
 
@@ -297,8 +297,8 @@ class TestWriter:
             _today=day2,
         )
 
-        daily1 = repo / ".atelier" / "audit" / "2026-04-20.jsonl"
-        daily2 = repo / ".atelier" / "audit" / "2026-04-21.jsonl"
+        daily1 = repo / ".spanweave" / "audit" / "2026-04-20.jsonl"
+        daily2 = repo / ".spanweave" / "audit" / "2026-04-21.jsonl"
 
         assert daily1.exists()
         assert daily2.exists()
@@ -308,7 +308,7 @@ class TestWriter:
         assert len(lines1) == 1
         assert len(lines2) == 1
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         run_lines = _non_blank_lines(run_log.read_text())
         assert len(run_lines) == 2
 
@@ -334,7 +334,7 @@ class TestRedaction:
             _today=date(2026, 4, 21),
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         content = run_log.read_text()
         assert "sk-proj-abc123def456ghi789" not in content
         assert "[REDACTED:" in content
@@ -355,7 +355,7 @@ class TestRedaction:
             _today=date(2026, 4, 21),
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         content = run_log.read_text()
         assert "ghp_ABCDEFGHIJKLMNOP" not in content
         assert "ghp_NewTokenValue" not in content
@@ -378,7 +378,7 @@ class TestRedaction:
             _today=date(2026, 4, 21),
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         content = run_log.read_text()
         assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in content
         assert "[REDACTED:" in content
@@ -398,7 +398,7 @@ class TestRedaction:
             _today=date(2026, 4, 21),
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         content = run_log.read_text()
         assert "sk-xxx" not in content
         assert "[REDACTED:" in content
@@ -418,7 +418,7 @@ class TestRedaction:
             _today=date(2026, 4, 21),
         )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         content = run_log.read_text()
         assert "hunter2" not in content
         assert "db.local" in content
@@ -633,7 +633,7 @@ class TestConcurrency:
         assert len(event_ids) == num_writers
         assert len(set(event_ids)) == num_writers
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         raw_lines = _non_blank_lines(run_log.read_text())
         assert len(raw_lines) == num_writers
 
@@ -653,7 +653,7 @@ class TestConcurrency:
 
         assert len(parsed_ids) == num_writers
 
-        daily_log = repo / ".atelier" / "audit" / "2026-04-21.jsonl"
+        daily_log = repo / ".spanweave" / "audit" / "2026-04-21.jsonl"
         daily_lines = _non_blank_lines(daily_log.read_text())
         assert len(daily_lines) == num_writers
 
@@ -685,7 +685,7 @@ class TestConcurrency:
 
         assert len(set(event_ids)) == num_writers
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         raw_lines = _non_blank_lines(run_log.read_text())
         assert len(raw_lines) == num_writers
 
@@ -716,7 +716,7 @@ class TestConcurrency:
                 f"worker {proc.name} exited with {proc.exitcode}"
             )
 
-        run_log = repo / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+        run_log = repo / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
         raw_lines = _non_blank_lines(run_log.read_text())
         assert len(raw_lines) == total_expected
 
@@ -735,6 +735,6 @@ class TestConcurrency:
 
         assert len(parsed_ids) == total_expected
 
-        daily_log = repo / ".atelier" / "audit" / "2026-04-21.jsonl"
+        daily_log = repo / ".spanweave" / "audit" / "2026-04-21.jsonl"
         daily_lines = _non_blank_lines(daily_log.read_text())
         assert len(daily_lines) == total_expected

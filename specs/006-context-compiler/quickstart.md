@@ -3,7 +3,7 @@
 ## Verify the feature
 
 1. Run `pytest tests/test_compiler.py -v`.
-2. Run `ruff check atelier/compiler tests/test_compiler.py`.
+2. Run `ruff check spanweave/compiler tests/test_compiler.py`.
 
 ## Manual spot checks
 

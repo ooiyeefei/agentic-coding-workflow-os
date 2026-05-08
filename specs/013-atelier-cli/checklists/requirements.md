@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Atelier CLI
+# Specification Quality Checklist: Spanweave CLI
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-22
-**Feature**: [spec.md](/home/fei/fei/code/hackathon/acw-w15/specs/013-atelier-cli/spec.md)
+**Feature**: [spec.md](/home/fei/fei/code/hackathon/acw-w15/specs/013-spanweave-cli/spec.md)
 
 ## Content Quality
 

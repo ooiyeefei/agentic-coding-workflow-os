@@ -9,7 +9,7 @@
 
 **Purpose**: Create the focused compiler package surface and dedicated tests
 
-- [X] T001 Create the compiler package exports in `atelier/compiler/__init__.py`
+- [X] T001 Create the compiler package exports in `spanweave/compiler/__init__.py`
 - [X] T002 Create the focused compiler verification module in `tests/test_compiler.py`
 
 ---
@@ -18,9 +18,9 @@
 
 **Purpose**: Define the shared source, provenance, and budget contracts used by all stories
 
-- [X] T003 Implement typed source models in `atelier/compiler/sources.py`
-- [X] T004 [P] Implement provenance models and footer helpers in `atelier/compiler/provenance.py`
-- [X] T005 [P] Implement token estimation and `BudgetExceededError` in `atelier/compiler/budget.py`
+- [X] T003 Implement typed source models in `spanweave/compiler/sources.py`
+- [X] T004 [P] Implement provenance models and footer helpers in `spanweave/compiler/provenance.py`
+- [X] T005 [P] Implement token estimation and `BudgetExceededError` in `spanweave/compiler/budget.py`
 
 **Checkpoint**: Source typing, provenance structures, and budget helpers exist for the compiler core to build on.
 
@@ -38,8 +38,8 @@
 
 ### Implementation for User Story 1
 
-- [X] T007 [US1] Implement objective normalization and deterministic source ordering in `atelier/compiler/compiler.py`
-- [X] T008 [US1] Implement packet block rendering and packet assembly in `atelier/compiler/compiler.py`
+- [X] T007 [US1] Implement objective normalization and deterministic source ordering in `spanweave/compiler/compiler.py`
+- [X] T008 [US1] Implement packet block rendering and packet assembly in `spanweave/compiler/compiler.py`
 
 **Checkpoint**: The compiler can build a stable packet when all content fits.
 
@@ -57,8 +57,8 @@
 
 ### Implementation for User Story 2
 
-- [X] T010 [US2] Implement budget-aware trimming across nice and should tiers in `atelier/compiler/compiler.py`
-- [X] T011 [US2] Integrate must-tier overflow checks in `atelier/compiler/compiler.py` and `atelier/compiler/budget.py`
+- [X] T010 [US2] Implement budget-aware trimming across nice and should tiers in `spanweave/compiler/compiler.py`
+- [X] T011 [US2] Integrate must-tier overflow checks in `spanweave/compiler/compiler.py` and `spanweave/compiler/budget.py`
 
 **Checkpoint**: Lower tiers are trimmed deterministically and must-tier overflow fails fast.
 
@@ -76,8 +76,8 @@
 
 ### Implementation for User Story 3
 
-- [X] T013 [US3] Implement exact `source_id` deduplication in `atelier/compiler/compiler.py`
-- [X] T014 [US3] Implement provenance sidecar generation and footer rendering in `atelier/compiler/compiler.py` and `atelier/compiler/provenance.py`
+- [X] T013 [US3] Implement exact `source_id` deduplication in `spanweave/compiler/compiler.py`
+- [X] T014 [US3] Implement provenance sidecar generation and footer rendering in `spanweave/compiler/compiler.py` and `spanweave/compiler/provenance.py`
 
 **Checkpoint**: Packet output is deduplicated and auditable.
 
@@ -88,7 +88,7 @@
 **Purpose**: Validate the slice end-to-end and sync task state
 
 - [X] T015 Run focused pytest coverage for `tests/test_compiler.py`
-- [X] T016 Run lint checks for `atelier/compiler` and `tests/test_compiler.py`
+- [X] T016 Run lint checks for `spanweave/compiler` and `tests/test_compiler.py`
 
 ---
 

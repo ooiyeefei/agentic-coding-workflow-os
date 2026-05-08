@@ -16,9 +16,9 @@
   - Use `frontmatter.dumps(...)` for writes: rejected because it normalizes body formatting and weakens round-trip fidelity.
   - Avoid `python-frontmatter` entirely: rejected because the feature brief explicitly calls for it on the read path.
 
-## Decision 3: Use filesystem collections under `.atelier/memory/` and derive filenames from record IDs
+## Decision 3: Use filesystem collections under `.spanweave/memory/` and derive filenames from record IDs
 
-- **Decision**: Persist records under `.atelier/memory/decisions/`, `.atelier/memory/findings/`, and `.atelier/memory/rejected_alternatives/`, with filenames generated from the record identifier as `<type-slug>_<ulid>.md`.
+- **Decision**: Persist records under `.spanweave/memory/decisions/`, `.spanweave/memory/findings/`, and `.spanweave/memory/rejected_alternatives/`, with filenames generated from the record identifier as `<type-slug>_<ulid>.md`.
 - **Rationale**: This matches the roadmap storage layout, keeps queries grep-friendly, and makes record locations human-readable without a database.
 - **Alternatives considered**:
   - Store every record type in one flat directory: rejected because the roadmap already treats directory structure as schema.
@@ -34,7 +34,7 @@
 
 ## Decision 5: Keep listing/query support simple and recursive
 
-- **Decision**: Implement `list_records(...)` as a recursive `.md` scan rooted at `.atelier/memory/`, followed by in-process filtering on parsed record metadata.
+- **Decision**: Implement `list_records(...)` as a recursive `.md` scan rooted at `.spanweave/memory/`, followed by in-process filtering on parsed record metadata.
 - **Rationale**: This preserves the filesystem-first architecture and is sufficient for the small Phase 0 corpus size.
 - **Alternatives considered**:
   - Introduce SQLite or an index cache now: rejected because the roadmap explicitly keeps the core storage layer file-native in Phase 0.

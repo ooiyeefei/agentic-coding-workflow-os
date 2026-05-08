@@ -5,18 +5,18 @@
 
 ## Summary
 
-Add a deterministic integration harness that composes the real Atelier compiler, persona, workflow, evidence, memory, ADR, and git modules into repeatable end-to-end validation against the demo issue and demo app. Back that harness with focused component integration tests, a one-command local E2E script, and a GitHub Actions workflow that runs lint, type-checking, unit tests, and integration tests on every PR.
+Add a deterministic integration harness that composes the real Spanweave compiler, persona, workflow, evidence, memory, ADR, and git modules into repeatable end-to-end validation against the demo issue and demo app. Back that harness with focused component integration tests, a one-command local E2E script, and a GitHub Actions workflow that runs lint, type-checking, unit tests, and integration tests on every PR.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11 plus Bash for the local runner  
-**Primary Dependencies**: pytest, pytest-asyncio, pathlib, subprocess, existing `atelier.compiler`, `atelier.personas`, `atelier.workflow`, `atelier.evidence`, `atelier.memory`, `atelier.adr`, and `atelier.git` modules  
-**Storage**: Temporary filesystem state under `.atelier/runs/`, `.atelier/memory/`, and `docs/adr/` inside isolated test repositories  
+**Primary Dependencies**: pytest, pytest-asyncio, pathlib, subprocess, existing `spanweave.compiler`, `spanweave.personas`, `spanweave.workflow`, `spanweave.evidence`, `spanweave.memory`, `spanweave.adr`, and `spanweave.git` modules  
+**Storage**: Temporary filesystem state under `.spanweave/runs/`, `.spanweave/memory/`, and `docs/adr/` inside isolated test repositories  
 **Testing**: pytest integration modules, temporary git repositories, and one GitHub Actions workflow that mirrors local validation  
 **Target Platform**: Local developer machines and GitHub Actions Ubuntu runners  
 **Project Type**: Filesystem-first Python library with CLI-adjacent integration validation  
 **Performance Goals**: Default mock-mode integration validation should finish in a few minutes in CI and should not require external model providers  
-**Constraints**: Mock by default for determinism and cost; real LLM mode only when `ATELIER_INTEGRATION_REAL_LLM=1`; no shared state across tests; approval-gated stages remain explicit; the local script must work from a clean checkout after `uv sync`  
+**Constraints**: Mock by default for determinism and cost; real LLM mode only when `SPANWEAVE_INTEGRATION_REAL_LLM=1`; no shared state across tests; approval-gated stages remain explicit; the local script must work from a clean checkout after `uv sync`  
 **Scale/Scope**: Three integration-owned test files, one CI workflow, one local runner script, and a feature-local documentation set; no new production persistence layer or new workflow stage types
 
 ## Constitution Check
@@ -61,7 +61,7 @@ tests/
 ├── test_uat.py
 └── test_workflow.py
 
-atelier/
+spanweave/
 ├── adr/
 ├── compiler/
 ├── evidence/

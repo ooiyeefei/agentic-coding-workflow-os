@@ -8,22 +8,22 @@ from pathlib import Path
 
 import pytest
 import yaml
-from atelier.evidence.schema import EvidencePack, Verdict
-from atelier.workflow.engine import (
+from spanweave.evidence.schema import EvidencePack, Verdict
+from spanweave.workflow.engine import (
     _ASYNC_RUN_LOCKS,
     RunStatus,
     WorkflowEngine,
     _read_state,
 )
-from atelier.workflow.loader import WorkflowNotFoundError, load_workflow
-from atelier.workflow.schema import (
+from spanweave.workflow.loader import WorkflowNotFoundError, load_workflow
+from spanweave.workflow.schema import (
     GateType,
     StageDefinition,
     WorkflowDefinition,
     parse_on_reject,
 )
-from atelier.workflow.stages import PersonaCallResult, StageExecutorDeps
-from atelier.workflow.transitions import (
+from spanweave.workflow.stages import PersonaCallResult, StageExecutorDeps
+from spanweave.workflow.transitions import (
     TransitionKind,
     resolve_transition,
 )
@@ -424,7 +424,7 @@ class TestEngineCustomWorkflow:
 
     @pytest.fixture
     def custom_workflow_dir(self, tmp_path: Path) -> Path:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "minimal.yaml").write_text(yaml.safe_dump({
             "name": "minimal",
@@ -547,7 +547,7 @@ class TestApprovalGate:
 
     @pytest.fixture
     def approval_workflow_dir(self, tmp_path: Path) -> Path:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "approval-check.yaml").write_text(yaml.safe_dump({
             "name": "approval-check",
@@ -620,7 +620,7 @@ class TestApprovalGate:
     async def test_approval_gate_multi_stage_advances_after_approval(
         self, tmp_path: Path,
     ) -> None:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "two-with-gate.yaml").write_text(yaml.safe_dump({
             "name": "two-with-gate",
@@ -657,7 +657,7 @@ class TestPolicyGating:
 
     @pytest.fixture
     def destructive_workflow_dir(self, tmp_path: Path) -> Path:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "with-cleanup.yaml").write_text(yaml.safe_dump({
             "name": "with-cleanup",
@@ -737,7 +737,7 @@ class TestPolicyGating:
     async def test_policy_checks_skill_name_not_just_stage_id(
         self, tmp_path: Path,
     ) -> None:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "rebase-test.yaml").write_text(yaml.safe_dump({
             "name": "rebase-test",
@@ -769,7 +769,7 @@ class TestIdempotency:
 
     @pytest.fixture
     def two_stage_dir(self, tmp_path: Path) -> Path:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "two-stage.yaml").write_text(yaml.safe_dump({
             "name": "two-stage",
@@ -793,7 +793,7 @@ class TestIdempotency:
             engine.advance(run_id),
         )
 
-        run_path = tmp_path / ".atelier" / "runs" / run_id / "stages"
+        run_path = tmp_path / ".spanweave" / "runs" / run_id / "stages"
         stage_dirs = sorted(p.name for p in run_path.iterdir() if p.is_dir())
         slugs = [d.split("-", 1)[1] for d in stage_dirs]
         dupes = {s: c for s, c in Counter(slugs).items() if c > 1}
@@ -812,7 +812,7 @@ class TestIdempotency:
             engine_b.advance(run_id),
         )
 
-        run_path = tmp_path / ".atelier" / "runs" / run_id / "stages"
+        run_path = tmp_path / ".spanweave" / "runs" / run_id / "stages"
         stage_dirs = sorted(p.name for p in run_path.iterdir() if p.is_dir())
         slugs = [d.split("-", 1)[1] for d in stage_dirs]
         dupes = {s: c for s, c in Counter(slugs).items() if c > 1}
@@ -839,7 +839,7 @@ class TestIdempotency:
     async def test_contended_snapshot_reflects_retry_not_advance(
         self, tmp_path: Path,
     ) -> None:
-        wf_dir = tmp_path / ".atelier" / "workflows"
+        wf_dir = tmp_path / ".spanweave" / "workflows"
         wf_dir.mkdir(parents=True)
         (wf_dir / "review-only.yaml").write_text(yaml.safe_dump({
             "name": "review-only",
@@ -1045,7 +1045,7 @@ class TestFilesystemArtifacts:
         run_id = engine.start("issue #11")
         await engine.advance(run_id)
 
-        run_path = tmp_path / ".atelier" / "runs" / run_id
+        run_path = tmp_path / ".spanweave" / "runs" / run_id
         assert run_path.is_dir()
         assert (run_path / "run.md").is_file()
         assert (run_path / "workflow_state.yaml").is_file()

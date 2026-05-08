@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from atelier.security.redaction import redact
+from spanweave.security.redaction import redact
 
 
 @pytest.mark.parametrize(

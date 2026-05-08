@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from atelier.adapters import (
+from spanweave.adapters import (
     DEFAULT_ADAPTER_MANIFEST_DIR,
     ClaudeCodeAdapter,
     CodexAdapter,
@@ -12,7 +12,13 @@ from atelier.adapters import (
     load_tool_manifest,
     load_tool_manifests,
 )
-from atelier.memory import Decision, RejectedAlternative, ReviewFinding, list_records, write_record
+from spanweave.memory import (
+    Decision,
+    RejectedAlternative,
+    ReviewFinding,
+    list_records,
+    write_record,
+)
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "adapters"
 
@@ -44,7 +50,7 @@ def test_claude_code_adapter_ingests_fixture_and_records_can_be_written(
     assert len(decisions) >= 3
     assert findings
 
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     for record in records:
         write_record(record, memory_root)
 
@@ -198,7 +204,7 @@ def _seed_tool_repo(repo_root: Path) -> None:
 
 
 def _seed_run_state(repo_root: Path, run_id: str) -> None:
-    run_root = repo_root / ".atelier" / "runs" / run_id
+    run_root = repo_root / ".spanweave" / "runs" / run_id
     (run_root / "stages" / "001-specify").mkdir(parents=True)
     (run_root / "stages" / "001-specify" / ".complete").write_text(
         "complete\n",

@@ -4,7 +4,7 @@
 
 - **Purpose**: Represents the repo-local configuration the FastAPI daemon uses to serve control-plane routes.
 - **Fields**:
-  - `repo_root`: Filesystem root containing `.atelier/`
+  - `repo_root`: Filesystem root containing `.spanweave/`
   - `shared_secret`: Resolved secret value for request authentication
   - `shared_secret_path`: Optional persisted secret file path when env configuration is absent
   - `user_workflows_dir`: Optional override for repo-local workflows used by tests

@@ -5,13 +5,13 @@
 
 ## Summary
 
-Build a provider-neutral LLM adapter layer under `atelier/llm/` with Anthropic and OpenAI implementations, YAML-backed capability manifests, deterministic capability routing, and mocked tests that verify normalized response handling and per-call cost accounting.
+Build a provider-neutral LLM adapter layer under `spanweave/llm/` with Anthropic and OpenAI implementations, YAML-backed capability manifests, deterministic capability routing, and mocked tests that verify normalized response handling and per-call cost accounting.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: anthropic, openai, pydantic, pyyaml, pytest, pytest-asyncio  
-**Storage**: Versioned YAML files under `.atelier/defaults/models/`  
+**Storage**: Versioned YAML files under `.spanweave/defaults/models/`  
 **Testing**: pytest with `AsyncMock`-backed SDK clients  
 **Target Platform**: Local developer machine and CI on Linux or macOS  
 **Project Type**: Python library package  
@@ -41,7 +41,7 @@ specs/002-llm-adapter-manifest/
 ### Source Code (repository root)
 
 ```text
-.atelier/
+.spanweave/
 └── defaults/
     └── models/
         ├── claude-haiku-4-5.yaml
@@ -50,7 +50,7 @@ specs/002-llm-adapter-manifest/
         ├── gpt-4o-mini.yaml
         └── gpt-5.yaml
 
-atelier/
+spanweave/
 └── llm/
     ├── __init__.py
     ├── adapter.py
@@ -62,7 +62,7 @@ tests/
 └── test_llm_adapter.py
 ```
 
-**Structure Decision**: Keep the slice focused inside `atelier/llm/` with one shared contract module, one manifest module, and one adapter module per provider. Put shipped model manifests in `.atelier/defaults/models/` so routing data remains declarative and version-controlled.
+**Structure Decision**: Keep the slice focused inside `spanweave/llm/` with one shared contract module, one manifest module, and one adapter module per provider. Put shipped model manifests in `.spanweave/defaults/models/` so routing data remains declarative and version-controlled.
 
 ## Complexity Tracking
 

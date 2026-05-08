@@ -5,15 +5,15 @@
 
 ## Summary
 
-Implement the knowledge-plane persistence layer in `atelier/memory/` with strict Pydantic record schemas, a redact-before-write markdown writer using YAML frontmatter plus atomic replacement, and a reader/query surface that reconstructs typed records from `.atelier/memory/**/*.md` without introducing a database.
+Implement the knowledge-plane persistence layer in `spanweave/memory/` with strict Pydantic record schemas, a redact-before-write markdown writer using YAML frontmatter plus atomic replacement, and a reader/query surface that reconstructs typed records from `.spanweave/memory/**/*.md` without introducing a database.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
 **Primary Dependencies**: pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest  
-**Storage**: Markdown files with YAML frontmatter under `.atelier/memory/{decisions,findings,rejected_alternatives}/`  
+**Storage**: Markdown files with YAML frontmatter under `.spanweave/memory/{decisions,findings,rejected_alternatives}/`  
 **Testing**: pytest round-trip, filter, and redaction tests in `tests/test_memory.py`  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: Recursive scans remain fast enough for Phase 0 local repositories; single-record reads and writes stay synchronous and lightweight  
 **Constraints**: Filesystem-first only; preserve markdown body formatting; reject schema drift via `extra="forbid"`; apply redaction at write time; use atomic replacement for persistence  
@@ -41,7 +41,7 @@ specs/005-typed-memory-records/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── memory/
 │   ├── __init__.py
 │   ├── records.py
@@ -58,7 +58,7 @@ tests/
 └── test_memory.py
 ```
 
-**Structure Decision**: Keep the feature centered in `atelier/memory/` and add only one narrow supporting module in `atelier/security/` because the memory writer cannot meet its acceptance criteria without a reusable redaction entrypoint.
+**Structure Decision**: Keep the feature centered in `spanweave/memory/` and add only one narrow supporting module in `spanweave/security/` because the memory writer cannot meet its acceptance criteria without a reusable redaction entrypoint.
 
 ## Complexity Tracking
 

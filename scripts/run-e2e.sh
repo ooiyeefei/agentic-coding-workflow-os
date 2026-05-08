@@ -25,16 +25,16 @@ load_env_file "$REPO_ROOT/.env"
 load_env_file "$REPO_ROOT/.env.local"
 load_env_file "$REPO_ROOT/demo/app/.env"
 
-: "${ATELIER_INTEGRATION_REAL_LLM:=0}"
-export ATELIER_INTEGRATION_REAL_LLM
+: "${SPANWEAVE_INTEGRATION_REAL_LLM:=0}"
+export SPANWEAVE_INTEGRATION_REAL_LLM
 
 uv run python scripts/run_e2e.py
 
-if [[ ! -d .atelier/runs ]]; then
-  echo "Expected repo-root .atelier/runs/ to exist after the E2E workflow run." >&2
+if [[ ! -d .spanweave/runs ]]; then
+  echo "Expected repo-root .spanweave/runs/ to exist after the E2E workflow run." >&2
   exit 1
 fi
 
-find .atelier/runs -type f | sort
+find .spanweave/runs -type f | sort
 
 uv run pytest tests/integration/test_component_integration.py tests/integration/test_e2e_workflow.py -q

@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from atelier.cli.main import main
-from atelier.learning import (
+from click.testing import CliRunner
+from spanweave.cli.main import main
+from spanweave.learning import (
     APPEND_MARKER,
     FALLBACK_RULE,
     KNOWN_RULES_DIR,
@@ -16,8 +17,7 @@ from atelier.learning import (
     patch_skill_file,
     render_diff,
 )
-from atelier.learning.rule_loader import RuleLoadError, parse_rule_document
-from click.testing import CliRunner
+from spanweave.learning.rule_loader import RuleLoadError, parse_rule_document
 
 
 def _write_entry(tmp_path: Path, entry: dict[str, Any]) -> Path:

@@ -18,10 +18,10 @@ result: state survives; HIGH content-density bug fixed in #70; two follow-ups (#
 Used the existing run `run_01KPT1YDEK0F9MYKW4R1VMY7XY` (issue #24, demo rate-limit feature, all 8 stages completed) to simulate "agent terminal closed, returns days later":
 
 ```bash
-uv run atelier run list                                                     # find runs
-uv run atelier run show run_01KPT1YDEK0F9MYKW4R1VMY7XY                      # inspect
-uv run atelier resume --agent claude-code --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > claude_packet.md
-uv run atelier resume --agent codex --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > codex_packet.md
+uv run spanweave run list                                                     # find runs
+uv run spanweave run show run_01KPT1YDEK0F9MYKW4R1VMY7XY                      # inspect
+uv run spanweave resume --agent claude-code --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > claude_packet.md
+uv run spanweave resume --agent codex --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > codex_packet.md
 diff claude_packet.md codex_packet.md
 ```
 

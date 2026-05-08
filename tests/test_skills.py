@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from atelier.skills.loader import (
+from spanweave.skills.loader import (
     DEFAULT_SKILLS_DIR,
     SkillLoader,
     SkillNotFoundError,

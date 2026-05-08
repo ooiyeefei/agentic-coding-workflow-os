@@ -10,7 +10,7 @@
 **Purpose**: Establish the focused verification surface and feature module exports
 
 - [X] T001 Create the focused memory persistence test module in `tests/test_memory.py`
-- [X] T002 Create the public exports for `atelier/memory/__init__.py`
+- [X] T002 Create the public exports for `spanweave/memory/__init__.py`
 
 ---
 
@@ -18,8 +18,8 @@
 
 **Purpose**: Define the shared record schema and the supporting redaction boundary
 
-- [X] T003 Create the redaction entrypoint needed by the writer in `atelier/security/redaction.py` and `atelier/security/__init__.py`
-- [X] T004 Create the shared record models and validation helpers in `atelier/memory/records.py`
+- [X] T003 Create the redaction entrypoint needed by the writer in `spanweave/security/redaction.py` and `spanweave/security/__init__.py`
+- [X] T004 Create the shared record models and validation helpers in `spanweave/memory/records.py`
 
 **Checkpoint**: Typed record validation and the write-time redaction dependency both exist.
 
@@ -37,8 +37,8 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement markdown serialization and destination path resolution in `atelier/memory/writer.py`
-- [X] T007 [US1] Wire record-specific collection and filename helpers into `atelier/memory/records.py` and `atelier/memory/writer.py`
+- [X] T006 [US1] Implement markdown serialization and destination path resolution in `spanweave/memory/writer.py`
+- [X] T007 [US1] Wire record-specific collection and filename helpers into `spanweave/memory/records.py` and `spanweave/memory/writer.py`
 
 **Checkpoint**: Writing a typed record produces one redacted markdown file in the expected collection.
 
@@ -56,7 +56,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T009 [US2] Implement frontmatter parsing and typed record reconstruction in `atelier/memory/reader.py`
+- [X] T009 [US2] Implement frontmatter parsing and typed record reconstruction in `spanweave/memory/reader.py`
 
 **Checkpoint**: `read_record(...)` returns concrete typed records with preserved markdown bodies.
 
@@ -74,7 +74,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T011 [US3] Implement recursive record discovery and filter evaluation in `atelier/memory/reader.py`
+- [X] T011 [US3] Implement recursive record discovery and filter evaluation in `spanweave/memory/reader.py`
 
 **Checkpoint**: `list_records(...)` returns the expected filtered subset from a filesystem-backed fixture set.
 
@@ -84,9 +84,9 @@
 
 **Purpose**: Validate the slice end-to-end and sync task state
 
-- [X] T012 Update any remaining memory package exports and module docstrings in `atelier/memory/__init__.py`
+- [X] T012 Update any remaining memory package exports and module docstrings in `spanweave/memory/__init__.py`
 - [X] T013 Run focused pytest coverage for `tests/test_memory.py`
-- [X] T014 Run lint checks for `atelier/memory`, `atelier/security`, and `tests/test_memory.py`
+- [X] T014 Run lint checks for `spanweave/memory`, `spanweave/security`, and `tests/test_memory.py`
 
 ---
 

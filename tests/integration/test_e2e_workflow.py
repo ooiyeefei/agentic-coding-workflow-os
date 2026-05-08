@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 import pytest
-from atelier.evidence import EvidencePack
-from atelier.workflow import load_workflow
+from spanweave.evidence import EvidencePack
+from spanweave.workflow import load_workflow
 
 from .artifacts import assert_run_artifact_completeness
 from .conftest import IntegrationHarness
@@ -22,7 +22,7 @@ async def test_full_speckit_loop_run_produces_expected_artifacts(
         for index, stage in enumerate(workflow.stages, start=1)
     ]
 
-    run_path = Path(".atelier") / "runs" / result.run_id
+    run_path = Path(".spanweave") / "runs" / result.run_id
     state = mock_integration_harness.read_state(result.run_id)
     verified_artifacts = assert_run_artifact_completeness(
         Path.cwd(),
@@ -32,8 +32,8 @@ async def test_full_speckit_loop_run_produces_expected_artifacts(
 
     assert result.stage_ids == expected_stage_ids
     assert verified_artifacts
-    assert f".atelier/runs/{result.run_id}/.lock" in verified_artifacts
-    assert f".atelier/runs/{result.run_id}/audit.jsonl" in verified_artifacts
+    assert f".spanweave/runs/{result.run_id}/.lock" in verified_artifacts
+    assert f".spanweave/runs/{result.run_id}/audit.jsonl" in verified_artifacts
     assert (run_path / "run.md").is_file()
     assert (run_path / "workflow_state.yaml").is_file()
     assert state["status"] == "completed"
@@ -75,7 +75,7 @@ async def test_full_speckit_loop_run_produces_expected_artifacts(
         else:
             assert pack.reviewer_persona_id == "reviewer.integration"
 
-    decisions = sorted((Path(".atelier") / "memory" / "decisions").glob("*.md"))
+    decisions = sorted((Path(".spanweave") / "memory" / "decisions").glob("*.md"))
     assert decisions
     assert result.adr_paths
     assert all(path.is_file() for path in result.adr_paths)

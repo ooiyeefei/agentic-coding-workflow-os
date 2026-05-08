@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "atelier"
+name = "spanweave"
 version = "0.1.0"
 description = "Filesystem-first reproducibility tooling for AI-assisted software engineering."
 readme = "README.md"
@@ -26,8 +26,8 @@ dependencies = [
 ]
 
 [project.scripts]
-atelier = "atelier.cli.main:main"
-atelier-daemon = "atelier.daemon.__main__:main"
+spanweave = "spanweave.cli.main:main"
+spanweave-daemon = "spanweave.daemon.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -47,14 +47,14 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-src = ["atelier", "tests"]
+src = ["spanweave", "tests"]
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "UP"]
 
 [tool.pyright]
-include = ["atelier", "tests"]
+include = ["spanweave", "tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 venvPath = "."

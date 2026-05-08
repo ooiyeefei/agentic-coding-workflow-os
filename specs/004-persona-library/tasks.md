@@ -9,7 +9,7 @@
 
 **Purpose**: Establish the default prompt locations and focused persona test surface
 
-- [X] T001 Create the persona defaults directory and prompt files in `.atelier/defaults/personas/coder.md` and `.atelier/defaults/personas/reviewer.md`
+- [X] T001 Create the persona defaults directory and prompt files in `.spanweave/defaults/personas/coder.md` and `.spanweave/defaults/personas/reviewer.md`
 - [X] T002 Create the focused persona verification module in `tests/test_personas.py`
 
 ---
@@ -18,8 +18,8 @@
 
 **Purpose**: Align adjacent LLM metadata and create the shared persona contract
 
-- [X] T003 Update shipped manifest capability metadata and adjacent W02 expectations in `.atelier/defaults/models/gpt-5.yaml`, `atelier/llm/adapter.py`, and `tests/test_llm_adapter.py`
-- [X] T004 Create shared persona models, prompt loading, and exports in `atelier/personas/base.py` and `atelier/personas/__init__.py`
+- [X] T003 Update shipped manifest capability metadata and adjacent W02 expectations in `.spanweave/defaults/models/gpt-5.yaml`, `spanweave/llm/adapter.py`, and `tests/test_llm_adapter.py`
+- [X] T004 Create shared persona models, prompt loading, and exports in `spanweave/personas/base.py` and `spanweave/personas/__init__.py`
 
 **Checkpoint**: Persona routing can rely on compatible default manifests and one shared base contract.
 
@@ -37,8 +37,8 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement lazy manifest selection and adapter binding in `atelier/personas/base.py`
-- [X] T007 [US1] Implement Coder and Reviewer initialization plumbing in `atelier/personas/coder.py` and `atelier/personas/reviewer.py`
+- [X] T006 [US1] Implement lazy manifest selection and adapter binding in `spanweave/personas/base.py`
+- [X] T007 [US1] Implement Coder and Reviewer initialization plumbing in `spanweave/personas/coder.py` and `spanweave/personas/reviewer.py`
 
 **Checkpoint**: `Coder()` and `Reviewer()` resolve compatible manifests through W02 on default or injected inputs.
 
@@ -56,8 +56,8 @@
 
 ### Implementation for User Story 2
 
-- [X] T009 [US2] Implement context-packet serialization and `AgentResponse` construction in `atelier/personas/base.py`
-- [X] T010 [US2] Implement Coder skill discovery and Phase 0 fallback sequencing in `atelier/personas/coder.py`
+- [X] T009 [US2] Implement context-packet serialization and `AgentResponse` construction in `spanweave/personas/base.py`
+- [X] T010 [US2] Implement Coder skill discovery and Phase 0 fallback sequencing in `spanweave/personas/coder.py`
 
 **Checkpoint**: Persona responses are normalized and Coder can identify the next `/speckit.*` command even without W05.
 
@@ -75,8 +75,8 @@
 
 ### Implementation for User Story 3
 
-- [X] T012 [US3] Author the Coder and Reviewer prompt definitions in `.atelier/defaults/personas/coder.md` and `.atelier/defaults/personas/reviewer.md`
-- [X] T013 [US3] Implement Reviewer prompt augmentation and convenience review entrypoint in `atelier/personas/reviewer.py`
+- [X] T012 [US3] Author the Coder and Reviewer prompt definitions in `.spanweave/defaults/personas/coder.md` and `.spanweave/defaults/personas/reviewer.md`
+- [X] T013 [US3] Implement Reviewer prompt augmentation and convenience review entrypoint in `spanweave/personas/reviewer.py`
 
 **Checkpoint**: Reviewer prompt discipline is explicit, testable, and configurable through `devil_advocate_mode`.
 
@@ -87,7 +87,7 @@
 **Purpose**: Validate the slice end-to-end and sync task state
 
 - [X] T014 Run focused pytest coverage for `tests/test_personas.py` and `tests/test_llm_adapter.py`
-- [X] T015 Run lint and type checks for `atelier/personas/`, `tests/test_personas.py`, and adjacent LLM updates
+- [X] T015 Run lint and type checks for `spanweave/personas/`, `tests/test_personas.py`, and adjacent LLM updates
 
 ---
 

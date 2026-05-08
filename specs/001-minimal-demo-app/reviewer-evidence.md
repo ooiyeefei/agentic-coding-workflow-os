@@ -5,7 +5,7 @@
 
 ## Verified Behavior
 
-- `.env.example` provides `TEST_USER=demo@atelier.dev` and `TEST_PASSWORD=demo1234`
+- `.env.example` provides `TEST_USER=demo@spanweave.dev` and `TEST_PASSWORD=demo1234`
 - `demo/app/README.md` stays within the 10-line setup constraint
 - `uv run pytest` passes locally
 - Live server startup, login redirect, session cookie, protected `401`, and authenticated notes CRUD all work

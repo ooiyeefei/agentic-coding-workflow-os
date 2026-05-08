@@ -5,11 +5,11 @@
 - Demo issue source: `demo/issue.md`
 - Demo issue metadata: `demo/issue.meta.yaml`
 - Demo app root: `demo/app`
-- Workflow definition: `.atelier/defaults/workflows/speckit-loop.yaml`
+- Workflow definition: `.spanweave/defaults/workflows/speckit-loop.yaml`
 
 ## Environment Variables
 
-- `ATELIER_INTEGRATION_REAL_LLM`
+- `SPANWEAVE_INTEGRATION_REAL_LLM`
   - `0` or unset: deterministic mock mode
   - `1`: opt into real persona execution where supported
 - `OPENAI_API_KEY`
@@ -23,8 +23,8 @@
 
 1. Fail fast when `uv` is unavailable.
 2. Assume dependencies were installed with `uv sync`.
-3. Default to mock mode unless `ATELIER_INTEGRATION_REAL_LLM=1` is already exported.
-4. Execute the integration validation from repository root without requiring pre-existing `.atelier/` contents.
+3. Default to mock mode unless `SPANWEAVE_INTEGRATION_REAL_LLM=1` is already exported.
+4. Execute the integration validation from repository root without requiring pre-existing `.spanweave/` contents.
 
 ## CI Contract
 
@@ -51,5 +51,5 @@ The E2E test must verify that a completed run contains:
   - `evidence.md`
   - `evidence.json`
   - `.complete`
-- memory records under `.atelier/memory/decisions/` and `.atelier/memory/rejected_alternatives/` when ADR synthesis input is required
+- memory records under `.spanweave/memory/decisions/` and `.spanweave/memory/rejected_alternatives/` when ADR synthesis input is required
 - synthesized ADR files under `docs/adr/`

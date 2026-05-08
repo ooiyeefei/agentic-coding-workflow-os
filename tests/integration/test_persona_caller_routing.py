@@ -9,7 +9,7 @@ explicit callers:
   the user (or paste-back daemon) to feed the agent tool's output back.
 * ``DirectAPICaller`` — kept for AUXILIARY calls only. Council tiebreaker and
   ADR prose synthesis still call LLM APIs directly because they live entirely
-  inside Atelier's process.
+  inside Spanweave's process.
 
 These tests verify the workflow engine wires the right caller for each role
 and — crucially — that NO LLM API call is made during the main stage path.
@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from atelier.adapters import ClaudeCodeAdapter, CodexAdapter, GenericAdapter
-from atelier.llm import (
+from spanweave.adapters import ClaudeCodeAdapter, CodexAdapter, GenericAdapter
+from spanweave.llm import (
     CapabilityManifest,
     CapabilityRequirements,
     LLMAdapter,
@@ -31,16 +31,16 @@ from atelier.llm import (
     Response,
     ToolDefinition,
 )
-from atelier.llm.adapter import CostPolicy
-from atelier.personas import AgentToolCaller, Coder, DirectAPICaller, Reviewer
-from atelier.workflow import (
+from spanweave.llm.adapter import CostPolicy
+from spanweave.personas import AgentToolCaller, Coder, DirectAPICaller, Reviewer
+from spanweave.workflow import (
     RunStatus,
     WorkflowEngine,
     default_stage_executor_deps,
     load_workflow,
 )
-from atelier.workflow.engine import _DirectReviewerCaller, _is_agent_tool_handoff_caller
-from atelier.workflow.transitions import TransitionKind
+from spanweave.workflow.engine import _DirectReviewerCaller, _is_agent_tool_handoff_caller
+from spanweave.workflow.transitions import TransitionKind
 
 _MAIN_STAGE_IDS: frozenset[str] = frozenset(
     [

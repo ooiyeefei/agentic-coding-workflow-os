@@ -26,7 +26,7 @@ The original architecture assumed Spanweave calls LLM APIs directly (Personas ca
 - **W02 (LLM Abstraction)** is now the **Auxiliary LLM Backend** — narrow scope for council tiebreaker, ADR prose synthesis, transcript decision extraction. The code is correct; the scope is narrower than originally framed.
 - **W04 (Personas)** needs rework — `Persona.respond()` currently calls `self.adapter.generate()` (direct API). It should generate formatted prompts for the target agent tool instead. The `PersonaCaller` Protocol in `stages.py` is correctly abstract and does NOT need changing.
 - **NEW W27 (Tool Adapter Layer)** — the bridge: ingest transcripts from each tool, format Context Packets for each tool, auto-detect running tool.
-- **NEW W28 (Session Continuity)** — `atelier resume`, `atelier prompt`, `atelier context` commands enabling session swap across tools.
+- **NEW W28 (Session Continuity)** — `spanweave resume`, `spanweave prompt`, `spanweave context` commands enabling session swap across tools.
 - **NEW W29 (Persona Rework)** — refactor Personas from direct-API callers to prompt generators for agent tools. Keep existing code as `DirectAPICaller` for auxiliary use; add `AgentToolCaller` as the main path.
 
 ## Scope Summary
@@ -35,7 +35,7 @@ Ship the functional MVP of Spanweave: a real GitHub issue flows end-to-end throu
 
 ## MVP User Flow
 
-1. User runs `atelier run --issue <N>` → orchestrator reads workflow definition from `.atelier/workflows/`, creates `.atelier/runs/<ulid>/` + worktree from main
+1. User runs `spanweave run --issue <N>` → orchestrator reads workflow definition from `.spanweave/workflows/`, creates `.spanweave/runs/<ulid>/` + worktree from main
 2. Context Compiler assembles Packet for Coder (issue + repo rules + relevant ADRs + objective + commands)
 3. Coder executes the first workflow stage (e.g., `/speckit.specify`) → produces draft → writes to worktree
 4. Reviewer attacks output using execution-mandatory protocol → produces Evidence Pack (JSON + Markdown)
@@ -48,11 +48,11 @@ Ship the functional MVP of Spanweave: a real GitHub issue flows end-to-end throu
 11. `/cleanup-worktree` (with confirmation) — Run Graph remains committed for replay
 
 CLI surfaces for each run:
-- `atelier run show <id>` — Run Graph tree (stages, evidence, decisions)
-- `atelier run show <id> --evidence` — rendered Evidence Pack (Markdown to terminal)
-- `atelier run show <id> --adr` — generated ADR preview
-- `atelier run show <id> --rebase` — rebase analysis report
-- `atelier run show <id> --cost` — cost tracker per-run aggregate
+- `spanweave run show <id>` — Run Graph tree (stages, evidence, decisions)
+- `spanweave run show <id> --evidence` — rendered Evidence Pack (Markdown to terminal)
+- `spanweave run show <id> --adr` — generated ADR preview
+- `spanweave run show <id> --rebase` — rebase analysis report
+- `spanweave run show <id> --cost` — cost tracker per-run aggregate
 
 ---
 
@@ -60,27 +60,27 @@ CLI surfaces for each run:
 
 | Component | Owner | Primary File(s) |
 |---|---|---|
-| Repo scaffolding (pyproject, tooling, dir structure) | Lane A | `pyproject.toml`, `atelier/__init__.py`, dir layout |
-| ULID generator + path helpers | Lane A | `atelier/util/ulid.py`, `atelier/util/paths.py` |
-| ~~LLM Abstraction~~ → **Auxiliary LLM Backend** (narrow: council, ADR prose, transcript extraction only) | Lane A | `atelier/llm/*.py` — DONE, needs reframing not rewrite |
-| **Tool Adapter Layer** (Claude Code + Codex adapters: ingest, format, detect) | Lane A | `atelier/adapters/*.py`, `atelier/adapters/manifests/*.yaml` |
-| **Session Continuity** (`resume`, `prompt`, `context` commands) | Lane A | `atelier/session/*.py`, CLI commands |
-| Persona Library (generates prompts FOR agent tools, NOT direct API calls) + `devil_advocate_mode` flag | Lane B | `atelier/personas/*.py` — DONE, needs rework (W29) |
-| Skills Library (imports + additions) | Lane B | `.atelier/defaults/skills/*.md` |
-| Context Compiler | Lane A | `atelier/compiler/*.py` |
-| Knowledge Plane record schemas + file I/O | Lane B | `atelier/memory/*.py` |
-| Evidence Pack generator | Lane B | `atelier/evidence/*.py`, `atelier/evidence/templates/*.j2` |
-| Auto-ADR synthesis | Lane B | `atelier/adr/*.py`, `atelier/adr/templates/madr.j2` |
-| Run Graph file tree ops | Lane A | `atelier/rungraph/*.py` |
-| Workflow Engine (dynamic, workflow-as-code) | Lane A | `atelier/workflow/*.py`, `.atelier/workflows/*.yaml` |
-| Policy Engine | Lane A | `atelier/policy/*.py` |
-| Git Hygiene (worktree, rebase-analyze, cleanup) | Lane C | `atelier/git/*.py` |
-| Secret redaction | Lane C | `atelier/security/redaction.py` |
-| Audit log (JSONL) | Lane C | `atelier/audit/*.py` |
-| UAT persona + integration | Lane C | `atelier/personas/uat.py`, `.atelier/defaults/personas/uat.md` |
-| CLI | Lane A | `atelier/cli/*.py` |
-| HTTP daemon + SSE (foundation for future client surfaces) | Lane A | `atelier/daemon/*.py` |
-| 3-agent council tiebreaker | Lane B | `atelier/council/*.py` |
+| Repo scaffolding (pyproject, tooling, dir structure) | Lane A | `pyproject.toml`, `spanweave/__init__.py`, dir layout |
+| ULID generator + path helpers | Lane A | `spanweave/util/ulid.py`, `spanweave/util/paths.py` |
+| ~~LLM Abstraction~~ → **Auxiliary LLM Backend** (narrow: council, ADR prose, transcript extraction only) | Lane A | `spanweave/llm/*.py` — DONE, needs reframing not rewrite |
+| **Tool Adapter Layer** (Claude Code + Codex adapters: ingest, format, detect) | Lane A | `spanweave/adapters/*.py`, `spanweave/adapters/manifests/*.yaml` |
+| **Session Continuity** (`resume`, `prompt`, `context` commands) | Lane A | `spanweave/session/*.py`, CLI commands |
+| Persona Library (generates prompts FOR agent tools, NOT direct API calls) + `devil_advocate_mode` flag | Lane B | `spanweave/personas/*.py` — DONE, needs rework (W29) |
+| Skills Library (imports + additions) | Lane B | `.spanweave/defaults/skills/*.md` |
+| Context Compiler | Lane A | `spanweave/compiler/*.py` |
+| Knowledge Plane record schemas + file I/O | Lane B | `spanweave/memory/*.py` |
+| Evidence Pack generator | Lane B | `spanweave/evidence/*.py`, `spanweave/evidence/templates/*.j2` |
+| Auto-ADR synthesis | Lane B | `spanweave/adr/*.py`, `spanweave/adr/templates/madr.j2` |
+| Run Graph file tree ops | Lane A | `spanweave/rungraph/*.py` |
+| Workflow Engine (dynamic, workflow-as-code) | Lane A | `spanweave/workflow/*.py`, `.spanweave/workflows/*.yaml` |
+| Policy Engine | Lane A | `spanweave/policy/*.py` |
+| Git Hygiene (worktree, rebase-analyze, cleanup) | Lane C | `spanweave/git/*.py` |
+| Secret redaction | Lane C | `spanweave/security/redaction.py` |
+| Audit log (JSONL) | Lane C | `spanweave/audit/*.py` |
+| UAT persona + integration | Lane C | `spanweave/personas/uat.py`, `.spanweave/defaults/personas/uat.md` |
+| CLI | Lane A | `spanweave/cli/*.py` |
+| HTTP daemon + SSE (foundation for future client surfaces) | Lane A | `spanweave/daemon/*.py` |
+| 3-agent council tiebreaker | Lane B | `spanweave/council/*.py` |
 | Example project (integration test target) | Lane E | `examples/app/*` |
 | Example issue | Lane E | `examples/issue.md` |
 | Integration tests + E2E validation | Lane E | `tests/integration/` |
@@ -180,17 +180,17 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W01 — Repo scaffolding
 
 - **Depends**: none (foundation)
-- **Owns**: `pyproject.toml`, `atelier/__init__.py`, top-level dir structure, `.python-version`, Makefile
-- **Scope**: Python 3.11+ project, uv-managed deps, ruff + pyright configured. Define package layout (`atelier/cli`, `atelier/llm`, `atelier/workflow`, etc.).
-- **Acceptance**: `uv sync` works, `python -m atelier --help` prints placeholder help, ruff + pyright pass on empty package
+- **Owns**: `pyproject.toml`, `spanweave/__init__.py`, top-level dir structure, `.python-version`, Makefile
+- **Scope**: Python 3.11+ project, uv-managed deps, ruff + pyright configured. Define package layout (`spanweave/cli`, `spanweave/llm`, `spanweave/workflow`, etc.).
+- **Acceptance**: `uv sync` works, `python -m spanweave --help` prints placeholder help, ruff + pyright pass on empty package
 - **Output**: installable package skeleton
-- **Handoff**: All other W## can `from atelier import ...` once this lands
+- **Handoff**: All other W## can `from spanweave import ...` once this lands
 - **Blocks**: Everything
 
 ### W02 — LLM Abstraction + Capability Manifest
 
 - **Depends**: W01
-- **Owns**: `atelier/llm/adapter.py`, `atelier/llm/anthropic.py`, `atelier/llm/openai.py`, `atelier/llm/capabilities.py`, `.atelier/defaults/models/*.yaml`
+- **Owns**: `spanweave/llm/adapter.py`, `spanweave/llm/anthropic.py`, `spanweave/llm/openai.py`, `spanweave/llm/capabilities.py`, `.spanweave/defaults/models/*.yaml`
 - **Scope**: abstract `LLMAdapter` with `generate(messages, tools, capabilities) -> Response`. Anthropic + OpenAI implementations. YAML capability manifests for claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5, gpt-5 (or codex), gpt-4o-mini. Persona-requires vs model-offers matching function.
 - **Acceptance**: Unit test calls Anthropic and OpenAI with mock, validates response shape. Capability matcher rejects route if persona requires `tool_use` and model offers `tool_use: false`.
 - **Output**: Pluggable LLM backend layer
@@ -200,8 +200,8 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W03 — ULID Generator + Path Helpers
 
 - **Depends**: W01
-- **Owns**: `atelier/util/ulid.py`, `atelier/util/paths.py`
-- **Scope**: ULID generation (use `python-ulid`), path helpers for `.atelier/runs/<run_id>/stages/<nnn-name>/`, safe mkdir, atomic writes (tmpfile + rename)
+- **Owns**: `spanweave/util/ulid.py`, `spanweave/util/paths.py`
+- **Scope**: ULID generation (use `python-ulid`), path helpers for `.spanweave/runs/<run_id>/stages/<nnn-name>/`, safe mkdir, atomic writes (tmpfile + rename)
 - **Acceptance**: ULIDs are lex-sortable; paths generated correctly for a fake run+stage; atomic write survives simulated interrupt
 - **Output**: ID + FS utilities used everywhere
 - **Blocks**: W09, W13, W11
@@ -209,7 +209,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W04 — Persona Library
 
 - **Depends**: W01, W02 (partial — consumes LLM adapter)
-- **Owns**: `atelier/personas/base.py`, `atelier/personas/coder.py`, `atelier/personas/reviewer.py`, `.atelier/defaults/personas/coder.md`, `.atelier/defaults/personas/reviewer.md`
+- **Owns**: `spanweave/personas/base.py`, `spanweave/personas/coder.py`, `spanweave/personas/reviewer.py`, `.spanweave/defaults/personas/coder.md`, `.spanweave/defaults/personas/reviewer.md`
 - **Scope**: `Persona` class with system prompt loader, capability requirements, LLM adapter binding. Reviewer persona prompt implements execution-mandatory protocol (transplant from TIROS AGENTS.md, generalized). Coder persona prompt is the /speckit.* driver.
 - **Acceptance**: `coder.respond(packet)` returns a draft; `reviewer.review(diff, tests)` returns a structured Evidence Pack draft with verdict + confidence + findings
 - **Output**: Two working personas, loadable by name
@@ -218,7 +218,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W05 — Skills Library
 
 - **Depends**: W01
-- **Owns**: `.atelier/defaults/skills/speckit.specify.md`, `.atelier/defaults/skills/speckit.clarify.md`, `.atelier/defaults/skills/speckit.plan.md`, `.atelier/defaults/skills/speckit.tasks.md`, `.atelier/defaults/skills/speckit.implement.md`, `.atelier/defaults/skills/rebase-before-pr.md`, `.atelier/defaults/skills/cleanup-worktree.md`, `.atelier/defaults/skills/uat-test.md`
+- **Owns**: `.spanweave/defaults/skills/speckit.specify.md`, `.spanweave/defaults/skills/speckit.clarify.md`, `.spanweave/defaults/skills/speckit.plan.md`, `.spanweave/defaults/skills/speckit.tasks.md`, `.spanweave/defaults/skills/speckit.implement.md`, `.spanweave/defaults/skills/rebase-before-pr.md`, `.spanweave/defaults/skills/cleanup-worktree.md`, `.spanweave/defaults/skills/uat-test.md`
 - **Scope**: Import speckit.* verbatim from user's existing `.claude/commands/`. Author rebase-before-pr.md (encode user's exact instructions: git add . → commit → fetch → rebase origin/main → analyze conflicts without deciding → report → force-with-lease push). Author cleanup-worktree.md. Stub uat-test.md that calls ccc/skills/uat-testing.
 - **Acceptance**: Each skill file has YAML frontmatter with `inputs`, `expected_artifacts`, `success_checks`, `next_transition`. Skill loader reads and validates.
 - **Output**: Complete skill catalog Phase 0 needs
@@ -227,8 +227,8 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W06 — Knowledge Plane (typed records)
 
 - **Depends**: W01, W03
-- **Owns**: `atelier/memory/records.py`, `atelier/memory/writer.py`, `atelier/memory/reader.py`
-- **Scope**: Pydantic schemas for `Decision`, `ReviewFinding`, `RejectedAlternative`. Writer serializes to markdown with YAML frontmatter. Reader parses any `.atelier/memory/**/*.md` back to typed record. Deterministic filename = `<type>_<ulid>.md`.
+- **Owns**: `spanweave/memory/records.py`, `spanweave/memory/writer.py`, `spanweave/memory/reader.py`
+- **Scope**: Pydantic schemas for `Decision`, `ReviewFinding`, `RejectedAlternative`. Writer serializes to markdown with YAML frontmatter. Reader parses any `.spanweave/memory/**/*.md` back to typed record. Deterministic filename = `<type>_<ulid>.md`.
 - **Acceptance**: Round-trip test: `record → write → read → record` preserves all fields. Frontmatter is valid YAML, body is clean markdown.
 - **Output**: Memory record persistence layer
 - **Blocks**: W14, W11
@@ -236,7 +236,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W07 — Context Compiler
 
 - **Depends**: W01, W02, W03
-- **Owns**: `atelier/compiler/compiler.py`, `atelier/compiler/sources.py`
+- **Owns**: `spanweave/compiler/compiler.py`, `spanweave/compiler/sources.py`
 - **Scope**: Assemble Context Packets from prioritized sources. Inputs: issue text, repo rules (`CLAUDE.md`, `.claude/rules/*.md`), relevant ADRs, sample docs, current worktree path, exact objective, exact commands, acceptance gate. Priority tiers (must/should/nice). Token budget enforcement (simple `len*4/3` estimator for Phase 0). Dedup identical blocks. Each block tagged with provenance tuple `(source_type, source_id, path)`. Output: `packet.md`.
 - **Acceptance**: Given fixture inputs, compiler produces deterministic packet.md under a fake 8k-token budget, nice-to-have tier gets dropped first. Provenance block at end lists all sources.
 - **Output**: Deterministic packet generation
@@ -245,7 +245,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W08 — Evidence Pack Generator
 
 - **Depends**: W01, W03
-- **Owns**: `atelier/evidence/schema.py`, `atelier/evidence/generator.py`, `atelier/evidence/templates/evidence.md.j2`
+- **Owns**: `spanweave/evidence/schema.py`, `spanweave/evidence/generator.py`, `spanweave/evidence/templates/evidence.md.j2`
 - **Scope**: Pydantic schema for EvidencePack (verdict, confidence, findings list with severity, execution section with real command outputs, audit-chain linked IDs). Jinja2 template renders Markdown from JSON. Both written side-by-side.
 - **Acceptance**: EvidencePack(verdict="REJECTED", findings=[...]) produces valid JSON and human-readable Markdown; Markdown references ULIDs for traceback.
 - **Output**: Dual-format Evidence Pack writer
@@ -254,7 +254,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W09 — Run Graph File Tree Ops
 
 - **Depends**: W01, W03
-- **Owns**: `atelier/rungraph/tree.py`, `atelier/rungraph/cursor.py`
+- **Owns**: `spanweave/rungraph/tree.py`, `spanweave/rungraph/cursor.py`
 - **Scope**: Create runs/<ulid>/, create stages/<nnn-name>/, write stage.md with frontmatter, write completion markers for idempotency. `cursor` tracks "next stage to execute" for resume semantics. Lock file per run to prevent concurrent writes.
 - **Acceptance**: Start run, create 3 stages, complete 2, restart process, resume correctly picks up stage 3. Lock prevents second writer.
 - **Output**: Durable run lineage as directory tree
@@ -263,7 +263,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W10 — Secret Redaction
 
 - **Depends**: W01
-- **Owns**: `atelier/security/redaction.py`
+- **Owns**: `spanweave/security/redaction.py`
 - **Scope**: Regex-based redactor for: `.env` line patterns, known env var names (`API_KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `Bearer <x>`), common service prefixes (`sk-`, `pk_`, `ghp_`, `xoxb-`). Entropy heuristic for unknown high-entropy strings optional. Applied before any write-to-file.
 - **Acceptance**: Fixture with `OPENAI_API_KEY=sk-abc123...` redacts to `OPENAI_API_KEY=<REDACTED>`. Safe strings pass through.
 - **Output**: Reusable redaction function
@@ -272,8 +272,8 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W11 — Workflow Engine (dynamic, workflow-as-code)
 
 - **Depends**: W04, W05, W06, W07, W08, W09
-- **Owns**: `atelier/workflow/engine.py`, `atelier/workflow/loader.py`, `atelier/workflow/stages.py`, `atelier/workflow/transitions.py`, `.atelier/defaults/workflows/speckit-loop.yaml`
-- **Scope**: Workflow-as-code engine that loads workflow definitions from `.atelier/workflows/*.yaml` (user project) or `.atelier/defaults/workflows/` (shipped defaults). Each workflow YAML declares: stages (ordered), persona per stage, skill per stage, gate type (review/approval/auto), transition rules, retry policy. The engine reads the YAML, resolves personas + skills, and drives execution. Ships with `speckit-loop.yaml` as the default workflow (specify → clarify → plan → tasks → implement → UAT → rebase-analyze → cleanup). Users define custom workflows for their project — the engine is NOT tied to speckit. Resume-aware via W09 cursor.
+- **Owns**: `spanweave/workflow/engine.py`, `spanweave/workflow/loader.py`, `spanweave/workflow/stages.py`, `spanweave/workflow/transitions.py`, `.spanweave/defaults/workflows/speckit-loop.yaml`
+- **Scope**: Workflow-as-code engine that loads workflow definitions from `.spanweave/workflows/*.yaml` (user project) or `.spanweave/defaults/workflows/` (shipped defaults). Each workflow YAML declares: stages (ordered), persona per stage, skill per stage, gate type (review/approval/auto), transition rules, retry policy. The engine reads the YAML, resolves personas + skills, and drives execution. Ships with `speckit-loop.yaml` as the default workflow (specify → clarify → plan → tasks → implement → UAT → rebase-analyze → cleanup). Users define custom workflows for their project — the engine is NOT tied to speckit. Resume-aware via W09 cursor.
 - **Acceptance**: (1) Load `speckit-loop.yaml` and run a real issue through specify → review, handling Reviewer rejection with retry. (2) Load a DIFFERENT custom workflow YAML (e.g., a minimal 2-stage "implement → review" workflow) and run it successfully. Both produce correct Run Graph artifacts.
 - **Output**: Configurable, extensible workflow engine
 - **Blocks**: W15, W16
@@ -281,17 +281,17 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W12 — Policy Engine (configurable)
 
 - **Depends**: W01
-- **Owns**: `atelier/policy/engine.py`, `atelier/policy/loader.py`, `atelier/policy/defaults.py`, `.atelier/defaults/policy.yaml`
-- **Scope**: Loads policy from `.atelier/policy.yaml` (user project) or `.atelier/defaults/policy.yaml` (shipped defaults). Policy primitives: `human_approval_required` (per stage/gate), `dry_run_default` (per action type), `cost_cap_per_run`, `cost_cap_per_day`, `cost_cap_per_model`. Ships with sensible defaults: approval at rebase-before-pr, dry-run for all git ops, configurable cost caps. Users override in their project's `.atelier/policy.yaml`. Policy checks called by W11 before destructive ops and before LLM calls.
-- **Acceptance**: (1) Default policy halts at rebase-before-pr for human approval. (2) User override in `.atelier/policy.yaml` changes cost cap — engine respects the override. (3) Cost exceeding cap halts + alerts.
+- **Owns**: `spanweave/policy/engine.py`, `spanweave/policy/loader.py`, `spanweave/policy/defaults.py`, `.spanweave/defaults/policy.yaml`
+- **Scope**: Loads policy from `.spanweave/policy.yaml` (user project) or `.spanweave/defaults/policy.yaml` (shipped defaults). Policy primitives: `human_approval_required` (per stage/gate), `dry_run_default` (per action type), `cost_cap_per_run`, `cost_cap_per_day`, `cost_cap_per_model`. Ships with sensible defaults: approval at rebase-before-pr, dry-run for all git ops, configurable cost caps. Users override in their project's `.spanweave/policy.yaml`. Policy checks called by W11 before destructive ops and before LLM calls.
+- **Acceptance**: (1) Default policy halts at rebase-before-pr for human approval. (2) User override in `.spanweave/policy.yaml` changes cost cap — engine respects the override. (3) Cost exceeding cap halts + alerts.
 - **Output**: Configurable policy enforcement layer
 - **Blocks**: W11
 
 ### W13 — Audit Log
 
 - **Depends**: W01, W03, W10
-- **Owns**: `atelier/audit/writer.py`
-- **Scope**: Append-only JSONL writer for per-run `.atelier/runs/<id>/audit.jsonl` and daily `.atelier/audit/YYYY-MM-DD.jsonl`. Events: llm_call, tool_call, gate_entered, decision_logged, override_applied. Apply redaction (W10) before write.
+- **Owns**: `spanweave/audit/writer.py`
+- **Scope**: Append-only JSONL writer for per-run `.spanweave/runs/<id>/audit.jsonl` and daily `.spanweave/audit/YYYY-MM-DD.jsonl`. Events: llm_call, tool_call, gate_entered, decision_logged, override_applied. Apply redaction (W10) before write.
 - **Acceptance**: 1000 concurrent writes produce no corruption. Every line valid JSON. Secrets redacted.
 - **Output**: Reliable audit trail
 - **Blocks**: (called by many, blocks nothing)
@@ -299,7 +299,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W14 — Auto-ADR Synthesis
 
 - **Depends**: W01, W03, W06
-- **Owns**: `atelier/adr/synthesis.py`, `atelier/adr/templates/madr.md.j2`
+- **Owns**: `spanweave/adr/synthesis.py`, `spanweave/adr/templates/madr.md.j2`
 - **Scope**: Read all Decision + RejectedAlternative records for a completed run. Render MADR 3.0 format: Context, Decision, Consequences, Alternatives Considered. Write to `docs/adr/NNNN-<slug>.md`, auto-numbering.
 - **Acceptance**: Fixture with 3 Decisions + 2 RejectedAlternatives produces a well-formed MADR 3.0 ADR ready for human review.
 - **Output**: Auto-generated ADRs
@@ -308,16 +308,16 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W15 — CLI
 
 - **Depends**: W11
-- **Owns**: `atelier/cli/main.py`, `atelier/cli/commands/*.py`
+- **Owns**: `spanweave/cli/main.py`, `spanweave/cli/commands/*.py`
 - **Scope**: Click or Typer-based CLI. Commands: `init`, `run --issue <N>`, `run resume <run_id>`, `run show <run_id>`, `run list`, `cleanup <run_id>`, `daemon start|stop|status`, `grep <pattern>`.
-- **Acceptance**: `atelier run --issue 42 --repo path/to/demo` initiates a workflow, writes to filesystem, prints Run ID.
+- **Acceptance**: `spanweave run --issue 42 --repo path/to/demo` initiates a workflow, writes to filesystem, prints Run ID.
 - **Output**: Primary user interface
 - **Blocks**: W16
 
 ### W16 — HTTP Daemon + SSE
 
 - **Depends**: W15
-- **Owns**: `atelier/daemon/server.py`, `atelier/daemon/routes.py`
+- **Owns**: `spanweave/daemon/server.py`, `spanweave/daemon/routes.py`
 - **Scope**: FastAPI app exposing: `POST /runs` (start), `GET /runs/<id>` (status), `GET /runs/<id>/events` (SSE stream of audit events), `POST /runs/<id>/approve` (gate approvals). Same process as CLI but daemon mode.
 - **Acceptance**: An HTTP client subscribes to SSE and receives events in real-time as workflow advances. Used for future IDE/web/CI integrations.
 - **Output**: API surface for future non-CLI clients (optional in Phase 0 — build only if time permits after W15 CLI ships).
@@ -326,7 +326,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W18 — UAT Persona Integration
 
 - **Depends**: W04
-- **Owns**: `atelier/personas/uat.py`, `.atelier/defaults/personas/uat.md`
+- **Owns**: `spanweave/personas/uat.py`, `.spanweave/defaults/personas/uat.md`
 - **Scope**: UAT persona launches user's existing `ccc/skills/uat-testing` as subprocess. Feeds test account creds from `env.local`. Captures test report, parses to EvidencePack findings.
 - **Acceptance**: Demo app has a login flow; UAT persona runs skill against it, produces structured Evidence Pack section "UAT: 3/3 passed".
 - **Output**: UAT stage implementation
@@ -344,7 +344,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W21 — 3-Agent Council Tiebreaker
 
 - **Depends**: W02, W04
-- **Owns**: `atelier/council/tiebreaker.py`
+- **Owns**: `spanweave/council/tiebreaker.py`
 - **Scope**: 3-agent council triggered when Coder↔Reviewer deadlock after 2 rounds. Protocol: send Coder's position + Reviewer's position + full context to 3 different models. Each votes VERDICT_COMPATIBLE_WITH_{CODER,REVIEWER,NEITHER}. Majority wins; ties go to human.
 - **Acceptance**: Fixture deadlock scenario → 3 council calls → majority verdict → Evidence Pack records tiebreaker outcome.
 - **Output**: Escalation resolution for disagreements
@@ -380,7 +380,7 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W26 — Git Hygiene Module
 
 - **Depends**: W01, W03, W13
-- **Owns**: `atelier/git/worktree.py`, `atelier/git/rebase_analyzer.py`, `atelier/git/cleanup.py`
+- **Owns**: `spanweave/git/worktree.py`, `spanweave/git/rebase_analyzer.py`, `spanweave/git/cleanup.py`
 - **Scope**: Worktree create from main with naming convention `worktrees/<run_id>/`. Rebase analyzer: `git fetch`, `git rebase --dry-run` equivalent (use `git merge-tree` for conflict simulation without state mutation). Structured conflict report (files, hunks, suggested resolutions — NEVER applied). Cleanup: `git worktree remove` with confirmation.
 - **Acceptance**: On a conflicted branch, rebase-analyzer reports N conflicts with file:line precision and suggestions. Zero state mutation.
 - **Output**: Safe git automation
@@ -389,10 +389,10 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W27 — Tool Adapter Layer (NEW — post-reframe)
 
 - **Depends**: W01, W03, W06 (memory reader/writer)
-- **Owns**: `atelier/adapters/base.py`, `atelier/adapters/claude_code.py`, `atelier/adapters/codex.py`, `atelier/adapters/generic.py`, `atelier/adapters/manifests/claude-code.yaml`, `atelier/adapters/manifests/codex.yaml`
+- **Owns**: `spanweave/adapters/base.py`, `spanweave/adapters/claude_code.py`, `spanweave/adapters/codex.py`, `spanweave/adapters/generic.py`, `spanweave/adapters/manifests/claude-code.yaml`, `spanweave/adapters/manifests/codex.yaml`
 - **Scope**: The bridge between Spanweave and agent tools. Each adapter implements three operations:
-  - **Ingest**: read the tool's session state → extract decisions, findings, context → write to `.atelier/memory/`. Claude Code adapter reads `.claude/projects/` JSONL. Codex adapter reads session logs. Generic adapter accepts markdown transcript paste.
-  - **Format**: read `.atelier/memory/` + run context → generate Context Packet formatted for the tool's conventions (e.g., Claude Code expects CLAUDE.md-style instructions; Codex expects AGENTS.md-style).
+  - **Ingest**: read the tool's session state → extract decisions, findings, context → write to `.spanweave/memory/`. Claude Code adapter reads `.claude/projects/` JSONL. Codex adapter reads session logs. Generic adapter accepts markdown transcript paste.
+  - **Format**: read `.spanweave/memory/` + run context → generate Context Packet formatted for the tool's conventions (e.g., Claude Code expects CLAUDE.md-style instructions; Codex expects AGENTS.md-style).
   - **Detect**: auto-detect which tool is running (check for `.claude/`, Codex env vars, etc.)
   - Agent tool manifests (YAML): what each tool can do (MCP support, tool use, file access, context window, session format).
 - **Acceptance**: (1) Claude Code adapter reads a fixture `.claude/projects/` JSONL → extracts 3+ decisions. (2) Codex adapter reads a fixture session log → extracts decisions. (3) Format generates a valid Context Packet for Claude Code with memory references. (4) Detect correctly identifies Claude Code vs Codex vs unknown.
@@ -402,21 +402,21 @@ Each worktree below is independently checkoutable. `depends` lists the worktrees
 ### W28 — Session Continuity (NEW — post-reframe)
 
 - **Depends**: W27, W15 (CLI), W07 (Context Compiler)
-- **Owns**: `atelier/session/resume.py`, `atelier/session/prompt.py`, `atelier/session/context.py`, CLI commands: `atelier resume`, `atelier prompt`, `atelier context`
+- **Owns**: `spanweave/session/resume.py`, `spanweave/session/prompt.py`, `spanweave/session/context.py`, CLI commands: `spanweave resume`, `spanweave prompt`, `spanweave context`
 - **Scope**: The session portability layer.
-  - `atelier resume --agent claude-code --run <run-id>`: Reads Run Graph + memory from a prior run (possibly done in a different tool). Generates a Context Packet formatted for Claude Code. User pastes it into Claude Code → full context continuity.
-  - `atelier prompt --role coder --agent codex --run <run-id>`: Generates the Coder persona prompt formatted for Codex, including all context from the run.
-  - `atelier prompt --role reviewer --agent claude-code --run <run-id>`: Same but for Reviewer, formatted for Claude Code.
-  - `atelier context --for chatgpt`: Generates a paste-ready summary of `.atelier/memory/` for non-CLI tools (ChatGPT, Gemini, Cowork).
-  - `atelier ingest --from transcript.md`: Manual transcript ingestion for tools without native adapter.
-- **Acceptance**: (1) Start a run in Codex, write decisions. Run `atelier resume --agent claude-code`. The output prompt contains all decisions from the Codex run. (2) `atelier prompt --role coder` and `--role reviewer` produce different prompts with appropriate context for each role. (3) `atelier context --for chatgpt` produces a self-contained summary under 4K tokens.
+  - `spanweave resume --agent claude-code --run <run-id>`: Reads Run Graph + memory from a prior run (possibly done in a different tool). Generates a Context Packet formatted for Claude Code. User pastes it into Claude Code → full context continuity.
+  - `spanweave prompt --role coder --agent codex --run <run-id>`: Generates the Coder persona prompt formatted for Codex, including all context from the run.
+  - `spanweave prompt --role reviewer --agent claude-code --run <run-id>`: Same but for Reviewer, formatted for Claude Code.
+  - `spanweave context --for chatgpt`: Generates a paste-ready summary of `.spanweave/memory/` for non-CLI tools (ChatGPT, Gemini, Cowork).
+  - `spanweave ingest --from transcript.md`: Manual transcript ingestion for tools without native adapter.
+- **Acceptance**: (1) Start a run in Codex, write decisions. Run `spanweave resume --agent claude-code`. The output prompt contains all decisions from the Codex run. (2) `spanweave prompt --role coder` and `--role reviewer` produce different prompts with appropriate context for each role. (3) `spanweave context --for chatgpt` produces a self-contained summary under 4K tokens.
 - **Output**: Zero-context-loss tool switching
 - **Blocks**: W24 (integration tests should cover session swap)
 
 ### W29 — Persona Rework (NEW — post-reframe)
 
 - **Depends**: W27, W04 (existing persona code)
-- **Owns**: `atelier/personas/base.py` (modify), `atelier/personas/callers.py` (new)
+- **Owns**: `spanweave/personas/base.py` (modify), `spanweave/personas/callers.py` (new)
 - **Scope**: Refactor Personas from direct-API callers to prompt generators for agent tools.
   - Keep `PersonaCaller` Protocol in `stages.py` unchanged (already correctly abstract).
   - Add `AgentToolCaller` — implements `PersonaCaller` by generating a prompt (using the tool adapter from W27), presenting it, and waiting for output (file watch or manual paste-back).

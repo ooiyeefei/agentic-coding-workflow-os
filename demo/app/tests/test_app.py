@@ -5,7 +5,7 @@ from app.config import Settings
 from app.main import create_app
 from fastapi.testclient import TestClient
 
-DEMO_USER = "demo@atelier.dev"
+DEMO_USER = "demo@spanweave.dev"
 DEMO_PASSWORD = "demo1234"
 
 
@@ -47,13 +47,13 @@ def test_invalid_login_does_not_create_session(client: TestClient) -> None:
 
     assert response.status_code == 401
     assert "Invalid email or password." in response.text
-    assert "atelier_demo_session" not in client.cookies
+    assert "spanweave_demo_session" not in client.cookies
 
 
 def test_successful_login_sets_session_and_returns_empty_notes(client: TestClient) -> None:
     login(client)
 
-    assert "atelier_demo_session" in client.cookies
+    assert "spanweave_demo_session" in client.cookies
 
     response = client.get("/api/notes")
     assert response.status_code == 200

@@ -73,16 +73,16 @@ As a reviewer, I can inspect which inputs made it into the packet and avoid dupl
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide `compile_packet(objective, sources, budget_tokens) -> Packet` in `atelier/compiler/compiler.py`.
+- **FR-001**: The system MUST provide `compile_packet(objective, sources, budget_tokens) -> Packet` in `spanweave/compiler/compiler.py`.
 - **FR-002**: The system MUST define a `Packet` model that stores the compiled markdown body plus a structured provenance sidecar for every included block.
-- **FR-003**: The system MUST define source models in `atelier/compiler/sources.py` for `IssueText`, `RepoRule`, `ADR`, `SampleDoc`, `WorktreeRef`, `Objective`, `ExactCommands`, and `AcceptanceGate`.
+- **FR-003**: The system MUST define source models in `spanweave/compiler/sources.py` for `IssueText`, `RepoRule`, `ADR`, `SampleDoc`, `WorktreeRef`, `Objective`, `ExactCommands`, and `AcceptanceGate`.
 - **FR-004**: Every source model MUST declare one priority tier from `must`, `should`, or `nice`.
 - **FR-005**: The compiler MUST compile sources in deterministic order, preserving tier priority before lower-tier content and preserving stable ordering within the same tier.
 - **FR-006**: Phase 0 deduplication MUST use exact `source_id` matching only and MUST retain the first deterministic occurrence of any duplicate block.
 - **FR-007**: The compiler MUST estimate token usage with the Phase 0 approximation `len(text) * 4 / 3`, rounded up to an integer token count.
 - **FR-008**: Budget enforcement MUST drop `nice` tier blocks before `should` tier blocks and MUST never drop `must` tier blocks.
 - **FR-009**: When all must-tier content alone exceeds the requested budget, the compiler MUST raise `BudgetExceededError`.
-- **FR-010**: Each included block MUST record provenance as a `(source_type, source_id, path)` tuple in `atelier/compiler/provenance.py`.
+- **FR-010**: Each included block MUST record provenance as a `(source_type, source_id, path)` tuple in `spanweave/compiler/provenance.py`.
 - **FR-011**: The rendered packet markdown MUST end with a provenance footer block that lists every included source in deterministic packet order.
 - **FR-012**: `tests/test_compiler.py` MUST cover compilation within budget, compilation under a tight budget that drops lower tiers, deduplication by `source_id`, and the impossible-budget error path.
 

@@ -5,15 +5,15 @@
 
 ## Summary
 
-Implement a minimal council module under `atelier/council/` that sends the Coder and Reviewer positions to three capability-checked W02 adapters in parallel, tallies the majority verdict or escalates to `HUMAN_REQUIRED`, and persists an auditable `CouncilReport` under `.atelier/memory/council_reports/`.
+Implement a minimal council module under `spanweave/council/` that sends the Coder and Reviewer positions to three capability-checked W02 adapters in parallel, tallies the majority verdict or escalates to `HUMAN_REQUIRED`, and persists an auditable `CouncilReport` under `.spanweave/memory/council_reports/`.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
 **Primary Dependencies**: pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio  
-**Storage**: Filesystem-backed council report records under `.atelier/memory/council_reports/` plus in-process Pydantic models  
+**Storage**: Filesystem-backed council report records under `.spanweave/memory/council_reports/` plus in-process Pydantic models  
 **Testing**: pytest with mocked adapters, mocked manifests, and async timing checks  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: All three voter requests dispatch concurrently; council overhead remains negligible beyond the three provider calls; tests stay fully offline  
 **Constraints**: Exactly three distinct voters; no silent capability downgrade; strict tool-submitted verdict parsing; filesystem-first audit record; full MAD and anonymized debate remain out of scope  
@@ -41,14 +41,14 @@ specs/005-council-tiebreaker/
 ### Source Code (repository root)
 
 ```text
-.atelier/
+.spanweave/
 └── defaults/
     └── models/
         ├── claude-opus-4-7.yaml
         ├── claude-sonnet-4-6.yaml
         └── gpt-5.yaml
 
-atelier/
+spanweave/
 ├── council/
 │   ├── __init__.py
 │   ├── schema.py
@@ -66,7 +66,7 @@ tests/
 └── test_council.py
 ```
 
-**Structure Decision**: Keep the voting protocol isolated inside `atelier/council/`, reuse W02 manifests and adapters directly, and add only a narrow council-specific persistence helper under `atelier/memory/` so the feature remains auditable without implementing the whole W06 record system.
+**Structure Decision**: Keep the voting protocol isolated inside `spanweave/council/`, reuse W02 manifests and adapters directly, and add only a narrow council-specific persistence helper under `spanweave/memory/` so the feature remains auditable without implementing the whole W06 record system.
 
 ## Complexity Tracking
 

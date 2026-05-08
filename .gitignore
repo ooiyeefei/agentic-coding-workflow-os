@@ -126,12 +126,12 @@ out/
 Thumbs.db
 
 # ===========================
-# Atelier-specific
+# Spanweave-specific
 # ===========================
 # User-local daemon state (secrets, PIDs, session)
-.atelier-user/
-.atelier/runs/      # commit if you want reproducibility; ignore if bloat concern
-.atelier/audit/
+.spanweave-user/
+.spanweave/runs/      # commit if you want reproducibility; ignore if bloat concern
+.spanweave/audit/
 demo/warm-cache/*.local
 
 # Env / secrets

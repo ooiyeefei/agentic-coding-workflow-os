@@ -4,9 +4,9 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-import atelier.evidence.generator as evidence_generator
 import pytest
-from atelier.evidence import (
+import spanweave.evidence.generator as evidence_generator
+from spanweave.evidence import (
     CommandOutput,
     EvidencePack,
     Finding,
@@ -26,7 +26,7 @@ def evidence_pack(fixed_ulid_values: list[str]) -> EvidencePack:
                 finding_id="finding-auth",
                 severity=Severity.RED,
                 description="Authentication flow breaks on invalid session reuse.",
-                file="atelier/workflow/stages.py",
+                file="spanweave/workflow/stages.py",
                 line=42,
                 verification="Observed a failing pytest assertion in the review stage fixture.",
             ),
@@ -34,7 +34,7 @@ def evidence_pack(fixed_ulid_values: list[str]) -> EvidencePack:
                 finding_id="finding-audit",
                 severity=Severity.ORANGE,
                 description="Audit trace is missing a reference to the retry decision.",
-                file="atelier/audit/log.py",
+                file="spanweave/audit/log.py",
                 line=17,
                 verification="Compared the emitted audit chain against the expected decision IDs.",
             ),
@@ -44,7 +44,7 @@ def evidence_pack(fixed_ulid_values: list[str]) -> EvidencePack:
                 description=(
                     "Evidence header wording is inconsistent with the rest of the run artifacts."
                 ),
-                file="atelier/evidence/templates/evidence.md.j2",
+                file="spanweave/evidence/templates/evidence.md.j2",
                 line=1,
                 verification=(
                     "Read the rendered markdown and compared it to the packet header style."
@@ -64,7 +64,7 @@ def evidence_pack(fixed_ulid_values: list[str]) -> EvidencePack:
                 finding_ids=["finding-auth", "finding-audit"],
             ),
             CommandOutput(
-                command="uv run ruff check atelier/evidence tests/test_evidence.py",
+                command="uv run ruff check spanweave/evidence tests/test_evidence.py",
                 stdout="All checks passed!",
                 stderr="",
                 exit_code=0,
@@ -89,11 +89,11 @@ def test_generate_writes_both_files_and_round_trips(
 
     assert (
         json_path
-        == Path(".atelier") / "runs" / fixed_run_id / "stages" / "001-review" / "evidence.json"
+        == Path(".spanweave") / "runs" / fixed_run_id / "stages" / "001-review" / "evidence.json"
     )
     assert (
         md_path
-        == Path(".atelier") / "runs" / fixed_run_id / "stages" / "001-review" / "evidence.md"
+        == Path(".spanweave") / "runs" / fixed_run_id / "stages" / "001-review" / "evidence.md"
     )
     assert json_path.is_file()
     assert md_path.is_file()
@@ -123,7 +123,7 @@ def test_generate_updates_public_artifacts_via_current_pointer_swap(
 
     generate(fixed_run_id, "001-review", updated_pack)
     current_pointer = (
-        Path(".atelier")
+        Path(".spanweave")
         / "runs"
         / fixed_run_id
         / "stages"
@@ -214,7 +214,7 @@ def test_generate_redacts_execution_output(
                 finding_id="finding-secrets",
                 severity=Severity.RED,
                 description="Execution output leaked credentials.",
-                file="atelier/evidence/generator.py",
+                file="spanweave/evidence/generator.py",
                 line=88,
                 verification="Injected known secret-shaped values into command output.",
             )
@@ -277,7 +277,7 @@ def test_generate_keeps_previous_evidence_when_current_pointer_swap_fails(
     with pytest.raises(RuntimeError, match="boom"):
         generate(fixed_run_id, "001-review", updated_pack)
 
-    stage_dir = tmp_path / ".atelier" / "runs" / fixed_run_id / "stages" / "001-review"
+    stage_dir = tmp_path / ".spanweave" / "runs" / fixed_run_id / "stages" / "001-review"
     assert json_path.read_text(encoding="utf-8") == original_json
     assert md_path.read_text(encoding="utf-8") == original_markdown
     assert json_path.is_symlink()

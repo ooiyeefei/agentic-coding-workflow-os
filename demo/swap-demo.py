@@ -18,8 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from atelier.defaults import DEFAULT_MODELS_DIR, DEFAULT_PERSONAS_DIR  # noqa: E402
-from atelier.llm import (  # noqa: E402
+from spanweave.defaults import DEFAULT_MODELS_DIR, DEFAULT_PERSONAS_DIR  # noqa: E402
+from spanweave.llm import (  # noqa: E402
     AnthropicAdapter,
     CapabilityManifest,
     CapabilityOffers,
@@ -273,7 +273,7 @@ def build_system_prompt() -> str:
     return (
         f"{reviewer_prompt}\n\n"
         "## Demo Instructions\n"
-        "You are participating in Atelier's LLM swappability demo.\n"
+        "You are participating in Spanweave's LLM swappability demo.\n"
         "Use the provided tools before your final verdict.\n"
         "Read the generated review artifacts, run the approved failing check, and then "
         "reply in markdown with the exact headings `Verdict`, `Bug`, `Evidence`, and "

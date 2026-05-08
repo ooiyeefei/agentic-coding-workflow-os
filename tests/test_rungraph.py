@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 import pytest
-from atelier.rungraph import (
+from spanweave.rungraph import (
     create_run,
     create_stage,
     list_runs,
@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-from atelier.rungraph import create_stage, mark_stage_complete, run_lock
+from spanweave.rungraph import create_stage, mark_stage_complete, run_lock
 
 mode = sys.argv[1]
 run_id = sys.argv[2]
@@ -73,7 +73,7 @@ def test_create_run_stage_layout_and_resume_cursor(
     assert list_runs() == [run_id]
     assert list_stages(run_id) == stage_ids
 
-    run_path = tmp_path / ".atelier" / "runs" / run_id
+    run_path = tmp_path / ".spanweave" / "runs" / run_id
     assert run_path.exists()
     assert (run_path / ".lock").is_file()
     assert (run_path / "run.md").is_file()

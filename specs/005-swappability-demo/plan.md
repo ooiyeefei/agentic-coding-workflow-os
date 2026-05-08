@@ -5,7 +5,7 @@
 
 ## Summary
 
-Build a demo-focused review runner under `demo/` that reuses Atelier's shipped Reviewer prompt body, executes the same tool-driven review loop against a Claude manifest and a Codex/OpenAI manifest, writes one Markdown Evidence Pack per backend, surfaces an `UnsupportedCapabilityError` path for a tool-less manifest, and ships a narration script that fits inside the live demo slot.
+Build a demo-focused review runner under `demo/` that reuses Spanweave's shipped Reviewer prompt body, executes the same tool-driven review loop against a Claude manifest and a Codex/OpenAI manifest, writes one Markdown Evidence Pack per backend, surfaces an `UnsupportedCapabilityError` path for a tool-less manifest, and ships a narration script that fits inside the live demo slot.
 
 ## Technical Context
 
@@ -13,7 +13,7 @@ Build a demo-focused review runner under `demo/` that reuses Atelier's shipped R
 **Primary Dependencies**: anthropic SDK, openai SDK, pydantic v2, python-frontmatter, pathlib, pytest  
 **Storage**: Filesystem outputs under `demo/swap-demo-output/` and generated fixture files inside the demo workspace  
 **Testing**: `pytest` for focused helper coverage plus direct script execution in mock mode and, when credentials exist, live mode  
-**Target Platform**: Local developer machines and Phase 0 demo environments running the Atelier repo  
+**Target Platform**: Local developer machines and Phase 0 demo environments running the Spanweave repo  
 **Project Type**: Demo script plus checked-in markdown artifacts  
 **Performance Goals**: Default run completes quickly enough for live demo use; mock mode should finish in a few seconds and live mode should stay comfortably inside a normal demo beat  
 **Constraints**: Keep the same reviewer prompt body and tool contract across both backends; do not change W04's default Reviewer routing contract; require `tool_use=True`; keep model swapping configurable; preserve a no-credentials path so the repo asset still runs in review environments  

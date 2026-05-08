@@ -8,11 +8,11 @@ from dataclasses import dataclass
 class Settings:
     test_user: str
     test_password: str
-    session_cookie_name: str = "atelier_demo_session"
+    session_cookie_name: str = "spanweave_demo_session"
 
     @classmethod
     def from_env(cls) -> Settings:
         return cls(
-            test_user=os.getenv("TEST_USER", "demo@atelier.dev"),
+            test_user=os.getenv("TEST_USER", "demo@spanweave.dev"),
             test_password=os.getenv("TEST_PASSWORD", "demo1234"),
         )

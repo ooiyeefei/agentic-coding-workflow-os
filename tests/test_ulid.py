@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-import atelier.util.ulid as ulid_module
 import pytest
-from atelier.util import (
+import spanweave.util.ulid as ulid_module
+from spanweave.util import (
     EntityPrefix,
     new_action_id,
     new_decision_id,

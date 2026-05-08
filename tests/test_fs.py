@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import pytest
-from atelier.util import atomic_write, safe_mkdir
+from spanweave.util import atomic_write, safe_mkdir
 
 
 def test_safe_mkdir_is_idempotent(tmp_path: Path) -> None:
@@ -33,9 +33,9 @@ def test_atomic_write_creates_parent_and_replaces_text(tmp_path: Path) -> None:
 def test_atomic_write_supports_bytes(tmp_path: Path) -> None:
     destination = tmp_path / "evidence" / "blob.bin"
 
-    atomic_write(destination, b"\x00\x01atelier")
+    atomic_write(destination, b"\x00\x01spanweave")
 
-    assert destination.read_bytes() == b"\x00\x01atelier"
+    assert destination.read_bytes() == b"\x00\x01spanweave"
 
 
 def test_atomic_write_replace_failure_leaves_destination_untouched(

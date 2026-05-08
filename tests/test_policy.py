@@ -6,7 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from atelier.policy import CostCapExceeded, CostTracker, PolicyEngine
+from spanweave.policy import CostCapExceeded, CostTracker, PolicyEngine
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -74,7 +74,7 @@ def test_check_cost_uses_existing_run_total_from_audit_log(
 ) -> None:
     today = date(2026, 4, 20)
     engine = _build_engine(tmp_path, today=today)
-    run_log = tmp_path / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+    run_log = tmp_path / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
     _write_jsonl(
         run_log,
         [
@@ -96,7 +96,7 @@ def test_check_cost_raises_when_daily_total_exceeds_cap(
 ) -> None:
     today = date(2026, 4, 20)
     engine = _build_engine(tmp_path, today=today)
-    daily_log = tmp_path / ".atelier" / "audit" / f"{today.isoformat()}.jsonl"
+    daily_log = tmp_path / ".spanweave" / "audit" / f"{today.isoformat()}.jsonl"
     _write_jsonl(
         daily_log,
         [{"event_type": "LLM_CALL", "data": {"cost": {"total_usd": "49.99"}}}],
@@ -114,7 +114,7 @@ def test_cost_tracker_raises_on_invalid_json(
     fixed_run_id: str,
 ) -> None:
     tracker = CostTracker(repo_root=tmp_path)
-    run_log = tmp_path / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+    run_log = tmp_path / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
     run_log.parent.mkdir(parents=True, exist_ok=True)
     run_log.write_text("{not-json}\n", encoding="utf-8")
 
@@ -127,7 +127,7 @@ def test_cost_tracker_raises_on_negative_cost(
     fixed_run_id: str,
 ) -> None:
     tracker = CostTracker(repo_root=tmp_path)
-    run_log = tmp_path / ".atelier" / "runs" / fixed_run_id / "audit.jsonl"
+    run_log = tmp_path / ".spanweave" / "runs" / fixed_run_id / "audit.jsonl"
     _write_jsonl(
         run_log,
         [

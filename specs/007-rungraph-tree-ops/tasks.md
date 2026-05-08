@@ -18,7 +18,7 @@
 **Purpose**: Confirm the public surface and test target for the new run graph slice.
 
 - [x] T001 Create the run graph feature task scaffold in `specs/007-rungraph-tree-ops/tasks.md`
-- [x] T002 Prepare public rungraph exports in `atelier/rungraph/__init__.py`
+- [x] T002 Prepare public rungraph exports in `spanweave/rungraph/__init__.py`
 
 ---
 
@@ -28,9 +28,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T003 Create shared rungraph path and metadata helpers in `atelier/rungraph/tree.py`
-- [x] T004 Create completion-scan helper in `atelier/rungraph/cursor.py`
-- [x] T005 Create blocking per-run lock context manager in `atelier/rungraph/lock.py`
+- [x] T003 Create shared rungraph path and metadata helpers in `spanweave/rungraph/tree.py`
+- [x] T004 Create completion-scan helper in `spanweave/rungraph/cursor.py`
+- [x] T005 Create blocking per-run lock context manager in `spanweave/rungraph/lock.py`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -38,7 +38,7 @@
 
 ## Phase 3: User Story 1 - Create Canonical Run Trees (Priority: P1) 🎯 MVP
 
-**Goal**: Create canonical `.atelier/runs/<run_id>/` trees and ordered stage directories.
+**Goal**: Create canonical `.spanweave/runs/<run_id>/` trees and ordered stage directories.
 
 **Independent Test**: Create one run and three stages, then inspect the real filesystem tree for canonical files and ordered stage IDs.
 
@@ -50,9 +50,9 @@
 
 ### Implementation for User Story 1
 
-- [x] T007 [US1] Implement `create_run()` and `list_runs()` in `atelier/rungraph/tree.py`
-- [x] T008 [US1] Implement `create_stage()` and `list_stages()` in `atelier/rungraph/tree.py`
-- [x] T009 [US1] Export rungraph tree helpers from `atelier/rungraph/__init__.py`
+- [x] T007 [US1] Implement `create_run()` and `list_runs()` in `spanweave/rungraph/tree.py`
+- [x] T008 [US1] Implement `create_stage()` and `list_stages()` in `spanweave/rungraph/tree.py`
+- [x] T009 [US1] Export rungraph tree helpers from `spanweave/rungraph/__init__.py`
 
 **Checkpoint**: User Story 1 should create canonical run and stage trees and be testable independently
 
@@ -70,9 +70,9 @@
 
 ### Implementation for User Story 2
 
-- [x] T011 [US2] Implement `mark_stage_complete()` in `atelier/rungraph/tree.py`
-- [x] T012 [US2] Implement `next_stage_to_execute()` in `atelier/rungraph/cursor.py`
-- [x] T013 [US2] Export the resume cursor from `atelier/rungraph/__init__.py`
+- [x] T011 [US2] Implement `mark_stage_complete()` in `spanweave/rungraph/tree.py`
+- [x] T012 [US2] Implement `next_stage_to_execute()` in `spanweave/rungraph/cursor.py`
+- [x] T013 [US2] Export the resume cursor from `spanweave/rungraph/__init__.py`
 
 **Checkpoint**: User Stories 1 and 2 should now support ordered creation plus idempotent resume
 
@@ -90,8 +90,8 @@
 
 ### Implementation for User Story 3
 
-- [x] T015 [US3] Implement `run_lock()` with blocking exclusive file locking in `atelier/rungraph/lock.py`
-- [x] T016 [US3] Ensure run creation provisions `.lock` and export the lock helper from `atelier/rungraph/__init__.py`
+- [x] T015 [US3] Implement `run_lock()` with blocking exclusive file locking in `spanweave/rungraph/lock.py`
+- [x] T016 [US3] Ensure run creation provisions `.lock` and export the lock helper from `spanweave/rungraph/__init__.py`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -102,7 +102,7 @@
 **Purpose**: Final validation across the new run graph slice.
 
 - [x] T017 Run `uv run pytest tests/test_rungraph.py -v`
-- [x] T018 Run `uv run ruff check atelier/rungraph tests/test_rungraph.py`
+- [x] T018 Run `uv run ruff check spanweave/rungraph tests/test_rungraph.py`
 
 ---
 
@@ -138,8 +138,8 @@
 ## Parallel Example: User Story 1
 
 ```bash
-Task: "Implement create_run() and list_runs() in atelier/rungraph/tree.py"
-Task: "Implement create_stage() and list_stages() in atelier/rungraph/tree.py"
+Task: "Implement create_run() and list_runs() in spanweave/rungraph/tree.py"
+Task: "Implement create_stage() and list_stages() in spanweave/rungraph/tree.py"
 ```
 
 ---
@@ -170,7 +170,7 @@ Task: "Implement create_stage() and list_stages() in atelier/rungraph/tree.py"
 
 ## Notes
 
-- The `.atelier` storage tree is the source of truth for correctness
+- The `.spanweave` storage tree is the source of truth for correctness
 - Stage IDs are directory names of the form `<nnn>-<slug>`
 - Incomplete stages are defined solely by the absence of `.complete`
 - Lock tests must assert real blocking behavior across processes, not mocked calls

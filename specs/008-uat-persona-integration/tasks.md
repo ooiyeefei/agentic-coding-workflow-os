@@ -11,8 +11,8 @@
 
 **Purpose**: Establish the persona prompt and public package surface for the UAT slice
 
-- [X] T001 Create the shipped UAT prompt in .atelier/defaults/personas/uat.md
-- [X] T002 Update persona package exports in atelier/personas/__init__.py
+- [X] T001 Create the shipped UAT prompt in .spanweave/defaults/personas/uat.md
+- [X] T002 Update persona package exports in spanweave/personas/__init__.py
 
 ---
 
@@ -20,8 +20,8 @@
 
 **Purpose**: Add the minimal shared models needed by all UAT stories
 
-- [X] T003 Create minimal Evidence Pack models in atelier/evidence/schema.py and atelier/evidence/__init__.py
-- [X] T004 Create focused secret redaction support in atelier/security/redaction.py and atelier/security/__init__.py
+- [X] T003 Create minimal Evidence Pack models in spanweave/evidence/schema.py and spanweave/evidence/__init__.py
+- [X] T004 Create focused secret redaction support in spanweave/security/redaction.py and spanweave/security/__init__.py
 
 **Checkpoint**: Persona code can now return structured evidence safely
 
@@ -39,8 +39,8 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement request parsing, skill resolution, and credential loading in atelier/personas/uat_runner.py
-- [X] T007 [US1] Implement the UAT persona orchestration in atelier/personas/uat.py
+- [X] T006 [US1] Implement request parsing, skill resolution, and credential loading in spanweave/personas/uat_runner.py
+- [X] T007 [US1] Implement the UAT persona orchestration in spanweave/personas/uat.py
 
 **Checkpoint**: UAT can launch a real subprocess-backed run against a target app
 
@@ -58,7 +58,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T009 [US2] Implement report parsing and Evidence Pack construction in atelier/personas/uat_runner.py
+- [X] T009 [US2] Implement report parsing and Evidence Pack construction in spanweave/personas/uat_runner.py
 
 **Checkpoint**: UAT output is reusable by downstream workflow stages
 
@@ -76,7 +76,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T011 [US3] Implement clear execution-error handling and timeout behavior in atelier/personas/uat_runner.py
+- [X] T011 [US3] Implement clear execution-error handling and timeout behavior in spanweave/personas/uat_runner.py
 
 **Checkpoint**: UAT behavior is safe, explicit, and reviewable
 

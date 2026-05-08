@@ -1,11 +1,11 @@
-# Data Model: Atelier CLI
+# Data Model: Spanweave CLI
 
 ## WorkspaceScaffold
 
-- **Purpose**: Reports what `atelier init` created versus what already existed.
+- **Purpose**: Reports what `spanweave init` created versus what already existed.
 - **Fields**:
   - `repo_root`: repository initialized by the command
-  - `atelier_root`: repo-local Atelier directory
+  - `atelier_root`: repo-local Spanweave directory
   - `created_dirs`: directories created during the invocation
   - `created_files`: files created during the invocation
   - `changed`: whether the invocation created anything
@@ -26,13 +26,13 @@
   - `last_transition`: last transition kind recorded by the workflow engine
   - `waiting_reason`: waiting reason when the run is paused
 - **Validation rules**:
-  - `run_id` must be a valid Atelier run ID.
+  - `run_id` must be a valid Spanweave run ID.
   - `status` must match the persisted workflow state enum.
   - `current_stage_id` must appear in `stage_ids` whenever a current stage exists.
 
 ## GrepMatch
 
-- **Purpose**: Represents one textual match returned by `atelier grep`.
+- **Purpose**: Represents one textual match returned by `spanweave grep`.
 - **Fields**:
   - `path`: matched artifact path relative to `repo_root`
   - `line_number`: 1-based line number of the match
@@ -43,7 +43,7 @@
 
 ## CleanupResult
 
-- **Purpose**: Describes the worktrees removed by `atelier cleanup`.
+- **Purpose**: Describes the worktrees removed by `spanweave cleanup`.
 - **Fields**:
   - `run_id`: run whose worktrees are being removed
   - `removed_count`: number of worktrees removed

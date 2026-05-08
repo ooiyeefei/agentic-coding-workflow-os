@@ -5,13 +5,13 @@
 
 ## Summary
 
-Add a first-class `atelier.evidence` module that validates Evidence Pack payloads with Pydantic, renders a stable human-readable Markdown report through Jinja2, redacts captured command output before persistence, and writes JSON plus Markdown together into the canonical `.atelier/runs/<run_id>/stages/<stage_id>/` tree.
+Add a first-class `spanweave.evidence` module that validates Evidence Pack payloads with Pydantic, renders a stable human-readable Markdown report through Jinja2, redacts captured command output before persistence, and writes JSON plus Markdown together into the canonical `.spanweave/runs/<run_id>/stages/<stage_id>/` tree.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
 **Primary Dependencies**: pydantic v2, jinja2, pathlib, python-ulid  
-**Storage**: Local filesystem under `.atelier/runs/<run_id>/stages/<stage_id>/`  
+**Storage**: Local filesystem under `.spanweave/runs/<run_id>/stages/<stage_id>/`  
 **Testing**: pytest with deterministic fixtures and golden-file comparison  
 **Target Platform**: Cross-platform local development environments  
 **Project Type**: Shared internal library module  
@@ -41,7 +41,7 @@ specs/006-evidence-pack/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── evidence/
 │   ├── __init__.py
 │   ├── generator.py
@@ -59,7 +59,7 @@ tests/
 └── test_evidence.py
 ```
 
-**Structure Decision**: Keep all production code within `atelier/evidence/`, reuse existing utility helpers for run-root validation and atomic file operations where possible, and isolate evidence verification in one dedicated pytest module with a checked-in Markdown golden file.
+**Structure Decision**: Keep all production code within `spanweave/evidence/`, reuse existing utility helpers for run-root validation and atomic file operations where possible, and isolate evidence verification in one dedicated pytest module with a checked-in Markdown golden file.
 
 ## Complexity Tracking
 

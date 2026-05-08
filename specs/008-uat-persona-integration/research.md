@@ -2,7 +2,7 @@
 
 ## Decision 1: Resolve the external UAT skill path as either an executable file or a directory with a small entrypoint search
 
-- **Decision**: Support `ATELIER_UAT_SKILL_PATH` pointing at either an executable file or a directory. If it is a directory, resolve a small set of conventional entrypoints in priority order and otherwise raise a clear error instructing the caller to point the env var at an invokable path.
+- **Decision**: Support `SPANWEAVE_UAT_SKILL_PATH` pointing at either an executable file or a directory. If it is a directory, resolve a small set of conventional entrypoints in priority order and otherwise raise a clear error instructing the caller to point the env var at an invokable path.
 - **Rationale**: The requested default is a directory path, but this workspace does not contain the external `ccc` tree. Supporting both directory and file inputs keeps the integration usable without over-committing to one unknown external layout.
 - **Alternatives considered**:
   - Require an exact executable file path only: rejected because the requested default points at a directory, which would force every caller to override the default immediately.
@@ -26,7 +26,7 @@
 
 ## Decision 4: Add a minimal local Evidence Pack and redaction contract now instead of blocking on future work
 
-- **Decision**: Introduce a small `atelier.evidence.schema` module and a focused `atelier.security.redaction` function sufficient for W18's needs.
+- **Decision**: Introduce a small `spanweave.evidence.schema` module and a focused `spanweave.security.redaction` function sufficient for W18's needs.
 - **Rationale**: The package stubs already exist in this repo, and W18 cannot satisfy its acceptance criteria without a structured evidence object and secret scrubbing.
 - **Alternatives considered**:
   - Return ad hoc dictionaries from the runner: rejected because the feature is explicitly about producing structured Evidence Pack findings and should use a stable model shape.

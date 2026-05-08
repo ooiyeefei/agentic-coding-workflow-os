@@ -10,7 +10,7 @@
 **Purpose**: Create the feature-local module and focused test surface
 
 - [X] T001 Create the focused redaction test module in `tests/test_redaction.py`
-- [X] T002 [P] Create the pattern catalog and redaction module stubs in `atelier/security/patterns.py` and `atelier/security/redaction.py`
+- [X] T002 [P] Create the pattern catalog and redaction module stubs in `spanweave/security/patterns.py` and `spanweave/security/redaction.py`
 
 ---
 
@@ -18,8 +18,8 @@
 
 **Purpose**: Define named built-in patterns and shared marker helpers before story-specific behavior
 
-- [X] T003 Define the ordered built-in pattern catalog and marker names in `atelier/security/patterns.py`
-- [X] T004 Implement shared marker rendering and redaction-pass helpers in `atelier/security/redaction.py`
+- [X] T003 Define the ordered built-in pattern catalog and marker names in `spanweave/security/patterns.py`
+- [X] T004 Implement shared marker rendering and redaction-pass helpers in `spanweave/security/redaction.py`
 
 **Checkpoint**: Named redaction markers and the core substitution flow exist for all user stories.
 
@@ -37,7 +37,7 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement built-in secret replacement behavior in `atelier/security/redaction.py`
+- [X] T006 [US1] Implement built-in secret replacement behavior in `spanweave/security/redaction.py`
 
 **Checkpoint**: Representative secrets are redacted with `[REDACTED:<pattern-name>]` markers.
 
@@ -55,7 +55,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T008 [US2] Implement case-insensitive env-name handling, URL credential redaction, and false-positive guards in `atelier/security/redaction.py`
+- [X] T008 [US2] Implement case-insensitive env-name handling, URL credential redaction, and false-positive guards in `spanweave/security/redaction.py`
 
 **Checkpoint**: Safe text remains unchanged and structured values preserve useful context after redaction.
 
@@ -73,7 +73,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T010 [US3] Implement `extra_patterns` support with stable ordinal marker labels in `atelier/security/redaction.py`
+- [X] T010 [US3] Implement `extra_patterns` support with stable ordinal marker labels in `spanweave/security/redaction.py`
 
 **Checkpoint**: Custom regexes extend the redactor without breaking built-in coverage.
 
@@ -83,7 +83,7 @@
 
 **Purpose**: Validate the feature end-to-end and sync task state
 
-- [X] T011 Run `uv run pytest tests/test_redaction.py -v`, `uv run ruff check atelier/security/patterns.py atelier/security/redaction.py tests/test_redaction.py`, and `uv run pyright atelier/security/patterns.py atelier/security/redaction.py tests/test_redaction.py`
+- [X] T011 Run `uv run pytest tests/test_redaction.py -v`, `uv run ruff check spanweave/security/patterns.py spanweave/security/redaction.py tests/test_redaction.py`, and `uv run pyright spanweave/security/patterns.py spanweave/security/redaction.py tests/test_redaction.py`
 - [X] T012 Update completed task markers in `specs/006-secret-redaction/tasks.md`
 
 ---

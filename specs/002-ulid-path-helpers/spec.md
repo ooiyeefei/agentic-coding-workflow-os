@@ -3,7 +3,7 @@
 **Feature Branch**: `002-ulid-path-helpers`  
 **Created**: 2026-04-20  
 **Status**: Draft  
-**Input**: User description: "ULID-prefixed ID generators, validated Atelier filesystem path constructors, atomic write helpers"
+**Input**: User description: "ULID-prefixed ID generators, validated Spanweave filesystem path constructors, atomic write helpers"
 
 ## Clarifications
 
@@ -16,7 +16,7 @@
 
 ### User Story 1 - Generate Sortable Run Graph IDs (Priority: P1)
 
-As an Atelier subsystem, I can request a new identifier for any run graph entity so I can create records that are unique, time-sortable, and self-describing.
+As an Spanweave subsystem, I can request a new identifier for any run graph entity so I can create records that are unique, time-sortable, and self-describing.
 
 **Why this priority**: Every downstream run graph operation depends on stable identifiers. If this layer is wrong, later worktrees inherit invalid identities.
 
@@ -32,15 +32,15 @@ As an Atelier subsystem, I can request a new identifier for any run graph entity
 
 ### User Story 2 - Build Canonical Run Graph Paths (Priority: P2)
 
-As an Atelier subsystem, I can derive canonical filesystem locations for run graph artifacts so every component stores data in the same predictable tree.
+As an Spanweave subsystem, I can derive canonical filesystem locations for run graph artifacts so every component stores data in the same predictable tree.
 
 **Why this priority**: Shared path construction keeps the filesystem layout consistent across run graph, evidence, audit, and workflow code.
 
-**Independent Test**: Build paths for a valid run and stage, confirm they resolve to the expected `.atelier/runs/...` locations, and verify invalid identifiers or stage metadata are rejected.
+**Independent Test**: Build paths for a valid run and stage, confirm they resolve to the expected `.spanweave/runs/...` locations, and verify invalid identifiers or stage metadata are rejected.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid run identifier, **When** a caller requests the run directory, **Then** it receives a path rooted at `.atelier/runs/<run_id>/`.
+1. **Given** a valid run identifier, **When** a caller requests the run directory, **Then** it receives a path rooted at `.spanweave/runs/<run_id>/`.
 2. **Given** a valid run identifier, stage sequence, and stage name, **When** a caller requests the stage directory, **Then** it receives a path ending in `stages/NNN-stage-name/` with a zero-padded sequence.
 3. **Given** valid run and stage inputs, **When** a caller requests packet, evidence, transcript, or audit log paths, **Then** each returned value points to the canonical file location under that run tree.
 4. **Given** invalid identifiers or malformed stage metadata, **When** a caller requests a path, **Then** the helper fails fast instead of producing a malformed filesystem location.
@@ -49,7 +49,7 @@ As an Atelier subsystem, I can derive canonical filesystem locations for run gra
 
 ### User Story 3 - Persist Files Without Partial Overwrites (Priority: P3)
 
-As an Atelier subsystem, I can create directories and replace files atomically so interrupted local writes or final replacement failures do not partially overwrite run graph artifacts.
+As an Spanweave subsystem, I can create directories and replace files atomically so interrupted local writes or final replacement failures do not partially overwrite run graph artifacts.
 
 **Why this priority**: Run graph artifacts are the system of record. Partial writes would undermine replayability and audit guarantees.
 
@@ -89,7 +89,7 @@ As an Atelier subsystem, I can create directories and replace files atomically s
 
 - **Prefixed Entity ID**: A self-describing identifier composed of an entity prefix and a ULID body, used for runs, stages, packets, actions, evidence, and decisions.
 - **Stage Locator**: The pair of stage sequence and stage name that determines a canonical stage directory within a run.
-- **Run Graph Artifact Path**: A canonical filesystem location for a packet, evidence file, transcript, audit log, or directory within `.atelier/runs/`.
+- **Run Graph Artifact Path**: A canonical filesystem location for a packet, evidence file, transcript, audit log, or directory within `.spanweave/runs/`.
 - **Atomic Write Operation**: A file replacement flow that writes to a temporary sibling file and then replaces the final destination in one step.
 
 ## Success Criteria *(mandatory)*
@@ -100,11 +100,11 @@ As an Atelier subsystem, I can create directories and replace files atomically s
 - **SC-002**: A caller can derive every documented run graph path from valid inputs without performing manual path-string assembly.
 - **SC-003**: Invalid IDs, stage sequences, and stage names are consistently rejected by automated verification.
 - **SC-004**: Automated verification demonstrates that a simulated replacement failure leaves the destination file bytes unchanged.
-- **SC-005**: The utility test suite achieves 100% coverage across the `atelier/util/` public surface.
+- **SC-005**: The utility test suite achieves 100% coverage across the `spanweave/util/` public surface.
 
 ## Assumptions
 
-- The Atelier run graph lives under a repository-relative `.atelier/` directory.
+- The Spanweave run graph lives under a repository-relative `.spanweave/` directory.
 - Stage sequences are 1-based and rendered with three digits in canonical directory names.
 - Stage names are normalized into lowercase hyphenated slugs for filesystem safety.
 - The feature guarantees atomic replacement semantics and destination preservation on replacement failure, not universal power-loss durability across every platform or filesystem.

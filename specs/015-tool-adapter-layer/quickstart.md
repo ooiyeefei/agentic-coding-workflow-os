@@ -5,8 +5,8 @@
 ```python
 from pathlib import Path
 
-from atelier.adapters import ClaudeCodeAdapter
-from atelier.memory import write_record
+from spanweave.adapters import ClaudeCodeAdapter
+from spanweave.memory import write_record
 
 adapter = ClaudeCodeAdapter(repo_root=Path.cwd())
 records = adapter.ingest_transcript(
@@ -19,7 +19,7 @@ for record in records:
 2. Format a packet for a destination tool.
 
 ```python
-from atelier.adapters import CodexAdapter
+from spanweave.adapters import CodexAdapter
 
 adapter = CodexAdapter(repo_root=Path.cwd())
 packet = adapter.format_context_packet(

@@ -5,11 +5,11 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from atelier.cli.main import main
-from atelier.git.worktree import create_worktree
-from atelier.rungraph import create_run
-from atelier.util.paths import run_dir
 from click.testing import CliRunner
+from spanweave.cli.main import main
+from spanweave.git.worktree import create_worktree
+from spanweave.rungraph import create_run
+from spanweave.util.paths import run_dir
 
 
 def _git(*args: str, cwd: Path) -> None:
@@ -26,7 +26,7 @@ def _make_git_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     _git("init", "-b", "main", str(repo), cwd=tmp_path)
-    _git("config", "user.email", "test@atelier.test", cwd=repo)
+    _git("config", "user.email", "test@spanweave.test", cwd=repo)
     _git("config", "user.name", "Test", cwd=repo)
     (repo / "README.md").write_text("# Test repo\n", encoding="utf-8")
     _git("add", ".", cwd=repo)
@@ -44,14 +44,14 @@ def test_help_prints_overview() -> None:
     result = runner.invoke(main, ["--help"])
 
     assert result.exit_code == 0
-    assert "Atelier control plane" in result.output
+    assert "Spanweave control plane" in result.output
     assert "init" in result.output
     assert "run" in result.output
     assert "cleanup" in result.output
     assert "daemon" in result.output
     assert "grep" in result.output
     assert "Examples:" in result.output
-    assert "Examples:\n\n    atelier init --repo ." in result.output
+    assert "Examples:\n\n    spanweave init --repo ." in result.output
 
 
 @pytest.mark.parametrize(
@@ -61,8 +61,8 @@ def test_help_prints_overview() -> None:
                 ["run", "--help"],
                 [
                     "Examples:",
-                    "Invoke 'atelier run' directly to start a new workflow run.",
-                    "Examples:\n\n    atelier run --issue 42 --repo .",
+                    "Invoke 'spanweave run' directly to start a new workflow run.",
+                    "Examples:\n\n    spanweave run --issue 42 --repo .",
                 ],
             ),
             (
@@ -70,7 +70,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "Results are ordered newest-first",
-                    "Examples:\n\n    atelier run list --repo .",
+                    "Examples:\n\n    spanweave run list --repo .",
                 ],
             ),
             (
@@ -78,7 +78,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "stored run metadata and stage tree",
-                    "Examples:\n\n    atelier run show run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
+                    "Examples:\n\n    spanweave run show run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
                 ],
             ),
             (
@@ -86,7 +86,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "Without --approve this command only reports the current blocked state.",
-                    "atelier run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo . "
+                    "spanweave run resume run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo . "
                     "--approve",
                 ],
             ),
@@ -95,7 +95,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "does not launch a background HTTP process yet",
-                    "Examples:\n\n    atelier daemon start --repo .",
+                    "Examples:\n\n    spanweave daemon start --repo .",
                 ],
             ),
             (
@@ -103,15 +103,15 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "does not signal a real daemon yet",
-                    "Examples:\n\n    atelier daemon stop --repo .",
+                    "Examples:\n\n    spanweave daemon stop --repo .",
                 ],
             ),
             (
                 ["daemon", "status", "--help"],
                 [
                     "Examples:",
-                    "Status is read from .atelier/daemon/state.json",
-                    "Examples:\n\n    atelier daemon status --repo .",
+                    "Status is read from .spanweave/daemon/state.json",
+                    "Examples:\n\n    spanweave daemon status --repo .",
                 ],
             ),
             (
@@ -119,7 +119,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "Cleanup prompts before removing worktrees unless you pass --yes.",
-                    "Examples:\n\n    atelier cleanup run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
+                    "Examples:\n\n    spanweave cleanup run_01ARZ3NDEKTSV4RRFFQ69G5FAV --repo .",
                 ],
             ),
             (
@@ -127,7 +127,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "idempotent and does not overwrite existing workspace files",
-                    "Examples:\n\n    atelier init --repo .",
+                    "Examples:\n\n    spanweave init --repo .",
                 ],
             ),
             (
@@ -135,7 +135,7 @@ def test_help_prints_overview() -> None:
                 [
                     "Examples:",
                     "pattern is treated as a Python regular expression",
-                    "Examples:\n\n    atelier grep 'issue #42' --repo .",
+                    "Examples:\n\n    spanweave grep 'issue #42' --repo .",
                 ],
             ),
         ],
@@ -153,7 +153,7 @@ def test_command_help_includes_examples_and_guidance(
         assert needle in result.output
 
 
-def test_init_scaffolds_atelier_workspace(tmp_path: Path) -> None:
+def test_init_scaffolds_spanweave_workspace(tmp_path: Path) -> None:
     runner = CliRunner()
 
     result = runner.invoke(main, ["init", "--repo", str(tmp_path), "--json"])
@@ -161,9 +161,9 @@ def test_init_scaffolds_atelier_workspace(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = _json_output(result.output)
     assert payload["changed"] is True
-    assert (tmp_path / ".atelier" / "workflows" / "speckit-loop.yaml").is_file()
-    assert (tmp_path / ".atelier" / "memory" / "decisions").is_dir()
-    assert (tmp_path / ".atelier" / "daemon").is_dir()
+    assert (tmp_path / ".spanweave" / "workflows" / "speckit-loop.yaml").is_file()
+    assert (tmp_path / ".spanweave" / "memory" / "decisions").is_dir()
+    assert (tmp_path / ".spanweave" / "daemon").is_dir()
 
 
 def test_run_start_list_show_and_grep_json(tmp_path: Path) -> None:
@@ -247,7 +247,7 @@ def test_daemon_start_status_stop_placeholder_state(tmp_path: Path) -> None:
     assert start.exit_code == 0
     start_payload = _json_output(start.output)
     assert start_payload["state"] == "running"
-    assert (tmp_path / ".atelier" / "daemon" / "state.json").is_file()
+    assert (tmp_path / ".spanweave" / "daemon" / "state.json").is_file()
 
     status_after = runner.invoke(
         main,
@@ -268,7 +268,7 @@ def test_run_show_human_output_includes_stage_tree(tmp_path: Path) -> None:
     runner = CliRunner()
     runner.invoke(main, ["run", "--issue", "77", "--repo", str(tmp_path)])
 
-    run_root = tmp_path / ".atelier" / "runs"
+    run_root = tmp_path / ".spanweave" / "runs"
     run_id = next(path.name for path in run_root.iterdir() if path.is_dir())
 
     result = runner.invoke(
@@ -338,7 +338,11 @@ def test_run_show_and_list_report_click_errors_for_malformed_state_yaml(
     runner = CliRunner()
     runner.invoke(main, ["run", "--issue", "81", "--repo", str(tmp_path)])
 
-    run_id = next(path.name for path in (tmp_path / ".atelier" / "runs").iterdir() if path.is_dir())
+    run_id = next(
+        path.name
+        for path in (tmp_path / ".spanweave" / "runs").iterdir()
+        if path.is_dir()
+    )
     state_path = tmp_path / run_dir(run_id) / "workflow_state.yaml"
     state_path.write_text("workflow: [\n", encoding="utf-8")
 
@@ -363,7 +367,11 @@ def test_run_resume_gate_approval_advances_to_next_stage(
     monkeypatch.chdir(tmp_path)
 
     runner.invoke(main, ["run", "--issue", "12", "--repo", str(tmp_path)])
-    run_id = next(path.name for path in (tmp_path / ".atelier" / "runs").iterdir() if path.is_dir())
+    run_id = next(
+        path.name
+        for path in (tmp_path / ".spanweave" / "runs").iterdir()
+        if path.is_dir()
+    )
 
     state_path = tmp_path / run_dir(run_id) / "workflow_state.yaml"
     state_path.write_text(

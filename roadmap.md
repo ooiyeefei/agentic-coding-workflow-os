@@ -3,8 +3,6 @@
 > **Name**: Spanweave (the agentic coding workflow OS)
 > **Status**: Phase 0 in progress. 21 of 24 original components merged. Architectural reframe underway — tool adapter layer + session continuity replacing direct LLM API approach.
 > **Origin**: Distilled from battle-tested workflow on a safety-critical HAZOP/LOPA AI system (TIROS) where wrong outputs could kill people.
->
-> _The Python package, CLI command, and `.atelier/` config directory are named `atelier` for historical reasons; a separate Phase 1 task will align them with the product name._
 
 ---
 
@@ -37,7 +35,7 @@ What's universal across every agent tool?
 - **Git** — every coding tool works with git
 - **Markdown** — every LLM can read it, every human can read it
 
-The substrate is: **a `.atelier/` directory in your git repo, containing decisions, evidence, context, and rules as markdown files.** Every tool can read them. Git handles sync. No infrastructure. No accounts. No SaaS.
+The substrate is: **a `.spanweave/` directory in your git repo, containing decisions, evidence, context, and rules as markdown files.** Every tool can read them. Git handles sync. No infrastructure. No accounts. No SaaS.
 
 ### How it works
 
@@ -45,7 +43,7 @@ The substrate is: **a `.atelier/` directory in your git repo, containing decisio
 Alice (Claude Code)                    Bob (Codex)                    Carol (Cursor)
        │                                    │                              │
        │ writes decisions to                │ reads decisions from         │ reads from
-       │ .atelier/memory/                   │ .atelier/memory/             │ .atelier/memory/
+       │ .spanweave/memory/                   │ .spanweave/memory/             │ .spanweave/memory/
        │                                    │                              │
        └──────── git push ──── repo ──── git pull ──── git pull ───────────┘
 
@@ -55,11 +53,11 @@ No shared platform. No new tool. Just git.
 **Session swap with zero context loss:**
 ```
 Day 1: You use Codex (730K token session)
-  → Spanweave captures decisions + context to .atelier/memory/
+  → Spanweave captures decisions + context to .spanweave/memory/
 
 Day 2: You switch to Claude Code
-  → atelier resume --agent claude-code
-  → Claude Code gets a Context Packet built from .atelier/memory/
+  → spanweave resume --agent claude-code
+  → Claude Code gets a Context Packet built from .spanweave/memory/
   → Zero re-explaining. Full continuity.
 ```
 
@@ -67,9 +65,9 @@ Day 2: You switch to Claude Code
 
 Spanweave is NOT an agent framework. It is NOT a platform. It is the **shared knowledge substrate** for agentic engineering work.
 
-- `.atelier/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
-- `.atelier/runs/` = reproducible delivery (Run Graph with Evidence Packs)
-- `.atelier/workflows/` = reproducible process (workflow-as-code YAML)
+- `.spanweave/memory/` = reproducible decisions (typed records: Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
+- `.spanweave/runs/` = reproducible delivery (Run Graph with Evidence Packs)
+- `.spanweave/workflows/` = reproducible process (workflow-as-code YAML)
 - `docs/adr/` = reproducible architecture (auto-generated ADRs)
 - Git = the sync mechanism, audit trail, and collaboration layer
 
@@ -82,7 +80,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 1. **Files first, indexes second.** Markdown + YAML frontmatter for every persistent entity. Any DB added later is a rebuildable cache, never source of truth.
 2. **CLI is the real product.** Plugins and web UIs are thin surfaces over the same control plane.
 3. **Tool-agnostic, not just model-agnostic.** Claude Code, Codex, Cursor, ChatGPT, Cowork, Gemini — any agent tool. Spanweave is the middle layer, not a replacement.
-4. **Format over platform.** Don't build an app people have to adopt. Build files people already have in their repo. The `.atelier/` directory IS the product. Think RSS, not Facebook.
+4. **Format over platform.** Don't build an app people have to adopt. Build files people already have in their repo. The `.spanweave/` directory IS the product. Think RSS, not Facebook.
 5. **Zero migration cost.** Switching agent tools preserves all context. No export/import. No data hostage. Files stay in git.
 6. **Human-in-the-loop at destructive gates.** Never auto-resolve meaningful merge conflicts. Never auto-push. Never auto-accept council verdicts on significant changes.
 7. **Steering without locking.** Ship opinionated defaults. Users override with explicit `reason:`. Deviations logged to audit.
@@ -99,7 +97,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 ┌────────────────────────────── AGENT TOOLS (user's choice) ──────────────────────────┐
 │   Claude Code  │  Codex  │  Cursor  │  ChatGPT  │  Cowork  │  Gemini  │  Any MCP    │
 └────────────────────────────────────┬────────────────────────────────────────────────┘
-                                     │ reads .atelier/ · writes transcripts
+                                     │ reads .spanweave/ · writes transcripts
 ┌────────────────────────────────────▼────────────────────────────────────────────────┐
 │                     TOOL ADAPTER LAYER (the bridge)                                 │
 │                                                                                     │
@@ -109,8 +107,8 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 │  └──────┬──────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘│
 │         │             │            │             │            │            │       │
 │  Each adapter:                                                                     │
-│    1. INGEST — read tool's session state → extract decisions → .atelier/memory/    │
-│    2. FORMAT — read .atelier/memory/ → generate Context Packet for tool's format   │
+│    1. INGEST — read tool's session state → extract decisions → .spanweave/memory/    │
+│    2. FORMAT — read .spanweave/memory/ → generate Context Packet for tool's format   │
 │    3. DETECT — auto-detect which tool is running                                   │
 └────────────────────────────────────┬────────────────────────────────────────────────┘
                                      │
@@ -164,8 +162,8 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
 │                                                                                     │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐  │
 │  │                 SESSION CONTINUITY                                           │  │
-│  │  atelier resume --agent <tool> · atelier prompt --role <role> --agent <tool> │  │
-│  │  atelier context --for <tool> · transcript ingestion · session swap          │  │
+│  │  spanweave resume --agent <tool> · spanweave prompt --role <role> --agent <tool> │  │
+│  │  spanweave context --for <tool> · transcript ingestion · session swap          │  │
 │  └──────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                     │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐  │
@@ -176,7 +174,7 @@ The competitive moat is not the format (anyone can read markdown). The moat is t
                                      │
 ┌────────────────────────────────────▼────────────────────────────────────────────────┐
 │                 STORAGE (the shared substrate — filesystem-first, git-native)       │
-│  .atelier/runs/ · .atelier/memory/ · .atelier/workflows/ · .atelier/audit/         │
+│  .spanweave/runs/ · .spanweave/memory/ · .spanweave/workflows/ · .spanweave/audit/         │
 │  docs/adr/ · docs/changes/ — all markdown, all git-tracked, all tool-readable      │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -197,7 +195,7 @@ Every persistent entity is a markdown file with YAML frontmatter. Directory stru
 
 Canonical layout:
 ```
-.atelier/
+.spanweave/
 ├── runs/<run_id>/
 │   ├── run.md                     # frontmatter + summary
 │   ├── audit.jsonl                # per-run audit
@@ -222,13 +220,13 @@ Canonical layout:
 
 **Integration into each agent tool (zero new tools to install):**
 
-| Agent tool | How it reads `.atelier/` | How Spanweave captures from it |
+| Agent tool | How it reads `.spanweave/` | How Spanweave captures from it |
 |---|---|---|
-| **Claude Code** | `.claude/rules/atelier.md` references `.atelier/memory/`. CLAUDE.md says "read decisions before starting." | Spanweave CLI parses `.claude/projects/` session JSONL → extracts decisions. |
-| **Codex** | `AGENTS.md` references `.atelier/memory/`. | Spanweave CLI parses Codex session logs → extracts decisions. |
-| **Cursor** | `.cursorrules` references `.atelier/memory/`. | Spanweave CLI parses Composer history → extracts decisions. |
-| **ChatGPT / Cowork / Gemini** | `atelier context --for chatgpt` generates paste-ready summary. | `atelier ingest --from transcript.md` for manual transcript capture. |
-| **Any MCP tool** | Spanweave MCP server exposes `.atelier/` as resources. | MCP tools write to `.atelier/` via Spanweave MCP. |
+| **Claude Code** | `.claude/rules/spanweave.md` references `.spanweave/memory/`. CLAUDE.md says "read decisions before starting." | Spanweave CLI parses `.claude/projects/` session JSONL → extracts decisions. |
+| **Codex** | `AGENTS.md` references `.spanweave/memory/`. | Spanweave CLI parses Codex session logs → extracts decisions. |
+| **Cursor** | `.cursorrules` references `.spanweave/memory/`. | Spanweave CLI parses Composer history → extracts decisions. |
+| **ChatGPT / Cowork / Gemini** | `spanweave context --for chatgpt` generates paste-ready summary. | `spanweave ingest --from transcript.md` for manual transcript capture. |
+| **Any MCP tool** | Spanweave MCP server exposes `.spanweave/` as resources. | MCP tools write to `.spanweave/` via Spanweave MCP. |
 
 ---
 
@@ -242,13 +240,13 @@ Canonical layout:
 - Filesystem-first storage (no DB)
 - ULID generator + path helpers
 - **Tool Adapter Layer** — at least Claude Code + Codex adapters: ingest transcripts, format Context Packets, detect running tool
-- **Session Continuity** — `atelier resume --agent <tool>`, `atelier prompt --role <role> --agent <tool>`, `atelier context --for <tool>`
+- **Session Continuity** — `spanweave resume --agent <tool>`, `spanweave prompt --role <role> --agent <tool>`, `spanweave context --for <tool>`
 - **Auxiliary LLM Backend** (narrow scope) — Anthropic + OpenAI adapters for council tiebreaker, ADR prose synthesis, transcript decision extraction only. NOT for main workflow.
 - Persona Library (Coder, Reviewer) — generates prompts FOR agent tools, NOT direct API calls. Devil's-advocate Reviewer flag (default off).
 - Skills Library (extensible — ships with speckit.* + `/rebase-before-pr`, `/cleanup-worktree`, `/uat-test`)
 - Context Compiler (priority tiers + token budget + provenance)
-- Workflow Engine (workflow-as-code, loads from `.atelier/workflows/*.yaml`, ships with `speckit-loop.yaml`)
-- Policy Engine (configurable from `.atelier/policy.yaml`)
+- Workflow Engine (workflow-as-code, loads from `.spanweave/workflows/*.yaml`, ships with `speckit-loop.yaml`)
+- Policy Engine (configurable from `.spanweave/policy.yaml`)
 - Knowledge Plane with typed record types (Decision, ReviewFinding, RejectedAlternative, SkillOutcome)
 - Evidence Pack (JSON + Markdown)
 - Auto-ADR synthesis (MADR 3.0 format)
@@ -269,9 +267,9 @@ Canonical layout:
 - Full MAD (Du 2023) and LLM Council (Karpathy anonymization) protocols
 - Convergence detection, round caps, anonymized peer ranking, chairman synthesis
 - Escalation at clarify gates, deadlocks, ADR authorship, merge-conflict recommendations
-- **Simulation / dry-run mode for workflows**: workflow YAML gains a `simulation:` block declaring `enabled`, `fixture` path (JSONL of recorded agent responses), and `assertion` expressions. When enabled, the Workflow Engine replays fixtures instead of invoking agent tools. Unlocks: (a) testing workflow design without LLM cost, (b) deterministic CI for workflow changes, (c) foundation for Phase 3 meta-improvement. Pattern inspired by observed agent-to-agent eval loops — formalizes "harness of a harness" as a first-class primitive. Fixtures are captured from real runs via `atelier run record <id>`.
+- **Simulation / dry-run mode for workflows**: workflow YAML gains a `simulation:` block declaring `enabled`, `fixture` path (JSONL of recorded agent responses), and `assertion` expressions. When enabled, the Workflow Engine replays fixtures instead of invoking agent tools. Unlocks: (a) testing workflow design without LLM cost, (b) deterministic CI for workflow changes, (c) foundation for Phase 3 meta-improvement. Pattern inspired by observed agent-to-agent eval loops — formalizes "harness of a harness" as a first-class primitive. Fixtures are captured from real runs via `spanweave run record <id>`.
 - **`announce_and_proceed` gate type** — a third gate type alongside `auto`, `review`, and `approval`. The orchestrator emits a `plan_announced` audit event and waits a configurable interrupt window (default 0 seconds — pure announce-and-go), then dispatches without explicit human approval. Humans observing the SSE stream can post `POST /runs/<id>/interrupt` during the window to halt or redirect. Splits the difference between `auto` (no human in loop) and `approval` (human must explicitly say yes) — used heavily in agent orchestration patterns where speed matters and the human watches asynchronously. Workflow YAML extension: add `interrupt_window_seconds` and `on_interrupt: halt | redirect | rollback` keys per stage.
-- **Prompt pattern library** (`.atelier/defaults/prompt_patterns/`) — defensive prompt-craft as composable, version-controlled markdown files. Each pattern carries YAML frontmatter declaring its scope (which personas can `@import` it). Initial seeded patterns:
+- **Prompt pattern library** (`.spanweave/defaults/prompt_patterns/`) — defensive prompt-craft as composable, version-controlled markdown files. Each pattern carries YAML frontmatter declaring its scope (which personas can `@import` it). Initial seeded patterns:
   - `parallel_dispatch_warning.md` — prevents the known model failure mode where independent Agent tool calls default to sequential dispatch instead of being batched in a single assistant message
   - `insight_separation.md` — convention for tagging output channels (e.g., `[DOMAIN]` vs `[ORCHESTRATION]`) so project-domain insights don't tangle with meta-orchestration insights in long sessions
   - `trust_but_verify_announcement.md` — companion pattern to the `announce_and_proceed` gate, instructs orchestrator to post its plan publicly before dispatching so the interrupt window is meaningful
@@ -287,16 +285,16 @@ See `docs/proposed_features.md` for additional Phase 1 candidates currently in e
 - Cross-worktree memory sync
 - Session router handling multi-terminal routing
 - **Meta-Observation Gates** at stage transitions — captures human feedback as `Observation` memory records
-- **Skill self-improvement loop** — agents that capture their own outcomes (`SkillOutcome` records, shipped) and derive concrete review rules from weak runs (initial implementation: deterministic pattern-matching against `.atelier/defaults/feedback_rules/*.yaml`; future: LLM-derived rules from clustered failure patterns). CLI: `atelier skill_feedback derive --entry <outcome.json>`. The rules library is user-extensible — `.atelier/feedback_rules/` overrides the defaults. Pairs naturally with Meta-Observation Gates (which capture human-side observations) and Insight Channels (which capture agent-side observations during runs). Together they form a closed loop: act → observe outcome → derive rule → apply rule → improve next act.
-- **Insight channels** — extends the Evidence Pack schema with a typed `insights` field where personas emit observations tagged by channel (`domain` | `orchestration` | `meta` | `process`). Domain insights stay anchored to the project context (e.g., "rate limiting needs IPv6 handling"). Orchestration insights surface meta-level workflow guidance (e.g., "this stage benefits from `announce_and_proceed` because the human needs an interrupt window"). The CLI gains `atelier run show <id> --insights --channel <name>` filters; default rendering visually separates channels so they don't tangle in long sessions. Pairs naturally with Meta-Observation Gates — Gates capture human-side observations during pauses; Insight Channels capture agent-side observations during stage execution. Both feed `.atelier/memory/observations/`.
+- **Skill self-improvement loop** — agents that capture their own outcomes (`SkillOutcome` records, shipped) and derive concrete review rules from weak runs (initial implementation: deterministic pattern-matching against `.spanweave/defaults/feedback_rules/*.yaml`; future: LLM-derived rules from clustered failure patterns). CLI: `spanweave skill_feedback derive --entry <outcome.json>`. The rules library is user-extensible — `.spanweave/feedback_rules/` overrides the defaults. Pairs naturally with Meta-Observation Gates (which capture human-side observations) and Insight Channels (which capture agent-side observations during runs). Together they form a closed loop: act → observe outcome → derive rule → apply rule → improve next act.
+- **Insight channels** — extends the Evidence Pack schema with a typed `insights` field where personas emit observations tagged by channel (`domain` | `orchestration` | `meta` | `process`). Domain insights stay anchored to the project context (e.g., "rate limiting needs IPv6 handling"). Orchestration insights surface meta-level workflow guidance (e.g., "this stage benefits from `announce_and_proceed` because the human needs an interrupt window"). The CLI gains `spanweave run show <id> --insights --channel <name>` filters; default rendering visually separates channels so they don't tangle in long sessions. Pairs naturally with Meta-Observation Gates — Gates capture human-side observations during pauses; Insight Channels capture agent-side observations during stage execution. Both feed `.spanweave/memory/observations/`.
 - **UX Taste Capture system** — solves the "human QA is the bottleneck for UX-heavy products" problem:
   - New typed record: `UXTastePreference` (rule, rationale, applies_to_paths, confidence, source: user_rejection / golden_example / codified_rule, linked accepted + rejected examples)
   - New persona: `UXReviewer` — execution-mandatory protocol adapted for UI:
-    1. Reads all `.atelier/memory/ux_preferences/` matching the diff's file paths
+    1. Reads all `.spanweave/memory/ux_preferences/` matching the diff's file paths
     2. Captures screenshots of rendered UI via Playwright (or equivalent) through a new `ScreenshotAdapter`
     3. Compares against golden examples
     4. Generates Evidence Pack with specific violations referencing preference record IDs
-  - Capture command: `atelier taste capture --run <id> --reject "too cramped, buttons too close"` — uses auxiliary LLM to extract rule + applicable path patterns + link to rejected artifact
+  - Capture command: `spanweave taste capture --run <id> --reject "too cramped, buttons too close"` — uses auxiliary LLM to extract rule + applicable path patterns + link to rejected artifact
   - Over 20-30 captures, agent builds rich corpus of user's taste. Exportable via git. Team-shareable.
   - Pattern: "taste is not unlearnable — it's just undocumented." Captures the rejection reasons before they evaporate.
 
@@ -315,7 +313,7 @@ See `docs/proposed_features.md` for additional Phase 2 candidates currently in e
   - Long-horizon improvement loops: agent modifies instruction set → replay against corpus of past runs → Eval Monitor scores → agent iterates
   - All iterations are Decision records in git — every improvement is auditable, reversible, comparable
   - Solves the problem observed in agent-to-agent eval loops: improvement without durable memory is lossy and un-reproducible. Our files-first substrate makes the iteration graph queryable and portable.
-  - CLI: `atelier meta improve --target-run <id> --change persona:coder=v2.md` → produces side-by-side comparison report.
+  - CLI: `spanweave meta improve --target-run <id> --change persona:coder=v2.md` → produces side-by-side comparison report.
 
 ### Phase 4 — Git Hygiene Complete + Event Bus + Observability
 
@@ -343,8 +341,8 @@ See `docs/proposed_features.md` for additional Phase 2 candidates currently in e
 Team value comes from **auto-updated documentation as source of truth** (ADRs, typed decisions in git), NOT from real-time state sharing. Git is the sync mechanism, not a state fabric.
 
 - Auto-updated team knowledge via git (ADRs + Decision records committed, teammates `git pull`)
-- Run resumability across users (`atelier run resume <alice-run-id>`)
-- Selective memory sharing via git subtree (`.atelier/shared-memory/`, opt-in, human-promoted records only)
+- Run resumability across users (`spanweave run resume <alice-run-id>`)
+- Selective memory sharing via git subtree (`.spanweave/shared-memory/`, opt-in, human-promoted records only)
 - Org-level rule defaults with override inheritance
 - Team approval workflows, RBAC, audit compliance exports
 

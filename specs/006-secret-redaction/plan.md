@@ -5,7 +5,7 @@
 
 ## Summary
 
-Implement a regex-based secret redactor under `atelier/security/` that provides one pure `redact(...)` entrypoint, ships a named built-in pattern catalog for common secret formats, preserves useful surrounding context such as variable names and URL structure, and supports caller-provided extra regexes with stable audit-visible markers.
+Implement a regex-based secret redactor under `spanweave/security/` that provides one pure `redact(...)` entrypoint, ships a named built-in pattern catalog for common secret formats, preserves useful surrounding context such as variable names and URL structure, and supports caller-provided extra regexes with stable audit-visible markers.
 
 ## Technical Context
 
@@ -13,7 +13,7 @@ Implement a regex-based secret redactor under `atelier/security/` that provides 
 **Primary Dependencies**: Python `re` and `typing` from the standard library, plus `pytest` for validation  
 **Storage**: N/A for the redaction function itself; transforms in-memory strings before persistence  
 **Testing**: `pytest` with focused positive and negative parameterized cases in `tests/test_redaction.py`  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: Redact typical log, transcript, and packet-sized strings in bounded linear passes without network or filesystem work  
 **Constraints**: Pure function only; regex-based MVP; keep safe surrounding text visible; no false positives on common English words; use `[REDACTED:<pattern-name>]` markers; treat sensitive environment-variable names case-insensitively  
@@ -41,7 +41,7 @@ specs/006-secret-redaction/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 └── security/
     ├── __init__.py
     ├── patterns.py
@@ -51,7 +51,7 @@ tests/
 └── test_redaction.py
 ```
 
-**Structure Decision**: Keep the feature fully contained in `atelier/security/` with one pattern catalog and one pure redaction module, plus a single focused test module under `tests/`.
+**Structure Decision**: Keep the feature fully contained in `spanweave/security/` with one pattern catalog and one pure redaction module, plus a single focused test module under `tests/`.
 
 ## Complexity Tracking
 

@@ -9,16 +9,16 @@
 
 ## Phase 2: Foundational
 
-- [x] T002 Define the Evidence Pack schema contract in `atelier/evidence/schema.py`
-- [x] T003 Export the public evidence API from `atelier/evidence/__init__.py`
+- [x] T002 Define the Evidence Pack schema contract in `spanweave/evidence/schema.py`
+- [x] T003 Export the public evidence API from `spanweave/evidence/__init__.py`
 
 ## Phase 3: User Story 1 - Write Replayable Evidence Files (Priority: P1)
 
 **Goal**: Persist one Evidence Pack as both JSON and Markdown under the canonical stage directory.
 
-**Independent Test**: `generate(...)` creates both files under `.atelier/runs/<run_id>/stages/<stage_id>/` and preserves coherent outputs when replacing existing artifacts.
+**Independent Test**: `generate(...)` creates both files under `.spanweave/runs/<run_id>/stages/<stage_id>/` and preserves coherent outputs when replacing existing artifacts.
 
-- [x] T004 [US1] Implement path validation, redacted rendering, and transactional dual-file writes in `atelier/evidence/generator.py`
+- [x] T004 [US1] Implement path validation, redacted rendering, and transactional dual-file writes in `spanweave/evidence/generator.py`
 
 ## Phase 4: User Story 2 - Preserve a Stable Machine Schema (Priority: P2)
 
@@ -26,7 +26,7 @@
 
 **Independent Test**: Serialize and parse an `EvidencePack` fixture and confirm equivalence.
 
-- [x] T005 [US2] Add schema versioning, finding linkage, audit ULID validation, and confidence bounds in `atelier/evidence/schema.py`
+- [x] T005 [US2] Add schema versioning, finding linkage, audit ULID validation, and confidence bounds in `spanweave/evidence/schema.py`
 
 ## Phase 5: User Story 3 - Render Dense Human Markdown (Priority: P3)
 
@@ -34,13 +34,13 @@
 
 **Independent Test**: Compare rendered Markdown for a fixed fixture to a checked-in golden file.
 
-- [x] T006 [US3] Create the Jinja2 Markdown template in `atelier/evidence/templates/evidence.md.j2`
+- [x] T006 [US3] Create the Jinja2 Markdown template in `spanweave/evidence/templates/evidence.md.j2`
 - [x] T007 [P] [US3] Add golden Markdown output in `tests/golden/evidence.md`
 - [x] T008 [US3] Add round-trip and rendering verification in `tests/test_evidence.py`
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [x] T009 Validate the implementation with `pytest tests/test_evidence.py -v` and `ruff check atelier/evidence tests/test_evidence.py`
+- [x] T009 Validate the implementation with `pytest tests/test_evidence.py -v` and `ruff check spanweave/evidence tests/test_evidence.py`
 
 ## Dependencies
 

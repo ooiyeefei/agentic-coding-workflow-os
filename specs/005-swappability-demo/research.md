@@ -2,7 +2,7 @@
 
 ## Decision 1: Reuse the shipped Reviewer prompt body but own a demo-specific review runner
 
-- **Decision**: Load the markdown body from `.atelier/defaults/personas/reviewer.md` for both runs, but implement the W19 review loop directly inside `demo/swap-demo.py` instead of instantiating W04's default `Reviewer` class.
+- **Decision**: Load the markdown body from `.spanweave/defaults/personas/reviewer.md` for both runs, but implement the W19 review loop directly inside `demo/swap-demo.py` instead of instantiating W04's default `Reviewer` class.
 - **Rationale**: W04's default Reviewer routing contract currently requires capabilities beyond the Claude manifests shipped in this repo. W19 only needs to prove the same reviewer protocol and tool contract can run across providers, so the cleanest path is to reuse the prompt body while binding the demo loop to a narrower `tool_use=True` requirement.
 - **Alternatives considered**:
   - Change W04's default Reviewer requirements: rejected because it would rewrite another worktree's scope.

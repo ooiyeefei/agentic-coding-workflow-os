@@ -11,7 +11,7 @@
 
 - Q: Which capability requirements drive default persona routing? → A: Coder routes on `tool_use=True` and `long_context>=128000`; Reviewer routes on `tool_use=True`, `code_execution=True`, and `structured_outputs=True`, and shipped defaults must include at least one compatible manifest for each persona.
 - Q: How should default model mapping work in Phase 0? → A: Each persona loads available manifests and selects the first compatible manifest in caller-provided or shipped order via W02's matcher; callers may still inject a specific adapter for tests or integration wiring.
-- Q: How should Coder behave before W05 lands its skills catalog? → A: Coder loads `.atelier/defaults/skills/*.md` when present and otherwise falls back to the fixed Phase 0 `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement` sequence.
+- Q: How should Coder behave before W05 lands its skills catalog? → A: Coder loads `.spanweave/defaults/skills/*.md` when present and otherwise falls back to the fixed Phase 0 `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement` sequence.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -64,7 +64,7 @@ As a reviewer persona consumer, I can rely on the Reviewer's system prompt to de
 ### Edge Cases
 
 - What happens when a persona prompt file is missing, malformed, or lacks capability frontmatter?
-- What happens when `.atelier/defaults/skills/` has not landed yet or contains no `/speckit.*` skills?
+- What happens when `.spanweave/defaults/skills/` has not landed yet or contains no `/speckit.*` skills?
 - How does the system handle a compatible manifest selection when multiple providers qualify and the shipped order changes?
 - How does Reviewer fail when no manifest offers `code_execution` or `structured_outputs`?
 - How does `respond(...)` serialize non-string context packets without leaking Python reprs into the LLM prompt?
@@ -73,15 +73,15 @@ As a reviewer persona consumer, I can rely on the Reviewer's system prompt to de
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define a shared `Persona` base in `atelier/personas/base.py` with `name`, `system_prompt`, `required_capabilities`, `llm_adapter_name`, and async `respond(context_packet) -> AgentResponse`.
+- **FR-001**: The system MUST define a shared `Persona` base in `spanweave/personas/base.py` with `name`, `system_prompt`, `required_capabilities`, `llm_adapter_name`, and async `respond(context_packet) -> AgentResponse`.
 - **FR-002**: The system MUST define a structured `AgentResponse` model for persona output that includes persona identity plus normalized LLM response data.
-- **FR-003**: The system MUST load persona system prompts from markdown files in `.atelier/defaults/personas/` and parse YAML frontmatter for persona metadata.
+- **FR-003**: The system MUST load persona system prompts from markdown files in `.spanweave/defaults/personas/` and parse YAML frontmatter for persona metadata.
 - **FR-004**: The system MUST represent persona capability requirements with W02's `CapabilityRequirements` model and route personas through W02's `route_persona_to_model(...)` helper.
 - **FR-005**: The system MUST allow personas to use a caller-injected `LLMAdapter` for tests and integration, while still validating that the selected manifest satisfies the persona's declared requirements.
-- **FR-006**: The system MUST provide a `Coder` persona in `atelier/personas/coder.py` that declares at least `tool_use=True` and `long_context>=128000` as routing requirements.
-- **FR-007**: The system MUST let `Coder` discover `/speckit.*` skills from `.atelier/defaults/skills/*.md` when available and fall back to the fixed Phase 0 Speckit command sequence when the skill catalog is absent.
-- **FR-008**: The system MUST provide a `Reviewer` persona in `atelier/personas/reviewer.py` that declares `tool_use=True`, `code_execution=True`, and `structured_outputs=True` as routing requirements.
-- **FR-009**: The system MUST load the Reviewer prompt from `.atelier/defaults/personas/reviewer.md` and keep the execution-mandatory protocol in imperative language.
+- **FR-006**: The system MUST provide a `Coder` persona in `spanweave/personas/coder.py` that declares at least `tool_use=True` and `long_context>=128000` as routing requirements.
+- **FR-007**: The system MUST let `Coder` discover `/speckit.*` skills from `.spanweave/defaults/skills/*.md` when available and fall back to the fixed Phase 0 Speckit command sequence when the skill catalog is absent.
+- **FR-008**: The system MUST provide a `Reviewer` persona in `spanweave/personas/reviewer.py` that declares `tool_use=True`, `code_execution=True`, and `structured_outputs=True` as routing requirements.
+- **FR-009**: The system MUST load the Reviewer prompt from `.spanweave/defaults/personas/reviewer.md` and keep the execution-mandatory protocol in imperative language.
 - **FR-010**: The Reviewer prompt MUST explicitly mention the concepts "execute", "paste actual output", and "incomplete without execution evidence".
 - **FR-011**: `Reviewer` MUST support a `devil_advocate_mode: bool = False` constructor flag that only appends explicit "reasons to reject" scaffolding when the flag is enabled.
 - **FR-012**: The default shipped manifests and routing metadata MUST allow both `Coder()` and `Reviewer()` to resolve at least one compatible model on Phase 0 defaults.

@@ -5,13 +5,13 @@
 
 ## Summary
 
-Add a localhost-only FastAPI daemon under `atelier/daemon/` that exposes repo-local run start, run inspection, per-run SSE audit streaming, and gate approval over HTTP. Reuse the existing workflow and run snapshot logic, auto-drive daemon-started runs with a deterministic Phase 0 execution backend, ship a real `python -m atelier.daemon` entrypoint, authenticate all routes with a shared secret header, and keep the entire surface testable in-process with `httpx.AsyncClient`.
+Add a localhost-only FastAPI daemon under `spanweave/daemon/` that exposes repo-local run start, run inspection, per-run SSE audit streaming, and gate approval over HTTP. Reuse the existing workflow and run snapshot logic, auto-drive daemon-started runs with a deterministic Phase 0 execution backend, ship a real `python -m spanweave.daemon` entrypoint, authenticate all routes with a shared secret header, and keep the entire surface testable in-process with `httpx.AsyncClient`.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
-**Primary Dependencies**: FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `atelier.audit`, `atelier.workflow`, and `atelier.cli.commands.run` helpers  
-**Storage**: Filesystem-only state under `.atelier/runs/` plus a repo-local daemon secret fallback under `.atelier/daemon/` when `LOCAL_DAEMON_SECRET` is unset  
+**Primary Dependencies**: FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `spanweave.audit`, `spanweave.workflow`, and `spanweave.cli.commands.run` helpers  
+**Storage**: Filesystem-only state under `.spanweave/runs/` plus a repo-local daemon secret fallback under `.spanweave/daemon/` when `LOCAL_DAEMON_SECRET` is unset  
 **Testing**: pytest, pytest-asyncio, and `httpx.AsyncClient` with in-process ASGI transport  
 **Target Platform**: Local developer machines and CI executing the daemon app without a real bound port  
 **Project Type**: Local HTTP control-plane service over existing filesystem-backed workflow state  
@@ -21,7 +21,7 @@ Add a localhost-only FastAPI daemon under `atelier/daemon/` that exposes repo-lo
 
 ## Constitution Check
 
-The repository constitution is still template text, so there are no enforceable gates to fail. This plan still respects the repo's actual Phase 0 constraints: filesystem-first state under `.atelier/`, CLI and daemon surfaces sharing the same source of truth, and safe local-only control-plane boundaries.
+The repository constitution is still template text, so there are no enforceable gates to fail. This plan still respects the repo's actual Phase 0 constraints: filesystem-first state under `.spanweave/`, CLI and daemon surfaces sharing the same source of truth, and safe local-only control-plane boundaries.
 
 ## Project Structure
 
@@ -41,7 +41,7 @@ specs/014-http-daemon-sse/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── audit/
 │   ├── events.py
 │   └── writer.py
@@ -59,7 +59,7 @@ tests/
 └── test_daemon.py
 ```
 
-**Structure Decision**: Keep the W16 implementation isolated to `atelier/daemon/` and the focused test module, while reusing existing audit, workflow, and run snapshot helpers rather than adding a new service abstraction.
+**Structure Decision**: Keep the W16 implementation isolated to `spanweave/daemon/` and the focused test module, while reusing existing audit, workflow, and run snapshot helpers rather than adding a new service abstraction.
 
 ## Complexity Tracking
 

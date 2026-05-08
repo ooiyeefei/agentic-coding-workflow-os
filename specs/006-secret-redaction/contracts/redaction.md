@@ -1,4 +1,4 @@
-# Contract: `atelier.security.redaction`
+# Contract: `spanweave.security.redaction`
 
 ## Public Function
 
