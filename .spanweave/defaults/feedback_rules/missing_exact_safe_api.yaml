@@ -1,0 +1,15 @@
+id: missing_exact_safe_api
+error_types:
+  - security_missed
+  - vague_security_guidance
+message_patterns:
+  - '\b(parameterized|prepared statement|escape|sanitize|validate|allowlist)\b'
+  - '\b(exact api|method name|specific syntax|framework primitive|code snippet)\b'
+rule_text: |
+  When security guidance names a vulnerability class, include the exact safe
+  framework API or code pattern expected for that stack instead of only saying
+  "sanitize", "validate", or "use best practices".
+rationale: |
+  Agents often understand a generic security principle but still implement the
+  wrong primitive unless the safe API is named directly.
+

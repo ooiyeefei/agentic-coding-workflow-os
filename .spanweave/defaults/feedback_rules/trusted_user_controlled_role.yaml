@@ -1,0 +1,14 @@
+id: trusted_user_controlled_role
+error_types:
+  - security_missed
+  - authz_bypass
+message_patterns:
+  - '\b(cli|request|body|param|argument|header)\b.*\b(role|admin|permission|operator)\b'
+  - '\b(spoof|self[- ]declared|user[- ]controlled|trust(ed)? role)\b'
+rule_text: |
+  Never authorize from a user-controlled role, admin flag, CLI argument, request
+  body, or header alone. Treat it as a requested role and verify authorization
+  against a trusted identity, signed config, protected policy file, or service.
+rationale: |
+  Prevents privilege escalation where an attacker declares themselves admin.
+

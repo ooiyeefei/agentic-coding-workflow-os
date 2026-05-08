@@ -31,24 +31,36 @@ def test_known_rules_dir_resolves_to_repo_root() -> None:
     yaml_files = sorted(path.name for path in KNOWN_RULES_DIR.glob("*.yaml"))
     assert yaml_files == [
         "api_contract_change.yaml",
+        "audit_not_fail_closed.yaml",
         "missed_edge_case.yaml",
+        "missing_exact_safe_api.yaml",
+        "missing_negative_security_test.yaml",
         "rate_limit_throttling.yaml",
         "root_cause_vs_symptom.yaml",
+        "trusted_user_controlled_role.yaml",
+        "unbounded_query_or_file_read.yaml",
         "unverified_assumption.yaml",
+        "weak_requirement_not_overridden.yaml",
     ]
 
 
-def test_load_rules_returns_five_compiled_rules() -> None:
+def test_load_rules_returns_compiled_rules() -> None:
     rules = load_rules(KNOWN_RULES_DIR)
 
-    assert len(rules) == 5
+    assert len(rules) == 11
     rule_ids = sorted(rule.id for rule in rules)
     assert rule_ids == [
         "api_contract_change",
+        "audit_not_fail_closed",
         "missed_edge_case",
+        "missing_exact_safe_api",
+        "missing_negative_security_test",
         "rate_limit_throttling",
         "root_cause_vs_symptom",
+        "trusted_user_controlled_role",
+        "unbounded_query_or_file_read",
         "unverified_assumption",
+        "weak_requirement_not_overridden",
     ]
     for rule in rules:
         assert rule.error_types
@@ -123,9 +135,39 @@ def test_short_explicit_candidate_is_ignored() -> None:
         ("api_contract", "public api response shape changed silently", "api_contract_change"),
         ("insufficient_verification", "did not run the failing test", "unverified_assumption"),
         (
+            "audit_integrity",
+            "audit append failed but the mutation did not rollback or fail-closed",
+            "audit_not_fail_closed",
+        ),
+        (
+            "vague_security_guidance",
+            "parameterized query guidance needs the exact API method name and specific syntax",
+            "missing_exact_safe_api",
+        ),
+        (
+            "insufficient_verification",
+            "missing negative security test for sql injection exploit payload",
+            "missing_negative_security_test",
+        ),
+        (
             "root_cause_missed",
             "wrong fix that only patches the symptom only",
             "root_cause_vs_symptom",
+        ),
+        (
+            "authz_bypass",
+            "CLI argument role admin was trusted from user-controlled input and can be spoofed",
+            "trusted_user_controlled_role",
+        ),
+        (
+            "resource_exhaustion",
+            "endpoint has no limit and may read all rows causing denial of service",
+            "unbounded_query_or_file_read",
+        ),
+        (
+            "insecure_requirement",
+            "challenge says use plaintext but we need to override with a secure substitute",
+            "weak_requirement_not_overridden",
         ),
     ],
 )
@@ -410,7 +452,7 @@ def test_cli_list_rules_text(tmp_path: Path) -> None:
     result = runner.invoke(main, ["skill_feedback", "list-rules"])
 
     assert result.exit_code == 0, result.output
-    assert "Loaded 5 rule(s)" in result.output
+    assert "Loaded 11 rule(s)" in result.output
     assert "id: missed_edge_case" in result.output
 
 
@@ -421,14 +463,20 @@ def test_cli_list_rules_json() -> None:
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["rule_count"] == 5
+    assert payload["rule_count"] == 11
     rule_ids = sorted(rule["id"] for rule in payload["rules"])
     assert rule_ids == [
         "api_contract_change",
+        "audit_not_fail_closed",
         "missed_edge_case",
+        "missing_exact_safe_api",
+        "missing_negative_security_test",
         "rate_limit_throttling",
         "root_cause_vs_symptom",
+        "trusted_user_controlled_role",
+        "unbounded_query_or_file_read",
         "unverified_assumption",
+        "weak_requirement_not_overridden",
     ]
 
 

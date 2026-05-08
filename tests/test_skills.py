@@ -41,6 +41,7 @@ SHIPPED_SKILLS = (
     "rebase-before-pr",
     "cleanup-worktree",
     "uat-test",
+    "security-best-practice",
 )
 TIROS_SKILL_SOURCES = {
     "speckit.specify": TIROS_COMMANDS_DIR / "speckit.specify.md",
@@ -87,6 +88,17 @@ def test_get_skill_returns_rebase_before_pr() -> None:
         "Do not auto-push after a clean rebase; approval is required before the final push."
         in skill.content
     )
+
+
+def test_get_skill_returns_security_best_practice() -> None:
+    skill = get_skill("security-best-practice")
+
+    assert skill.name == "security-best-practice"
+    assert "Map trust boundaries" in skill.content
+    assert "exact safe primitive" in skill.content
+    assert "rules, skills" in skill.content
+    assert "MCP config" in skill.content
+    assert "negative tests" in skill.content
 
 
 def test_get_skill_raises_for_missing_skill() -> None:

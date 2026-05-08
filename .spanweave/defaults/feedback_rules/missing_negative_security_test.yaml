@@ -1,0 +1,14 @@
+id: missing_negative_security_test
+error_types:
+  - security_missed
+  - insufficient_verification
+message_patterns:
+  - '\b(no|missing|without)\b.*\b(security test|negative test|exploit|payload)\b'
+  - '\b(sql injection|xss|command injection|path traversal|idor|ssrf|mass assignment)\b'
+rule_text: |
+  For security-sensitive changes, include at least one negative test that proves
+  the named exploit path is rejected, not just a happy-path or functional test.
+rationale: |
+  A generated implementation can look correct while the vulnerable path remains
+  untested.
+

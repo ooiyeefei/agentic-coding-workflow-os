@@ -1,0 +1,14 @@
+id: weak_requirement_not_overridden
+error_types:
+  - security_missed
+  - insecure_requirement
+message_patterns:
+  - '\b(unsafe requirement|weak requirement|insecure baseline|challenge says|spec says|asked to)\b'
+  - '\b(override|replace|secure substitute|do not obey|conflicts with security)\b'
+rule_text: |
+  When a task requirement conflicts with secure design, quote the weak
+  requirement, state the secure substitute, and implement the substitute rather
+  than following the insecure wording literally.
+rationale: |
+  Preserves problem adherence while preventing agents from inheriting traps in
+  the original task.

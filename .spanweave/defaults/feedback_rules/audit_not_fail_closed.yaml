@@ -1,0 +1,15 @@
+id: audit_not_fail_closed
+error_types:
+  - security_missed
+  - audit_integrity
+message_patterns:
+  - '\b(audit|log|logging)\b'
+  - '\b(fail[- ]closed|rollback|abort|write[- ]only|append)\b'
+rule_text: |
+  For security-sensitive mutations that require audit logging, require the
+  audit append before or within the transaction and fail closed if the audit
+  sink cannot record the event.
+rationale: |
+  Prevents changes such as threshold updates, auth changes, or PHI handling
+  from succeeding without durable audit evidence.
+

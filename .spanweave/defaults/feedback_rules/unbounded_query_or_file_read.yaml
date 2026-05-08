@@ -1,0 +1,15 @@
+id: unbounded_query_or_file_read
+error_types:
+  - security_missed
+  - resource_exhaustion
+message_patterns:
+  - '\b(unbounded|no limit|read all|load all|entire file|all rows|pagination)\b'
+  - '\b(oom|dos|denial of service|large file|limit|offset)\b'
+rule_text: |
+  For endpoints or jobs that read rows, files, logs, or external data, require a
+  hard size or pagination cap and reject caller-supplied limits that exceed the
+  cap.
+rationale: |
+  Prevents generated code from taking the shortest working path that loads
+  unbounded data into memory.
+
