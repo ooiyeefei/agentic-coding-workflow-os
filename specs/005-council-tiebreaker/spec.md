@@ -11,7 +11,7 @@
 
 - Q: Which voter models should Phase 0 use by default? → A: Use `claude-opus-4-7`, `gpt-5`, and `claude-sonnet-4-6` as the default three-voter panel, while allowing callers to override the list with three distinct model ids.
 - Q: What output format should each voter produce? → A: Each voter must return exactly one structured verdict from `COMPATIBLE_WITH_CODER`, `COMPATIBLE_WITH_REVIEWER`, or `NEITHER`; freeform vote parsing is out of scope.
-- Q: How should the council satisfy the memory requirement before full W06 lands? → A: Persist each `CouncilReport` as a filesystem-backed markdown record under `.atelier/memory/council_reports/` with YAML frontmatter plus a markdown body, so the demo stays audit-friendly without requiring the whole W06 knowledge plane.
+- Q: How should the council satisfy the memory requirement before full W06 lands? → A: Persist each `CouncilReport` as a filesystem-backed markdown record under `.spanweave/memory/council_reports/` with YAML frontmatter plus a markdown body, so the demo stays audit-friendly without requiring the whole W06 knowledge plane.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -73,9 +73,9 @@ As a reviewer or demo operator, I can inspect a persisted council report showing
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define a `Verdict` enum in `atelier/council/schema.py` with `COMPATIBLE_WITH_CODER`, `COMPATIBLE_WITH_REVIEWER`, `NEITHER`, and `HUMAN_REQUIRED`.
+- **FR-001**: The system MUST define a `Verdict` enum in `spanweave/council/schema.py` with `COMPATIBLE_WITH_CODER`, `COMPATIBLE_WITH_REVIEWER`, `NEITHER`, and `HUMAN_REQUIRED`.
 - **FR-002**: The system MUST define a structured `CouncilReport` model that records the coder position, reviewer position, rendered context, selected models, per-model votes, and final verdict.
-- **FR-003**: The system MUST expose `tiebreak(coder_position, reviewer_position, context, models)` from `atelier/council/tiebreaker.py`.
+- **FR-003**: The system MUST expose `tiebreak(coder_position, reviewer_position, context, models)` from `spanweave/council/tiebreaker.py`.
 - **FR-004**: `tiebreak(...)` MUST require exactly three distinct voter model ids, using the Phase 0 default trio when the caller does not supply an override list.
 - **FR-005**: The council MUST build each voter through W02 adapters and manifests rather than hardcoding provider clients directly.
 - **FR-006**: Each voter MUST require W02 capabilities that can guarantee structured verdict submission, using a provider-neutral tool call protocol instead of freeform text parsing.
@@ -84,7 +84,7 @@ As a reviewer or demo operator, I can inspect a persisted council report showing
 - **FR-009**: Each voter prompt MUST present the two positions plus context and MUST instruct the model to return only one allowed verdict.
 - **FR-010**: The council MUST treat a 2-1 split as the winning majority verdict.
 - **FR-011**: The council MUST treat a 1-1-1 split as `HUMAN_REQUIRED`.
-- **FR-012**: The council MUST persist a `CouncilReport` memory record with the full vote breakdown under `.atelier/memory/council_reports/`.
+- **FR-012**: The council MUST persist a `CouncilReport` memory record with the full vote breakdown under `.spanweave/memory/council_reports/`.
 - **FR-013**: The council MUST not silently discard persistence failures when writing the `CouncilReport`.
 - **FR-014**: `tests/test_council.py` MUST cover majority-for-coder, majority-for-reviewer, 1-1-1 tie, capability-check enforcement, and memory-record persistence.
 

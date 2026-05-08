@@ -54,7 +54,7 @@ def test_ensure_main_ref_creates_missing_main_from_head(tmp_path: Path) -> None:
     # fix unblocks the integration harness's create_worktree call site.
     worktree = tmp_path / "wt_check"
     add = _git(
-        "worktree", "add", "-b", "atelier/test-run", str(worktree), "main", cwd=repo
+        "worktree", "add", "-b", "spanweave/test-run", str(worktree), "main", cwd=repo
     )
     assert add.returncode == 0, f"worktree add still fails: {add.stderr}"
 

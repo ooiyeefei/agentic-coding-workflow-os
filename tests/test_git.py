@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from atelier.git import (
+from spanweave.git import (
     ConfirmationRequiredError,
     ConflictFile,
     ConflictHunk,
@@ -33,7 +33,7 @@ def git_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     _git("init", "-b", "main", str(repo), cwd=tmp_path)
-    _git("config", "user.email", "test@atelier.test", cwd=repo)
+    _git("config", "user.email", "test@spanweave.test", cwd=repo)
     _git("config", "user.name", "Test", cwd=repo)
 
     (repo / "README.md").write_text("# Test repo\n")
@@ -67,7 +67,7 @@ class TestCreateWorktree:
         self, git_repo: Path, run_id: str, tmp_path: Path
     ) -> None:
         create_worktree(run_id, repo_root=git_repo, worktree_base=tmp_path / "wts")
-        result = _git("branch", "--list", f"atelier/{run_id}", cwd=git_repo)
+        result = _git("branch", "--list", f"spanweave/{run_id}", cwd=git_repo)
         assert run_id in result.stdout
 
     def test_returns_valid_git_dir(
@@ -163,7 +163,7 @@ def repo_with_remote(tmp_path: Path) -> Path:
 
     local = tmp_path / "local"
     _git("clone", str(remote), str(local), cwd=tmp_path)
-    _git("config", "user.email", "test@atelier.test", cwd=local)
+    _git("config", "user.email", "test@spanweave.test", cwd=local)
     _git("config", "user.name", "Test", cwd=local)
 
     (local / "shared.txt").write_text("original\n")
@@ -179,7 +179,7 @@ def repo_with_remote(tmp_path: Path) -> Path:
     # Push a new commit to remote via a temp clone — local won't see it
     temp = tmp_path / "temp"
     _git("clone", str(remote), str(temp), cwd=tmp_path)
-    _git("config", "user.email", "test@atelier.test", cwd=temp)
+    _git("config", "user.email", "test@spanweave.test", cwd=temp)
     _git("config", "user.name", "Test", cwd=temp)
     (temp / "shared.txt").write_text("remote main\n")
     _git("add", ".", cwd=temp)

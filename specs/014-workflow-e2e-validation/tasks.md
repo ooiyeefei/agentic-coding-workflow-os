@@ -88,7 +88,7 @@
 
 - [X] T014 Run `uv run pytest tests/integration/test_component_integration.py tests/integration/test_e2e_workflow.py -q`
 - [X] T015 Run `uv run ruff check .` and `bash -n scripts/run-e2e.sh`
-- [X] T016 Run `uv run pyright atelier/compiler atelier/evidence atelier/git atelier/memory atelier/personas atelier/workflow tests/integration`
+- [X] T016 Run `uv run pyright spanweave/compiler spanweave/evidence spanweave/git spanweave/memory spanweave/personas spanweave/workflow tests/integration`
 - [X] T017 Run `uv run pytest tests -q`
 
 ---

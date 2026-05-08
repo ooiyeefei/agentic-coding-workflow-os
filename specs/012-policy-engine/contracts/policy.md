@@ -1,4 +1,4 @@
-# Contract: atelier.policy Public API
+# Contract: spanweave.policy Public API
 
 ## PolicyEngine
 
@@ -23,8 +23,8 @@
 
 **Contract**:
 
-- Run totals are read from `.atelier/runs/<run_id>/audit.jsonl`.
-- Day totals are read from `.atelier/audit/YYYY-MM-DD.jsonl`.
+- Run totals are read from `.spanweave/runs/<run_id>/audit.jsonl`.
+- Day totals are read from `.spanweave/audit/YYYY-MM-DD.jsonl`.
 - Cost extraction accepts either direct numeric fields or nested normalized cost objects with `total_usd`.
 - Missing audit files are treated as zero totals.
 - Malformed JSON lines raise an error rather than being skipped.

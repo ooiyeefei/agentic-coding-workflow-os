@@ -1,4 +1,4 @@
-# Contract: atelier.memory Persistence API
+# Contract: spanweave.memory Persistence API
 
 ## Record Schemas
 
@@ -27,7 +27,7 @@
 ## Reader
 
 - `read_record(path) -> Record`
-- `list_records(path=Path(".atelier/memory"), *, type=None, filters=None, **criteria) -> list[Record]`
+- `list_records(path=Path(".spanweave/memory"), *, type=None, filters=None, **criteria) -> list[Record]`
 
 **Contract**:
 

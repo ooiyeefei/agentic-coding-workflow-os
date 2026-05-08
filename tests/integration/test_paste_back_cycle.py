@@ -2,7 +2,7 @@
 """Integration coverage for the mock agent tool paste-back cycle.
 
 Simulates the full "generate prompt -> human pastes into agent tool -> agent
-tool produces output -> Atelier captures" flow using fixture stdin/stdout.
+tool produces output -> Spanweave captures" flow using fixture stdin/stdout.
 
 The cycle under test:
 
@@ -26,7 +26,7 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from atelier.llm import (
+from spanweave.llm import (
     CapabilityManifest,
     CapabilityRequirements,
     LLMAdapter,
@@ -34,12 +34,12 @@ from atelier.llm import (
     Response,
     ToolDefinition,
 )
-from atelier.llm.adapter import CostPolicy
-from atelier.personas import AgentToolCaller, Coder
-from atelier.personas.callers import DirectAPICaller
-from atelier.workflow import RunStatus, WorkflowEngine, default_stage_executor_deps
-from atelier.workflow.engine import _DirectReviewerCaller
-from atelier.workflow.transitions import TransitionKind
+from spanweave.llm.adapter import CostPolicy
+from spanweave.personas import AgentToolCaller, Coder
+from spanweave.personas.callers import DirectAPICaller
+from spanweave.workflow import RunStatus, WorkflowEngine, default_stage_executor_deps
+from spanweave.workflow.engine import _DirectReviewerCaller
+from spanweave.workflow.transitions import TransitionKind
 
 
 class _RecordingAdapter(LLMAdapter):
@@ -127,7 +127,7 @@ def _build_engine(
 
 def _read_workflow_state(run_id: str) -> dict[str, Any]:
     """Read the persisted workflow state YAML for a run."""
-    from atelier.util.paths import run_dir
+    from spanweave.util.paths import run_dir
 
     state_path = run_dir(run_id) / "workflow_state.yaml"
     raw = state_path.read_text(encoding="utf-8")

@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from atelier.adr.numbering import next_adr_number
-from atelier.adr.slug import slugify
-from atelier.adr.synthesis import synthesize_adr
-from atelier.memory import Decision, RejectedAlternative, write_record
+from spanweave.adr.numbering import next_adr_number
+from spanweave.adr.slug import slugify
+from spanweave.adr.synthesis import synthesize_adr
+from spanweave.memory import Decision, RejectedAlternative, write_record
 from ulid import ULID
 
 _GOLDEN_DIR = Path(__file__).parent / "golden"
@@ -49,7 +49,7 @@ def _make_fixture_records(
                 "\n"
                 "The memory system uses the local filesystem as its primary"
                 " storage backend, writing typed records as individual"
-                " markdown files under `.atelier/memory/`.\n"
+                " markdown files under `.spanweave/memory/`.\n"
                 "\n"
                 "* Good, because records are human-readable and reviewable"
                 " with standard tools\n"
@@ -155,7 +155,7 @@ def test_synthesize_adr_renders_madr3_golden_file(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     decisions, rejected = _make_fixture_records(fixed_run_id, fixed_ulid_values)
@@ -196,7 +196,7 @@ def test_synthesize_adr_uses_decision_makers_field(
     fixed_ulid_values: list[str],
 ) -> None:
     """MADR 3.0 requires `decision-makers`, not `deciders`."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     decisions, rejected = _make_fixture_records(fixed_run_id, fixed_ulid_values)
@@ -220,7 +220,7 @@ def test_synthesize_adr_consequences_polarity(
     fixed_ulid_values: list[str],
 ) -> None:
     """Consequences must use only Good/Bad polarity."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     decisions, rejected = _make_fixture_records(fixed_run_id, fixed_ulid_values)
@@ -250,7 +250,7 @@ def test_synthesize_adr_pros_cons_supports_neutral(
     fixed_ulid_values: list[str],
 ) -> None:
     """Pros and Cons section supports Good/Neutral/Bad polarity."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     decisions, rejected = _make_fixture_records(fixed_run_id, fixed_ulid_values)
@@ -307,7 +307,7 @@ def test_synthesize_no_decisions_returns_empty(
     tmp_path: Path,
     fixed_run_id: str,
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     paths = synthesize_adr(
@@ -326,7 +326,7 @@ def test_consequences_only_reflect_accepted_option_tradeoffs(
     fixed_ulid_values: list[str],
 ) -> None:
     """RED regression: consequences must come from accepted decisions only."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     decisions, rejected = _make_fixture_records(fixed_run_id, fixed_ulid_values)
@@ -358,7 +358,7 @@ def test_tag_reordering_produces_single_adr(
     fixed_ulid_values: list[str],
 ) -> None:
     """ORANGE regression: same tags in different order must group together."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     stage_id = f"stage_{fixed_ulid_values[0]}"
@@ -405,7 +405,7 @@ def test_different_driver_tags_same_topic_produce_single_adr(
     """ORANGE regression: records sharing a topic but with different driver tags
     must still group together.  The shared tag 'topic-zeta' has frequency 2;
     the unique driver tags each have frequency 1."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     stage_id = f"stage_{fixed_ulid_values[0]}"
@@ -452,7 +452,7 @@ def test_rejected_only_topic_does_not_crash(
 ) -> None:
     """RED regression: a topic with only RejectedAlternatives and no Decision
     must be silently skipped, not crash on max() of an empty sequence."""
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
 
     stage_id = f"stage_{fixed_ulid_values[0]}"
@@ -508,7 +508,7 @@ def test_synthesize_appends_after_existing_adrs(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     adr_output = tmp_path / "docs" / "adr"
     adr_output.mkdir(parents=True)
     (adr_output / "0011-existing.md").write_text("# Existing\n", encoding="utf-8")

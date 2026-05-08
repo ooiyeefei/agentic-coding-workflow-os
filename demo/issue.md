@@ -55,7 +55,7 @@ The current demo app accepts unlimited failed `POST /login` attempts. That makes
 4. Confirm the 6th submission is rate limited and exposes `Retry-After`.
 5. Wait the indicated number of seconds, then sign in with the correct password and confirm redirect to `/notes`.
 
-Default demo credentials today are `demo@atelier.dev` / `demo1234`, but the file in `demo/app/.env.example` remains the source of truth.
+Default demo credentials today are `demo@spanweave.dev` / `demo1234`, but the file in `demo/app/.env.example` remains the source of truth.
 
 ## Sample `curl` Requests
 
@@ -63,7 +63,7 @@ Default demo credentials today are `demo@atelier.dev` / `demo1234`, but the file
 # Single failed attempt against the real login route
 curl -i -X POST http://127.0.0.1:8000/login \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode 'email=demo@atelier.dev' \
+  --data-urlencode 'email=demo@spanweave.dev' \
   --data-urlencode 'password=wrong-password'
 ```
 
@@ -74,7 +74,7 @@ for i in 1 2 3 4 5 6; do
   echo "== Attempt $i =="
   curl -i -s -X POST http://127.0.0.1:8000/login \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data-urlencode 'email=demo@atelier.dev' \
+    --data-urlencode 'email=demo@spanweave.dev' \
     --data-urlencode 'password=wrong-password' \
   | sed -n '1,12p'
 done
@@ -84,6 +84,6 @@ done
 # After waiting the reported Retry-After seconds, the normal login flow should work again
 curl -i -c cookies.txt -X POST http://127.0.0.1:8000/login \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode 'email=demo@atelier.dev' \
+  --data-urlencode 'email=demo@spanweave.dev' \
   --data-urlencode 'password=demo1234'
 ```

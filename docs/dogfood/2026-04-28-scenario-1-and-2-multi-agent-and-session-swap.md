@@ -16,10 +16,10 @@ This doc covers two related scenarios. Scenario 2 (role split) is exercisable so
 ### What I ran
 
 ```bash
-uv run atelier prompt --role coder --agent codex \
+uv run spanweave prompt --role coder --agent codex \
   --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > coder_codex.md
 
-uv run atelier prompt --role reviewer --agent claude-code \
+uv run spanweave prompt --role reviewer --agent claude-code \
   --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > reviewer_claude.md
 ```
 
@@ -54,7 +54,7 @@ The role protocol shows up twice — once as the leading directive, once injecte
 
 ### What surprised me
 
-- **`prompt` is functionally a stateless reduction over the run.** It generates fresh output each time from the persisted .atelier/memory/ + workflow_state. This is the files-first invariant being load-bearing: nothing is "captured by the CLI" — it's all derived from the filesystem.
+- **`prompt` is functionally a stateless reduction over the run.** It generates fresh output each time from the persisted .spanweave/memory/ + workflow_state. This is the files-first invariant being load-bearing: nothing is "captured by the CLI" — it's all derived from the filesystem.
 - **The same role can be repeated across tools.** Nothing stops you from running `prompt --role coder --agent codex` AND `prompt --role coder --agent claude-code` simultaneously and feeding the same context to two different coders. Whether that's a feature or a footgun is unclear.
 
 ---
@@ -71,15 +71,15 @@ You will need: two terminals (Codex + Claude Code).
 
 ```bash
 cd /home/fei/fei/code/hackathon/agentic-coding-workflow-os
-uv run atelier run show run_01KPT1YDEK0F9MYKW4R1VMY7XY
+uv run spanweave run show run_01KPT1YDEK0F9MYKW4R1VMY7XY
 # Expect: 8 stages all completed, status "completed"
 ```
 
 **Step 2 — Generate fresh packets and open in two terminals:**
 
 ```bash
-uv run atelier resume --agent claude-code --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/claude_packet.md
-uv run atelier resume --agent codex        --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/codex_packet.md
+uv run spanweave resume --agent claude-code --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/claude_packet.md
+uv run spanweave resume --agent codex        --run run_01KPT1YDEK0F9MYKW4R1VMY7XY > /tmp/codex_packet.md
 # Paste each into the corresponding agent in a fresh terminal.
 ```
 

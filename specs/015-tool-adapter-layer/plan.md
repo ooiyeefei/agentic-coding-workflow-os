@@ -5,7 +5,7 @@
 
 ## Summary
 
-Build a shared adapter layer under `atelier/adapters/` that can ingest Claude Code and Codex session transcripts into typed memory records, format tool-specific context packets from stored memory, detect the active tool environment, and validate tool manifests with deterministic tests and fixture data.
+Build a shared adapter layer under `spanweave/adapters/` that can ingest Claude Code and Codex session transcripts into typed memory records, format tool-specific context packets from stored memory, detect the active tool environment, and validate tool manifests with deterministic tests and fixture data.
 
 ## Technical Context
 
@@ -13,7 +13,7 @@ Build a shared adapter layer under `atelier/adapters/` that can ingest Claude Co
 **Primary Dependencies**: pydantic v2, pathlib, pyyaml, python-frontmatter, pytest  
 **Storage**: Filesystem JSONL transcripts, repo-local markdown memory records, YAML manifests  
 **Testing**: pytest with fixture transcript files and temporary repositories  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: Transcript normalization and heuristic extraction stay fast for local session logs and do not require live model calls  
 **Constraints**: Phase 0 must stay offline-safe in tests; adapter outputs must reuse existing memory schemas and run-state files; tool detection should avoid false positives  
@@ -21,7 +21,7 @@ Build a shared adapter layer under `atelier/adapters/` that can ingest Claude Co
 
 ## Constitution Check
 
-The repository constitution remains template text, so there are no enforceable gates to fail. The plan still aligns with the roadmap direction: transcripts feed typed filesystem memory, and packets target tool conventions without turning Atelier into a direct agent runtime.
+The repository constitution remains template text, so there are no enforceable gates to fail. The plan still aligns with the roadmap direction: transcripts feed typed filesystem memory, and packets target tool conventions without turning Spanweave into a direct agent runtime.
 
 ## Project Structure
 
@@ -41,7 +41,7 @@ specs/015-tool-adapter-layer/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── adapters/
 │   ├── __init__.py
 │   ├── base.py
@@ -70,7 +70,7 @@ tests/
 └── test_adapters.py
 ```
 
-**Structure Decision**: Keep the implementation isolated in `atelier/adapters/` and reuse existing memory, run-state, and filesystem helpers rather than adding a second packet or persistence stack.
+**Structure Decision**: Keep the implementation isolated in `spanweave/adapters/` and reuse existing memory, run-state, and filesystem helpers rather than adding a second packet or persistence stack.
 
 ## Complexity Tracking
 

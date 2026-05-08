@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from atelier.util.paths import run_dir
+from spanweave.util.paths import run_dir
 
 
 def assert_run_artifact_completeness(

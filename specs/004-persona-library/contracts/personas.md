@@ -1,4 +1,4 @@
-# Contract: atelier.personas Public API
+# Contract: spanweave.personas Public API
 
 ## Persona Base
 
@@ -10,7 +10,7 @@
 
 **Contract**:
 
-- Persona initialization loads prompt metadata from `.atelier/defaults/personas/<name>.md`.
+- Persona initialization loads prompt metadata from `.spanweave/defaults/personas/<name>.md`.
 - Persona initialization routes through W02's `route_persona_to_model(...)`.
 - Persona initialization raises `UnsupportedCapabilityError` if no compatible manifest exists.
 - `respond(...)` always sends one system message plus one user message built from the supplied context packet.
@@ -23,7 +23,7 @@
 **Contract**:
 
 - Declares `tool_use=True` and `long_context>=128000` as required routing capabilities.
-- Discovers `.atelier/defaults/skills/*.md` when available.
+- Discovers `.spanweave/defaults/skills/*.md` when available.
 - Falls back to the Phase 0 Speckit command sequence when no skill catalog exists.
 - Includes the recommended next `/speckit.*` command in `AgentResponse.metadata`.
 

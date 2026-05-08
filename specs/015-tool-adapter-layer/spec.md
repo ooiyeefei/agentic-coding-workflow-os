@@ -20,9 +20,9 @@
 
 As a user switching between coding agents, I can ingest a Claude Code, Codex, or pasted transcript into typed memory records so durable decisions survive the session boundary.
 
-**Why this priority**: Durable transcript ingestion is the core bridge. If Atelier cannot capture decisions from the source tool, context transfer never begins.
+**Why this priority**: Durable transcript ingestion is the core bridge. If Spanweave cannot capture decisions from the source tool, context transfer never begins.
 
-**Independent Test**: Feed fixture transcripts for Claude Code, Codex, and the generic adapter into `ingest_transcript(...)`, write the returned records with `write_record(...)`, and confirm `.atelier/memory/` contains the expected typed markdown files.
+**Independent Test**: Feed fixture transcripts for Claude Code, Codex, and the generic adapter into `ingest_transcript(...)`, write the returned records with `write_record(...)`, and confirm `.spanweave/memory/` contains the expected typed markdown files.
 
 **Acceptance Scenarios**:
 
@@ -50,7 +50,7 @@ As a user moving from one coding agent to another, I can format the same stored 
 
 ### User Story 3 - Detect The Active Tool And Validate Adapter Manifests (Priority: P3)
 
-As Atelier runtime code, I can detect whether Claude Code, Codex, or neither is active and load validated adapter manifests so the adapter layer can be selected safely.
+As Spanweave runtime code, I can detect whether Claude Code, Codex, or neither is active and load validated adapter manifests so the adapter layer can be selected safely.
 
 **Why this priority**: Detection and manifest validation make the adapter layer operational instead of manual-only glue code.
 
@@ -74,15 +74,15 @@ As Atelier runtime code, I can detect whether Claude Code, Codex, or neither is 
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define a shared `ToolAdapter` abstract base class in `atelier/adapters/base.py`.
+- **FR-001**: The system MUST define a shared `ToolAdapter` abstract base class in `spanweave/adapters/base.py`.
 - **FR-002**: `ToolAdapter` MUST expose `tool_name` and `session_format` metadata plus abstract `ingest_transcript(session_path)`, `format_context_packet(run_id, role, memory_records)`, and `detect()` methods.
 - **FR-003**: The system MUST define a typed manifest model and loader for adapter YAML manifests.
-- **FR-004**: The system MUST ship validated manifests for Claude Code and Codex under `atelier/adapters/manifests/`.
+- **FR-004**: The system MUST ship validated manifests for Claude Code and Codex under `spanweave/adapters/manifests/`.
 - **FR-005**: The Claude Code adapter MUST ingest Claude Code JSONL session logs from `.claude/projects/.../*.jsonl`.
 - **FR-006**: The Codex adapter MUST ingest Codex rollout JSONL session logs from `~/.codex/sessions/.../rollout-*.jsonl`.
 - **FR-007**: The generic adapter MUST ingest a plain markdown transcript file for manual fallback usage.
 - **FR-008**: Phase 0 ingestion MUST extract decisions and findings through deterministic heuristics without requiring live model calls in unit tests.
-- **FR-009**: Extracted records MUST be compatible with existing `Decision`, `ReviewFinding`, and `RejectedAlternative` schemas in `atelier/memory/records.py`.
+- **FR-009**: Extracted records MUST be compatible with existing `Decision`, `ReviewFinding`, and `RejectedAlternative` schemas in `spanweave/memory/records.py`.
 - **FR-010**: Claude Code context packets MUST reference `CLAUDE.md` and `.claude/rules/` when formatting instructions.
 - **FR-011**: Codex context packets MUST reference `AGENTS.md` when formatting instructions.
 - **FR-012**: Context packets MUST include prior decision summaries, relevant ADR summaries, and current run state.
@@ -104,7 +104,7 @@ As Atelier runtime code, I can detect whether Claude Code, Codex, or neither is 
 ### Measurable Outcomes
 
 - **SC-001**: `pytest tests/test_adapters.py -q` passes locally with no live network or model calls.
-- **SC-002**: The Claude Code fixture produces at least three `Decision` records and can be written to `.atelier/memory/` via the existing memory writer.
+- **SC-002**: The Claude Code fixture produces at least three `Decision` records and can be written to `.spanweave/memory/` via the existing memory writer.
 - **SC-003**: The Codex fixture produces typed records from a rollout JSONL file rather than the lossy input-history file.
 - **SC-004**: Claude Code and Codex packet outputs both include prior decisions, relevant ADRs, and current run state while referencing the correct tool convention files.
 - **SC-005**: Detection correctly distinguishes Claude Code, Codex, and fallback cases in temporary repositories.

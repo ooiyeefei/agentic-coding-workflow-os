@@ -26,7 +26,7 @@
 
 ## Decision 4: Persist council reports as markdown memory records now, not later
 
-- **Decision**: Add a narrow council memory writer that serializes `CouncilReport` to markdown with YAML frontmatter under `.atelier/memory/council_reports/`.
+- **Decision**: Add a narrow council memory writer that serializes `CouncilReport` to markdown with YAML frontmatter under `.spanweave/memory/council_reports/`.
 - **Rationale**: The acceptance criteria require an auditable report, but W06 is not present on this branch. A council-specific writer satisfies the audit need while staying filesystem-first and forward-compatible with broader memory work.
 - **Alternatives considered**:
   - Keep council reports in process memory only: rejected because the roadmap treats council auditability as persistent state, not session-local cache.

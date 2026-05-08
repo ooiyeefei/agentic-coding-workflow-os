@@ -10,7 +10,7 @@
 
 ## Decision 2: Authenticate requests with a shared secret header
 
-- **Decision**: Require an `X-Atelier-Secret` header on every daemon route and resolve its value from `LOCAL_DAEMON_SECRET`, or from a repo-local generated secret if the environment variable is absent.
+- **Decision**: Require an `X-Spanweave-Secret` header on every daemon route and resolve its value from `LOCAL_DAEMON_SECRET`, or from a repo-local generated secret if the environment variable is absent.
 - **Rationale**: The accepted clarification explicitly chooses a shared secret for the local-only daemon. A header-based check is easy for future plugin and dashboard clients to send, and a repo-local fallback avoids manual bootstrap friction.
 - **Alternatives considered**:
   - No authentication because the daemon is local-only: rejected because localhost binding alone does not protect against every local process.
@@ -34,7 +34,7 @@
 
 ## Decision 5: Tail `audit.jsonl` by polling for appended lines
 
-- **Decision**: Implement SSE streaming by polling `.atelier/runs/<run_id>/audit.jsonl`, parsing appended JSONL lines into typed audit events, and emitting them as SSE messages with `id`, `event`, and JSON `data`.
+- **Decision**: Implement SSE streaming by polling `.spanweave/runs/<run_id>/audit.jsonl`, parsing appended JSONL lines into typed audit events, and emitting them as SSE messages with `id`, `event`, and JSON `data`.
 - **Rationale**: The audit log is already the persisted event source of truth. Polling works in-process, needs no extra watcher dependency, and stays deterministic in CI.
 - **Alternatives considered**:
   - Introduce filesystem notification dependencies: rejected because Phase 0 does not need OS-specific watcher complexity.

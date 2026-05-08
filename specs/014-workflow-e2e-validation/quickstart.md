@@ -22,14 +22,14 @@
 
    ```bash
    uv run ruff check .
-   uv run pyright atelier/compiler atelier/evidence atelier/git atelier/memory atelier/personas atelier/workflow tests/integration
+   uv run pyright spanweave/compiler spanweave/evidence spanweave/git spanweave/memory spanweave/personas spanweave/workflow tests/integration
    uv run pytest tests -q
    ```
 
 5. Opt into real persona execution only when you have provider credentials available:
 
    ```bash
-   export ATELIER_INTEGRATION_REAL_LLM=1
+   export SPANWEAVE_INTEGRATION_REAL_LLM=1
    export OPENAI_API_KEY=...
    export ANTHROPIC_API_KEY=...
    ./scripts/run-e2e.sh

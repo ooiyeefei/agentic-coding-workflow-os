@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add an Atelier `UAT` persona that still routes through the shared LLM capability layer for test-planning, then shells out to the user's existing `ccc/skills/uat-testing` asset through a timeout-bounded subprocess wrapper. The wrapper resolves credentials from packet/env/`.env.local`, captures stdout and stderr separately, parses JSON or line-oriented reports into the repository's current Evidence Pack shape, and redacts any credential values before evidence is surfaced.
+Add an Spanweave `UAT` persona that still routes through the shared LLM capability layer for test-planning, then shells out to the user's existing `ccc/skills/uat-testing` asset through a timeout-bounded subprocess wrapper. The wrapper resolves credentials from packet/env/`.env.local`, captures stdout and stderr separately, parses JSON or line-oriented reports into the repository's current Evidence Pack shape, and redacts any credential values before evidence is surfaced.
 
 ## Technical Context
 
@@ -13,7 +13,7 @@ Add an Atelier `UAT` persona that still routes through the shared LLM capability
 **Primary Dependencies**: pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os`  
 **Storage**: In-memory Pydantic models plus repo-local markdown/YAML files; subprocess evidence kept in memory for this slice  
 **Testing**: pytest with mocked `LLMAdapter` instances and mocked subprocess execution  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: Persona initialization remains synchronous and lightweight; `respond(...)` performs one adapter round-trip plus one bounded subprocess call; hung UAT is cut off by timeout  
 **Constraints**: External UAT skill lives outside this repo; missing skill path must fail clearly; credentials must not be exposed in evidence; implementation should preserve the richer Evidence Pack and redaction contracts already on `main`  
@@ -41,12 +41,12 @@ specs/008-uat-persona-integration/
 ### Source Code (repository root)
 
 ```text
-.atelier/
+.spanweave/
 └── defaults/
     └── personas/
         └── uat.md
 
-atelier/
+spanweave/
 ├── evidence/
 │   ├── __init__.py
 │   └── schema.py

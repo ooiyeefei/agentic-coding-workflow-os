@@ -26,7 +26,7 @@
 
 ## RunGraphArtifactPath
 
-- **Purpose**: Represents a canonical filesystem location underneath `.atelier/runs/<run_id>/`.
+- **Purpose**: Represents a canonical filesystem location underneath `.spanweave/runs/<run_id>/`.
 - **Variants**:
   - Run directory
   - Stage directory

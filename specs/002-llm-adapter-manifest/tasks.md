@@ -10,7 +10,7 @@
 **Purpose**: Create the feature artifacts and defaults directory layout
 
 - [X] T001 Create the spec-driven feature artifacts in specs/002-llm-adapter-manifest/
-- [X] T002 Create the default model manifest directory in .atelier/defaults/models/
+- [X] T002 Create the default model manifest directory in .spanweave/defaults/models/
 
 ---
 
@@ -18,9 +18,9 @@
 
 **Purpose**: Define the shared contract and manifest models used by every provider adapter
 
-- [X] T003 Create normalized adapter input and output models in atelier/llm/adapter.py
-- [X] T004 Create capability models, loaders, and routing logic in atelier/llm/capabilities.py
-- [X] T005 Update atelier/llm/__init__.py exports to expose the new adapter surface
+- [X] T003 Create normalized adapter input and output models in spanweave/llm/adapter.py
+- [X] T004 Create capability models, loaders, and routing logic in spanweave/llm/capabilities.py
+- [X] T005 Update spanweave/llm/__init__.py exports to expose the new adapter surface
 
 **Checkpoint**: Shared abstractions are in place and provider implementations can target a stable contract.
 
@@ -38,8 +38,8 @@
 
 ### Implementation for User Story 1
 
-- [X] T007 [US1] Implement `UnsupportedCapabilityError` and manifest matching helpers in atelier/llm/capabilities.py
-- [X] T008 [US1] Add shipped manifest YAML files in .atelier/defaults/models/
+- [X] T007 [US1] Implement `UnsupportedCapabilityError` and manifest matching helpers in spanweave/llm/capabilities.py
+- [X] T008 [US1] Add shipped manifest YAML files in .spanweave/defaults/models/
 
 **Checkpoint**: Capability routing is deterministic and validated by tests.
 
@@ -58,9 +58,9 @@
 
 ### Implementation for User Story 2
 
-- [X] T011 [US2] Implement the Anthropic adapter in atelier/llm/anthropic.py
-- [X] T012 [US2] Implement the OpenAI adapter in atelier/llm/openai.py
-- [X] T013 [US2] Add shared response-cost construction helpers in atelier/llm/adapter.py
+- [X] T011 [US2] Implement the Anthropic adapter in spanweave/llm/anthropic.py
+- [X] T012 [US2] Implement the OpenAI adapter in spanweave/llm/openai.py
+- [X] T013 [US2] Add shared response-cost construction helpers in spanweave/llm/adapter.py
 
 **Checkpoint**: Both providers honor the same abstraction contract and return normalized usage and cost data.
 
@@ -78,8 +78,8 @@
 
 ### Implementation for User Story 3
 
-- [X] T015 [US3] Wire manifest pricing into normalized response cost fields in atelier/llm/adapter.py, atelier/llm/anthropic.py, and atelier/llm/openai.py
-- [X] T016 [US3] Validate the shipped manifest files through loader coverage in atelier/llm/capabilities.py and tests/test_llm_adapter.py
+- [X] T015 [US3] Wire manifest pricing into normalized response cost fields in spanweave/llm/adapter.py, spanweave/llm/anthropic.py, and spanweave/llm/openai.py
+- [X] T016 [US3] Validate the shipped manifest files through loader coverage in spanweave/llm/capabilities.py and tests/test_llm_adapter.py
 
 **Checkpoint**: Default manifests are first-class inputs to routing and cost accounting.
 
@@ -90,7 +90,7 @@
 **Purpose**: Final validation and cleanup
 
 - [X] T017 Run the focused pytest suite for tests/test_llm_adapter.py
-- [X] T018 Verify source files outside .atelier/defaults/models/ do not embed default provider model ids for this feature
+- [X] T018 Verify source files outside .spanweave/defaults/models/ do not embed default provider model ids for this feature
 
 ---
 

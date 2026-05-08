@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from atelier.llm import (
+from spanweave.llm import (
     CapabilityManifest,
     CapabilityRequirements,
     Cost,
@@ -16,8 +16,8 @@ from atelier.llm import (
     UnsupportedCapabilityError,
     Usage,
 )
-from atelier.llm.adapter import CostPolicy
-from atelier.personas import AgentResponse, Coder, Reviewer
+from spanweave.llm.adapter import CostPolicy
+from spanweave.personas import AgentResponse, Coder, Reviewer
 
 
 class FakeAdapter(LLMAdapter):

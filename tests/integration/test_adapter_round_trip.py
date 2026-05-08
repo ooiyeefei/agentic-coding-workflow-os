@@ -3,7 +3,7 @@
 These tests exercise the full ingest -> persist -> format round trip:
 
 * Read a fixture Claude Code JSONL session with the Claude Code adapter.
-* Persist the extracted typed memory records to ``.atelier/memory/`` on disk.
+* Persist the extracted typed memory records to ``.spanweave/memory/`` on disk.
 * Reload the persisted records and feed them through both the Claude Code and
   the Codex adapters.
 * Assert (a) the decisions and findings survive the round trip without loss,
@@ -18,13 +18,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
-from atelier.adapters import (
+from spanweave.adapters import (
     ClaudeCodeAdapter,
     CodexAdapter,
     GenericAdapter,
     detect_active_adapter,
 )
-from atelier.memory import (
+from spanweave.memory import (
     Decision,
     MemoryRecord,
     RejectedAlternative,
@@ -75,7 +75,7 @@ def test_claude_code_round_trip_persists_and_reformats_for_codex(
     """Round-trip: Claude Code JSONL -> memory records on disk -> packets per tool."""
 
     repo_root = _source_repos(tmp_path)
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
 
     claude_adapter = ClaudeCodeAdapter(repo_root=repo_root)
     ingested = claude_adapter.ingest_transcript(_CLAUDE_FIXTURE)
@@ -152,7 +152,7 @@ def test_round_trip_is_idempotent_under_repeated_ingest(tmp_path: Path) -> None:
     """Re-reading the same fixture must not corrupt or duplicate persisted state."""
 
     repo_root = _source_repos(tmp_path)
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
     adapter = ClaudeCodeAdapter(repo_root=repo_root)
 
     first_pass = adapter.ingest_transcript(_CLAUDE_FIXTURE)
@@ -184,7 +184,7 @@ def test_codex_round_trip_preserves_decisions_for_claude_code_handoff(
     """A Codex-originated session must surface intact when the user resumes in Claude Code."""
 
     repo_root = _source_repos(tmp_path)
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
 
     codex_adapter = CodexAdapter(repo_root=repo_root)
     codex_records = codex_adapter.ingest_transcript(_CODEX_FIXTURE)
@@ -291,7 +291,7 @@ def test_round_trip_preserves_rejected_alternatives_when_present(
     """Manually seed a RejectedAlternative and verify both packets surface it."""
 
     repo_root = _source_repos(tmp_path)
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
 
     claude_adapter = ClaudeCodeAdapter(repo_root=repo_root)
     ingested = claude_adapter.ingest_transcript(_CLAUDE_FIXTURE)

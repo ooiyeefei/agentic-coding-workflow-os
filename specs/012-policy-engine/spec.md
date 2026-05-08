@@ -72,14 +72,14 @@ As an orchestrator, I can check whether a proposed incremental LLM cost fits ins
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide `atelier/policy/engine.py` with a `PolicyEngine` class exposing `requires_approval(stage, context)`, `is_dry_run(operation)`, and `check_cost(run_id, proposed_cost)`.
+- **FR-001**: The system MUST provide `spanweave/policy/engine.py` with a `PolicyEngine` class exposing `requires_approval(stage, context)`, `is_dry_run(operation)`, and `check_cost(run_id, proposed_cost)`.
 - **FR-002**: `requires_approval(stage, context)` MUST return `True` for `rebase-before-pr` and `cleanup-worktree`.
 - **FR-003**: `requires_approval(stage, context)` MUST return `False` for non-gated stages such as `implement`.
 - **FR-004**: `is_dry_run(operation)` MUST return `True` by default for mutating `git-*` operations in Phase 0.
 - **FR-005**: `is_dry_run(operation)` MUST return `False` for explicitly read-only git operations and for non-git operations that do not have a dry-run default.
-- **FR-006**: The system MUST define Phase 0 hardcoded defaults in `atelier/policy/defaults.py`, including approval-gated stages, dry-run behavior, and spend caps of $5.00 per run and $50.00 per day.
-- **FR-007**: The system MUST provide `atelier/policy/cost_tracker.py` that reads append-only JSONL audit logs from the filesystem and sums current cost for a run and for a day without requiring any database.
-- **FR-008**: The cost tracker MUST read per-run logs from `.atelier/runs/<run_id>/audit.jsonl` and daily logs from `.atelier/audit/YYYY-MM-DD.jsonl`.
+- **FR-006**: The system MUST define Phase 0 hardcoded defaults in `spanweave/policy/defaults.py`, including approval-gated stages, dry-run behavior, and spend caps of $5.00 per run and $50.00 per day.
+- **FR-007**: The system MUST provide `spanweave/policy/cost_tracker.py` that reads append-only JSONL audit logs from the filesystem and sums current cost for a run and for a day without requiring any database.
+- **FR-008**: The cost tracker MUST read per-run logs from `.spanweave/runs/<run_id>/audit.jsonl` and daily logs from `.spanweave/audit/YYYY-MM-DD.jsonl`.
 - **FR-009**: The cost tracker MUST accept W13-style audit entries where cost appears either as a direct numeric field or as a nested normalized cost object containing `total_usd`.
 - **FR-010**: `check_cost(run_id, proposed_cost)` MUST compare the proposed incremental cost against both the projected run total and the projected current-day total.
 - **FR-011**: `check_cost(run_id, proposed_cost)` MUST return `True` when the projected totals are less than or equal to the configured caps.

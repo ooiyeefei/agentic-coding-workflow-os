@@ -19,13 +19,13 @@
 
 As a non-CLI client, I can create a workflow run and fetch its current metadata over localhost HTTP, so future IDE and dashboard integrations can target the same control-plane state as the CLI.
 
-**Why this priority**: Without a stable create/read HTTP contract, later clients still need to shell out to the CLI or read `.atelier/` directly, which defeats the purpose of the daemon.
+**Why this priority**: Without a stable create/read HTTP contract, later clients still need to shell out to the CLI or read `.spanweave/` directly, which defeats the purpose of the daemon.
 
 **Independent Test**: In a temporary repository, start the FastAPI app in-process, call `POST /runs`, and then call `GET /runs/<run_id>`. The responses should include a valid run ID, persisted run metadata, and evidence that the workflow advanced beyond bare creation.
 
 **Acceptance Scenarios**:
 
-1. **Given** a repo-local `.atelier/` workspace, **When** a client sends `POST /runs` with an issue reference and workflow name, **Then** the daemon creates `.atelier/runs/<run_id>/`, starts advancing the workflow in daemon mode, and returns the created run ID plus current metadata.
+1. **Given** a repo-local `.spanweave/` workspace, **When** a client sends `POST /runs` with an issue reference and workflow name, **Then** the daemon creates `.spanweave/runs/<run_id>/`, starts advancing the workflow in daemon mode, and returns the created run ID plus current metadata.
 2. **Given** an existing run on disk, **When** a client sends `GET /runs/<run_id>`, **Then** the daemon returns the persisted run snapshot including status, current stage, waiting reason, and created stages.
 3. **Given** a request without the shared secret header, **When** the client calls any daemon route, **Then** the daemon rejects the request instead of exposing run state.
 
@@ -75,11 +75,11 @@ As a non-CLI client, I can approve a run that is waiting on a completed approval
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST expose a FastAPI application in `atelier/daemon/server.py`.
-- **FR-002**: The system MUST expose HTTP routes in `atelier/daemon/routes.py` for `POST /runs`, `GET /runs/<id>`, `GET /runs/<id>/events`, and `POST /runs/<id>/approve`.
+- **FR-001**: The system MUST expose a FastAPI application in `spanweave/daemon/server.py`.
+- **FR-002**: The system MUST expose HTTP routes in `spanweave/daemon/routes.py` for `POST /runs`, `GET /runs/<id>`, `GET /runs/<id>/events`, and `POST /runs/<id>/approve`.
 - **FR-003**: `POST /runs` MUST create a new run using the existing filesystem-backed workflow engine, trigger daemon-side execution for that run, and return the created run ID plus persisted run metadata.
-- **FR-004**: `GET /runs/<id>` MUST return the same run metadata model that Phase 0 CLI inspection uses, derived from repo-local `.atelier/runs/<id>/` state.
-- **FR-005**: `GET /runs/<id>/events` MUST stream audit events from `.atelier/runs/<id>/audit.jsonl` as SSE, including new events appended after the connection opens.
+- **FR-004**: `GET /runs/<id>` MUST return the same run metadata model that Phase 0 CLI inspection uses, derived from repo-local `.spanweave/runs/<id>/` state.
+- **FR-005**: `GET /runs/<id>/events` MUST stream audit events from `.spanweave/runs/<id>/audit.jsonl` as SSE, including new events appended after the connection opens.
 - **FR-006**: SSE messages MUST include the audit event identifier, event type, and serialized payload so clients can consume them without reading the filesystem directly.
 - **FR-007**: `POST /runs/<id>/approve` MUST unblock runs waiting on a completed approval gate and return the updated run metadata.
 - **FR-008**: `POST /runs/<id>/approve` MUST reject runs that are not in `waiting_approval` state or are waiting for a reason other than `gate`.

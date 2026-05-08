@@ -15,7 +15,7 @@
 
 #### `finding-auth`
 
-- File: `atelier/workflow/stages.py:42`
+- File: `spanweave/workflow/stages.py:42`
 - Description: Authentication flow breaks on invalid session reuse.
 - Verification: Observed a failing pytest assertion in the review stage fixture.
 
@@ -23,7 +23,7 @@
 
 #### `finding-audit`
 
-- File: `atelier/audit/log.py:17`
+- File: `spanweave/audit/log.py:17`
 - Description: Audit trace is missing a reference to the retry decision.
 - Verification: Compared the emitted audit chain against the expected decision IDs.
 
@@ -31,7 +31,7 @@
 
 #### `finding-copy`
 
-- File: `atelier/evidence/templates/evidence.md.j2:1`
+- File: `spanweave/evidence/templates/evidence.md.j2:1`
 - Description: Evidence header wording is inconsistent with the rest of the run artifacts.
 - Verification: Read the rendered markdown and compared it to the packet header style.
 
@@ -57,7 +57,7 @@ AssertionError: expected evidence file pair
 
 ### Command 2
 
-- Command: `uv run ruff check atelier/evidence tests/test_evidence.py`
+- Command: `uv run ruff check spanweave/evidence tests/test_evidence.py`
 - Exit Code: `0`
 - Linked Findings: `finding-copy`
 #### Stdout

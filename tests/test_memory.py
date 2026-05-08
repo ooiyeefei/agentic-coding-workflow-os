@@ -4,10 +4,10 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
-import atelier.memory.records as memory_records
 import frontmatter
 import pytest
-from atelier.memory import (
+import spanweave.memory.records as memory_records
+from spanweave.memory import (
     Decision,
     ReviewFinding,
     SkillOutcome,
@@ -52,7 +52,7 @@ def test_write_and_read_round_trip_preserves_fields_and_markdown_body(
         body=body,
     )
 
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     written_path = write_record(record, memory_root)
 
     assert written_path == memory_root / "decisions" / f"{record.id}.md"
@@ -76,7 +76,7 @@ def test_list_records_filters_by_type_and_tags(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     stage_id = f"stage_{fixed_ulid_values[1]}"
     timestamp = datetime(2026, 4, 20, 0, 0, tzinfo=UTC)
 
@@ -121,7 +121,7 @@ def test_skill_outcome_round_trip_supports_feedback_learning(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     record = SkillOutcome(
         id=f"skill_outcome_{fixed_ulid_values[5]}",
         run_id=fixed_run_id,
@@ -161,7 +161,7 @@ def test_write_record_redacts_secret_like_body_content(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     record = Decision(
         id=f"decision_{fixed_ulid_values[1]}",
         run_id=fixed_run_id,
@@ -180,7 +180,7 @@ def test_write_record_redacts_secret_like_body_content(
 
 
 def test_read_record_rejects_missing_frontmatter(tmp_path: Path) -> None:
-    path = tmp_path / ".atelier" / "memory" / "decisions" / "decision_invalid.md"
+    path = tmp_path / ".spanweave" / "memory" / "decisions" / "decision_invalid.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("# Not frontmatter\n", encoding="utf-8")
 
@@ -193,7 +193,7 @@ def test_read_record_rejects_unsupported_record_type(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    path = tmp_path / ".atelier" / "memory" / "decisions" / "decision_invalid.md"
+    path = tmp_path / ".spanweave" / "memory" / "decisions" / "decision_invalid.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         (
@@ -224,7 +224,7 @@ def test_list_records_raises_on_malformed_markdown_file_in_tree(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    memory_root = tmp_path / ".atelier" / "memory"
+    memory_root = tmp_path / ".spanweave" / "memory"
     valid = Decision(
         id=f"decision_{fixed_ulid_values[1]}",
         run_id=fixed_run_id,

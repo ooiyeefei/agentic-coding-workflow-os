@@ -19,7 +19,7 @@
 
 As a workflow orchestrator, I can match a persona's required capabilities against available model manifests so I only dispatch work to models that actually meet the persona contract.
 
-**Why this priority**: Without capability-based routing, Atelier cannot honestly claim model swappability and will continue to depend on brittle hardcoded model choices.
+**Why this priority**: Without capability-based routing, Spanweave cannot honestly claim model swappability and will continue to depend on brittle hardcoded model choices.
 
 **Independent Test**: Provide a requirements object with `tool_use=True` and `long_context=128000`, then confirm the matcher selects a manifest that offers both while rejecting one that lacks `tool_use`.
 
@@ -73,16 +73,16 @@ As a repository maintainer, I can load default model manifests from versioned YA
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define an abstract `LLMAdapter` contract in `atelier/llm/adapter.py` with async `generate(messages, tools, required_capabilities) -> Response`.
+- **FR-001**: The system MUST define an abstract `LLMAdapter` contract in `spanweave/llm/adapter.py` with async `generate(messages, tools, required_capabilities) -> Response`.
 - **FR-002**: The system MUST provide normalized Pydantic models for adapter inputs and outputs, including messages, tools, tool calls, usage, and per-call cost.
-- **FR-003**: The system MUST implement an Anthropic adapter in `atelier/llm/anthropic.py` using the `anthropic` Python SDK.
-- **FR-004**: The system MUST implement an OpenAI adapter in `atelier/llm/openai.py` using the `openai` Python SDK.
+- **FR-003**: The system MUST implement an Anthropic adapter in `spanweave/llm/anthropic.py` using the `anthropic` Python SDK.
+- **FR-004**: The system MUST implement an OpenAI adapter in `spanweave/llm/openai.py` using the `openai` Python SDK.
 - **FR-005**: The system MUST validate required capabilities against the adapter's manifest before making a provider request.
-- **FR-006**: The system MUST define a Pydantic `CapabilityManifest` model in `atelier/llm/capabilities.py` with declarative capability offers and input/output pricing.
+- **FR-006**: The system MUST define a Pydantic `CapabilityManifest` model in `spanweave/llm/capabilities.py` with declarative capability offers and input/output pricing.
 - **FR-007**: The system MUST define a matcher function `route_persona_to_model(persona_requires, available_models)` that returns the first compatible manifest in input order.
 - **FR-008**: The system MUST raise `UnsupportedCapabilityError` when no available manifest satisfies the requested capabilities.
 - **FR-009**: The system MUST represent `long_context` as a numeric minimum-token capability and treat larger offered context windows as compatible with smaller requirements.
-- **FR-010**: The system MUST load default manifests from `.atelier/defaults/models/*.yaml`.
+- **FR-010**: The system MUST load default manifests from `.spanweave/defaults/models/*.yaml`.
 - **FR-011**: The system MUST ship default manifests for `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `gpt-5`, and `gpt-4o-mini`.
 - **FR-012**: The system MUST keep provider model identifiers out of source code paths other than the manifest YAML files.
 - **FR-013**: The system MUST compute per-call input, output, and total USD cost on the normalized `Response` using manifest pricing and provider token usage.
@@ -103,7 +103,7 @@ As a repository maintainer, I can load default model manifests from versioned YA
 - **SC-001**: `tests/test_llm_adapter.py` passes locally and covers Anthropic, OpenAI, successful capability routing, and unsupported capability failure.
 - **SC-002**: A persona requirement of `tool_use=True, long_context=128000` matches a manifest offering `tool_use=True, long_context=200000`.
 - **SC-003**: A persona requirement of `tool_use=True` fails with `UnsupportedCapabilityError` when the only available manifest offers `tool_use=False`.
-- **SC-004**: Repository source files outside `.atelier/defaults/models/` contain no hardcoded default provider model identifiers for this feature.
+- **SC-004**: Repository source files outside `.spanweave/defaults/models/` contain no hardcoded default provider model identifiers for this feature.
 - **SC-005**: Every normalized adapter response includes per-call input, output, and total cost values suitable for later audit-log ingestion.
 
 ## Assumptions

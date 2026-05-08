@@ -3,8 +3,8 @@
 ## Verify the feature
 
 1. Run `uv run pytest tests/test_redaction.py -v`.
-2. Run `uv run ruff check atelier/security/patterns.py atelier/security/redaction.py tests/test_redaction.py`.
-3. Run `uv run pyright atelier/security/patterns.py atelier/security/redaction.py tests/test_redaction.py`.
+2. Run `uv run ruff check spanweave/security/patterns.py spanweave/security/redaction.py tests/test_redaction.py`.
+3. Run `uv run pyright spanweave/security/patterns.py spanweave/security/redaction.py tests/test_redaction.py`.
 
 ## Manual spot checks
 

@@ -5,15 +5,15 @@
 
 ## Summary
 
-Implement a hardcoded Phase 0 policy layer under `atelier/policy/` that isolates approval-gate decisions, conservative dry-run defaults for git mutations, and filesystem-only cost cap checks backed by W13-style audit JSONL aggregation.
+Implement a hardcoded Phase 0 policy layer under `spanweave/policy/` that isolates approval-gate decisions, conservative dry-run defaults for git mutations, and filesystem-only cost cap checks backed by W13-style audit JSONL aggregation.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
 **Primary Dependencies**: pydantic v2, pathlib, pytest  
-**Storage**: Filesystem JSONL audit logs under `.atelier/runs/` and `.atelier/audit/`  
+**Storage**: Filesystem JSONL audit logs under `.spanweave/runs/` and `.spanweave/audit/`  
 **Testing**: pytest with temporary audit log fixtures and focused boundary assertions  
-**Target Platform**: Local developer machines and CI running the Atelier Python package  
+**Target Platform**: Local developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module  
 **Performance Goals**: Policy checks remain synchronous and complete in milliseconds on small Phase 0 audit logs  
 **Constraints**: No network calls, no database, hardcoded defaults only, and exact cap boundary behavior must be deterministic  
@@ -41,7 +41,7 @@ specs/012-policy-engine/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── policy/
 │   ├── __init__.py
 │   ├── cost_tracker.py
@@ -54,7 +54,7 @@ tests/
 └── test_policy.py
 ```
 
-**Structure Decision**: Keep all policy logic inside `atelier/policy/`, reuse `atelier.util.paths.audit_log_path` for run-scoped audit log lookup, and verify the slice through a single focused test module.
+**Structure Decision**: Keep all policy logic inside `spanweave/policy/`, reuse `spanweave.util.paths.audit_log_path` for run-scoped audit log lookup, and verify the slice through a single focused test module.
 
 ## Complexity Tracking
 

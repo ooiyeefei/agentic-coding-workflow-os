@@ -4,7 +4,8 @@ from textwrap import dedent
 from typing import Any
 
 import pytest
-from atelier.compiler import (
+from pydantic import ValidationError
+from spanweave.compiler import (
     AcceptanceGate,
     BudgetExceededError,
     ExactCommands,
@@ -16,11 +17,10 @@ from atelier.compiler import (
     compile_packet,
     estimate_tokens,
 )
-from pydantic import ValidationError
 
 
 def test_compile_packet_within_budget_is_deterministic() -> None:
-    objective = Objective(content="Build the Context Compiler for Atelier.")
+    objective = Objective(content="Build the Context Compiler for Spanweave.")
     sources = make_sources()
 
     first_packet = compile_packet(objective, sources, budget_tokens=8000)
@@ -42,7 +42,7 @@ def test_compile_packet_within_budget_is_deterministic() -> None:
 
 def test_compile_packet_drops_nice_tier_first() -> None:
     packet = compile_packet(
-        "Build the Context Compiler for Atelier.",
+        "Build the Context Compiler for Spanweave.",
         make_sources(),
         budget_tokens=estimate_tokens(expected_packet_without_nice()),
     )
@@ -58,7 +58,7 @@ def test_compile_packet_drops_nice_tier_first() -> None:
 
 def test_compile_packet_drops_should_after_nice() -> None:
     packet = compile_packet(
-        "Build the Context Compiler for Atelier.",
+        "Build the Context Compiler for Spanweave.",
         make_sources(),
         budget_tokens=estimate_tokens(expected_packet_with_must_only()),
     )
@@ -75,7 +75,7 @@ def test_compile_packet_raises_when_must_tier_exceeds_budget() -> None:
 
     with pytest.raises(BudgetExceededError):
         compile_packet(
-            "Build the Context Compiler for Atelier.",
+            "Build the Context Compiler for Spanweave.",
             make_sources(),
             budget_tokens=budget_tokens,
         )
@@ -86,7 +86,7 @@ def test_compile_packet_rejects_unordered_sources() -> None:
 
     with pytest.raises(TypeError, match="ordered sequence"):
         compile_packet(
-            "Build the Context Compiler for Atelier.",
+            "Build the Context Compiler for Spanweave.",
             unordered_sources,
             budget_tokens=8000,
         )
@@ -160,7 +160,7 @@ def expected_full_packet() -> str:
         ## Objective
         _Source: objective | objective | -_
 
-        Build the Context Compiler for Atelier.
+        Build the Context Compiler for Spanweave.
 
         ## Repository Rules
         _Source: repo_rule | agents-md | /repo/AGENTS.md_
@@ -209,7 +209,7 @@ def expected_packet_without_nice() -> str:
         ## Objective
         _Source: objective | objective | -_
 
-        Build the Context Compiler for Atelier.
+        Build the Context Compiler for Spanweave.
 
         ## Repository Rules
         _Source: repo_rule | agents-md | /repo/AGENTS.md_
@@ -246,7 +246,7 @@ def expected_packet_with_must_only() -> str:
         ## Objective
         _Source: objective | objective | -_
 
-        Build the Context Compiler for Atelier.
+        Build the Context Compiler for Spanweave.
 
         ## Repository Rules
         _Source: repo_rule | agents-md | /repo/AGENTS.md_

@@ -26,7 +26,7 @@ class NoteCreate(BaseModel):
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    app = FastAPI(title="Atelier Demo App")
+    app = FastAPI(title="Spanweave Demo App")
     app.state.settings = settings or Settings.from_env()
     app.state.store = InMemoryStore()
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))

@@ -6,24 +6,24 @@ from unittest.mock import AsyncMock
 
 import pytest
 from anthropic.types import Message as AnthropicMessage
-from atelier.defaults import DEFAULT_MODELS_DIR
-from atelier.llm.adapter import (
+from openai.types.responses import Response as OpenAIResponse
+from spanweave.defaults import DEFAULT_MODELS_DIR
+from spanweave.llm.adapter import (
     LLMProviderError,
     Message,
     ToolCall,
     ToolDefinition,
 )
-from atelier.llm.anthropic import AnthropicAdapter
-from atelier.llm.capabilities import (
+from spanweave.llm.anthropic import AnthropicAdapter
+from spanweave.llm.capabilities import (
     CapabilityManifest,
     CapabilityRequirements,
     UnsupportedCapabilityError,
     load_capability_manifests,
     route_persona_to_model,
 )
-from atelier.llm.openai import OpenAIAdapter
-from atelier.policy import CostCapExceeded
-from openai.types.responses import Response as OpenAIResponse
+from spanweave.llm.openai import OpenAIAdapter
+from spanweave.policy import CostCapExceeded
 
 
 def test_route_persona_to_model_matches_required_capabilities() -> None:

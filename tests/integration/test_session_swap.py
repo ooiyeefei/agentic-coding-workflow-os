@@ -7,7 +7,7 @@ preserved. These tests simulate the full async handoff:
     Codex captures decisions during a run
         |
         v
-    `atelier resume --agent claude-code --run <id>` formats them for Claude Code
+    `spanweave resume --agent claude-code --run <id>` formats them for Claude Code
         |
         v
     Output prompt contains every decision plus the run cursor.
@@ -19,9 +19,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from atelier.adapters import CodexAdapter
-from atelier.memory import Decision, RejectedAlternative, ReviewFinding, write_record
-from atelier.session import generate_context, generate_prompt, resume
+from spanweave.adapters import CodexAdapter
+from spanweave.memory import Decision, RejectedAlternative, ReviewFinding, write_record
+from spanweave.session import generate_context, generate_prompt, resume
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "adapters"
 _CODEX_FIXTURE = (
@@ -52,7 +52,7 @@ def _seed_repo_with_codex_run(
     )
     (repo_root / "AGENTS.md").write_text("# Agent rules\n", encoding="utf-8")
 
-    run_root = repo_root / ".atelier" / "runs" / run_id
+    run_root = repo_root / ".spanweave" / "runs" / run_id
 
     # Completed plan stage with full artifacts so the compiler picks them up.
     plan_stage = run_root / "stages" / "001-plan"
@@ -103,7 +103,7 @@ def _seed_repo_with_codex_run(
         encoding="utf-8",
     )
 
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
     timestamp = datetime(2026, 4, 24, 0, 0, tzinfo=UTC)
     stage_id = f"stage_{fixed_ulid_values[1]}"
 
@@ -288,12 +288,12 @@ def test_resume_with_codex_session_file_decisions_carry_forward(
     codex_adapter = CodexAdapter(repo_root=repo_root)
     codex_records = codex_adapter.ingest_transcript(_CODEX_FIXTURE)
     assert codex_records
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
     for record in codex_records:
         write_record(record, memory_root)
 
     # Seed minimal run state so the resume command knows the cursor.
-    run_root = repo_root / ".atelier" / "runs" / fixed_run_id
+    run_root = repo_root / ".spanweave" / "runs" / fixed_run_id
     plan_stage = run_root / "stages" / "001-specify"
     (plan_stage / "decisions").mkdir(parents=True)
     (plan_stage / "findings").mkdir()
@@ -337,7 +337,7 @@ def test_role_specific_prompt_routes_persona_through_session_continuity(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    """`atelier prompt --role coder` and `--role reviewer` produce distinct prompts."""
+    """`spanweave prompt --role coder` and `--role reviewer` produce distinct prompts."""
 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -369,7 +369,7 @@ def test_context_summary_for_external_tool_stays_under_token_budget(
     fixed_run_id: str,
     fixed_ulid_values: list[str],
 ) -> None:
-    """`atelier context --for chatgpt` produces a self-contained, budgeted summary."""
+    """`spanweave context --for chatgpt` produces a self-contained, budgeted summary."""
 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

@@ -26,7 +26,7 @@
 
 ## Decision 4: Let Coder consume a skill catalog when present and a fixed fallback sequence when absent
 
-- **Decision**: Implement Coder skill discovery against `.atelier/defaults/skills/*.md` and fall back to a hardcoded Speckit progression when the W05 catalog has not landed.
+- **Decision**: Implement Coder skill discovery against `.spanweave/defaults/skills/*.md` and fall back to a hardcoded Speckit progression when the W05 catalog has not landed.
 - **Rationale**: W04 depends conceptually on W05 but cannot block on it. The fallback preserves useful behavior on `main` while still allowing W05 to become the source of truth later.
 - **Alternatives considered**:
   - Hard fail if the skills directory is missing: rejected because W05 is a parallel dependency and the user explicitly wants W04 implemented now.

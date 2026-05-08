@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from atelier.adapters import ClaudeCodeAdapter, CodexAdapter
-from atelier.llm import (
+from spanweave.adapters import ClaudeCodeAdapter, CodexAdapter
+from spanweave.llm import (
     CapabilityManifest,
     CapabilityRequirements,
     LLMAdapter,
@@ -14,13 +14,13 @@ from atelier.llm import (
     Response,
     ToolDefinition,
 )
-from atelier.llm.adapter import CostPolicy
-from atelier.personas import AgentToolCaller, Coder, DirectAPICaller
-from atelier.util.paths import run_dir
-from atelier.workflow import WorkflowEngine, default_stage_executor_deps
-from atelier.workflow.engine import RunStatus, _read_state
-from atelier.workflow.stages import PersonaCallResult
-from atelier.workflow.transitions import TransitionKind
+from spanweave.llm.adapter import CostPolicy
+from spanweave.personas import AgentToolCaller, Coder, DirectAPICaller
+from spanweave.util.paths import run_dir
+from spanweave.workflow import WorkflowEngine, default_stage_executor_deps
+from spanweave.workflow.engine import RunStatus, _read_state
+from spanweave.workflow.stages import PersonaCallResult
+from spanweave.workflow.transitions import TransitionKind
 
 
 class FakeAdapter(LLMAdapter):

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from atelier.evidence import EvidencePack
-from atelier.llm import (
+from spanweave.evidence import EvidencePack
+from spanweave.llm import (
     CapabilityManifest,
     CapabilityRequirements,
     Cost,
@@ -16,8 +16,8 @@ from atelier.llm import (
     Response,
     Usage,
 )
-from atelier.personas import UAT, AgentResponse, uat_runner
-from atelier.personas.uat_runner import (
+from spanweave.personas import UAT, AgentResponse, uat_runner
+from spanweave.personas.uat_runner import (
     UATExecutionError,
     UATRequest,
     UATTimeoutError,
@@ -134,7 +134,7 @@ def test_run_uat_maps_report_to_evidence_pack_and_redacts_credentials(
         UATRequest(
             app_path="demo/app",
             skill_path=str(fake_skill_script),
-            test_user="demo@atelier.dev",
+            test_user="demo@spanweave.dev",
             test_password="hunter2",
         ),
         subprocess_runner=subprocess_runner,
@@ -147,7 +147,7 @@ def test_run_uat_maps_report_to_evidence_pack_and_redacts_credentials(
     assert evidence.findings[1].description == "Retry-After header missing"
     assert "hunter2" not in evidence.execution[0].stdout
     assert "hunter2" not in evidence.execution[0].stderr
-    assert captured["kwargs"]["env"]["TEST_USER"] == "demo@atelier.dev"
+    assert captured["kwargs"]["env"]["TEST_USER"] == "demo@spanweave.dev"
     assert captured["kwargs"]["env"]["TEST_PASSWORD"] == "hunter2"
     assert Path(captured["command"][-1]).name == "app"
 
@@ -167,7 +167,7 @@ def test_run_uat_parses_stderr_findings_even_when_stdout_is_non_empty(
         UATRequest(
             app_path="demo/app",
             skill_path=str(fake_skill_script),
-            test_user="demo@atelier.dev",
+            test_user="demo@spanweave.dev",
             test_password="demo1234",
         ),
         subprocess_runner=subprocess_runner,
@@ -219,12 +219,12 @@ def test_run_uat_raises_clear_error_for_invalid_skill_path() -> None:
             UATRequest(
                 app_path="demo/app",
                 skill_path="/tmp/does-not-exist-uat-skill",
-                test_user="demo@atelier.dev",
+                test_user="demo@spanweave.dev",
                 test_password="demo1234",
             )
         )
 
-    assert "ATELIER_UAT_SKILL_PATH" in str(excinfo.value)
+    assert "SPANWEAVE_UAT_SKILL_PATH" in str(excinfo.value)
     assert "/tmp/does-not-exist-uat-skill" in str(excinfo.value)
 
 
@@ -239,7 +239,7 @@ def test_run_uat_raises_timeout_error(
             UATRequest(
                 app_path="demo/app",
                 skill_path=str(fake_skill_script),
-                test_user="demo@atelier.dev",
+                test_user="demo@spanweave.dev",
                 test_password="demo1234",
                 timeout_seconds=5,
             ),

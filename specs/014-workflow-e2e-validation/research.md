@@ -10,7 +10,7 @@
 
 ## Decision 2: Keep Real LLM Coverage As An Explicit Opt-In
 
-- **Decision**: Gate real persona calls behind `ATELIER_INTEGRATION_REAL_LLM=1` and skip cleanly when required provider credentials are absent.
+- **Decision**: Gate real persona calls behind `SPANWEAVE_INTEGRATION_REAL_LLM=1` and skip cleanly when required provider credentials are absent.
 - **Rationale**: Maintainers still need a way to smoke-test real model routing, but that path must not alter CI defaults or break contributor workflows.
 - **Alternatives considered**:
   - No real-LLM mode at all: rejected because the issue explicitly asks for an opt-in path.

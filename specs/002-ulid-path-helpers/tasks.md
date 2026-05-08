@@ -11,7 +11,7 @@
 
 **Purpose**: Prepare the utility surface and targeted verification files
 
-- [x] T001 Update the public utility export surface in atelier/util/__init__.py
+- [x] T001 Update the public utility export surface in spanweave/util/__init__.py
 - [x] T002 Create targeted test modules in tests/test_ulid.py, tests/test_paths.py, and tests/test_fs.py
 
 ---
@@ -20,8 +20,8 @@
 
 **Purpose**: Establish shared validation and naming behavior used by later tasks
 
-- [x] T003 Create prefixed ULID parsing and validation helpers in atelier/util/ulid.py
-- [x] T004 Create shared run graph path validation and stage slug normalization in atelier/util/paths.py
+- [x] T003 Create prefixed ULID parsing and validation helpers in spanweave/util/ulid.py
+- [x] T004 Create shared run graph path validation and stage slug normalization in spanweave/util/paths.py
 
 **Checkpoint**: Shared validation primitives are in place for the remaining stories.
 
@@ -39,7 +39,7 @@
 
 ### Implementation for User Story 1
 
-- [x] T006 [US1] Implement public prefixed ID generator functions in atelier/util/ulid.py
+- [x] T006 [US1] Implement public prefixed ID generator functions in spanweave/util/ulid.py
 
 **Checkpoint**: All run graph entity IDs can be generated and validated.
 
@@ -47,7 +47,7 @@
 
 ## Phase 4: User Story 2 - Build Canonical Run Graph Paths (Priority: P2)
 
-**Goal**: Provide validated `Path` constructors for the canonical `.atelier` tree
+**Goal**: Provide validated `Path` constructors for the canonical `.spanweave` tree
 
 **Independent Test**: Build run, stage, packet, evidence, transcript, and audit log paths from valid inputs and confirm invalid values fail fast.
 
@@ -57,8 +57,8 @@
 
 ### Implementation for User Story 2
 
-- [x] T008 [US2] Implement canonical run and stage path constructors in atelier/util/paths.py
-- [x] T009 [US2] Implement artifact-specific path helpers in atelier/util/paths.py
+- [x] T008 [US2] Implement canonical run and stage path constructors in spanweave/util/paths.py
+- [x] T009 [US2] Implement artifact-specific path helpers in spanweave/util/paths.py
 
 **Checkpoint**: Canonical run graph locations are deterministic and validated.
 
@@ -76,8 +76,8 @@
 
 ### Implementation for User Story 3
 
-- [x] T011 [US3] Implement safe directory creation in atelier/util/fs.py
-- [x] T012 [US3] Implement same-directory atomic file replacement in atelier/util/fs.py
+- [x] T011 [US3] Implement safe directory creation in spanweave/util/fs.py
+- [x] T012 [US3] Implement same-directory atomic file replacement in spanweave/util/fs.py
 
 **Checkpoint**: Filesystem helpers preserve destination integrity across success and failure cases.
 
@@ -87,8 +87,8 @@
 
 **Purpose**: Final verification and cleanup across the shared utility surface
 
-- [x] T013 Run the targeted utility verification suite for atelier/util in tests/test_ulid.py, tests/test_paths.py, and tests/test_fs.py
-- [x] T014 Confirm 100% coverage, lint, and type-check results for atelier/util
+- [x] T013 Run the targeted utility verification suite for spanweave/util in tests/test_ulid.py, tests/test_paths.py, and tests/test_fs.py
+- [x] T014 Confirm 100% coverage, lint, and type-check results for spanweave/util
 
 ---
 

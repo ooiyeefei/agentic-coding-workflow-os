@@ -43,6 +43,6 @@ Every concrete adapter implements:
 
 ## Manifest Loader
 
-- Reads YAML files from `atelier/adapters/manifests/`
+- Reads YAML files from `spanweave/adapters/manifests/`
 - Rejects non-mapping YAML payloads
 - Returns typed manifest models that can be asserted in tests

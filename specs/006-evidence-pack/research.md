@@ -18,7 +18,7 @@
 
 ## Decision 3: Validate `run_id` with existing helpers and constrain `stage_id` to canonical stage labels
 
-- **Decision**: Reuse existing run-id validation through `atelier.util.run_dir(...)` and accept only safe stage directory labels like `001-review`.
+- **Decision**: Reuse existing run-id validation through `spanweave.util.run_dir(...)` and accept only safe stage directory labels like `001-review`.
 - **Rationale**: The repo already established the run-id contract and run-tree location. Matching that contract keeps W08 aligned with W03/W09 instead of inventing a second path scheme.
 - **Alternatives considered**:
   - Accept any string for `stage_id`: rejected because path traversal and inconsistent stage naming would leak into persisted artifacts.

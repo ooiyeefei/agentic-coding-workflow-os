@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "atelier-demo-app"
+name = "spanweave-demo-app"
 version = "0.1.0"
-description = "Minimal FastAPI demo app for Atelier Phase 0"
+description = "Minimal FastAPI demo app for Spanweave Phase 0"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1.0",

@@ -1,4 +1,4 @@
-# Contract: atelier.personas UAT API
+# Contract: spanweave.personas UAT API
 
 ## UAT Persona
 
@@ -7,7 +7,7 @@
 
 **Contract**:
 
-- Persona initialization loads prompt metadata from `.atelier/defaults/personas/uat.md`.
+- Persona initialization loads prompt metadata from `.spanweave/defaults/personas/uat.md`.
 - Persona initialization routes through `route_persona_to_model(...)`.
 - The persona requires a model capable of generating structured UAT guidance before execution.
 - `respond(...)` always performs one adapter call before subprocess-backed UAT execution.
@@ -19,7 +19,7 @@
 
 **Contract**:
 
-- Resolves the skill path from the request or `ATELIER_UAT_SKILL_PATH`.
+- Resolves the skill path from the request or `SPANWEAVE_UAT_SKILL_PATH`.
 - Fails clearly when the skill path is missing, unusable, or times out.
 - Resolves credentials from request, environment, or repo-relative `.env.local`.
 - Passes the target app path and credentials to the subprocess execution context.

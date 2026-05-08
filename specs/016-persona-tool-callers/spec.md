@@ -15,7 +15,7 @@
 
 ### User Story 1 - Generate Agent Tool Prompts (Priority: P1)
 
-As a workflow operator, I want persona stages to produce paste-ready prompts for the selected agent tool so Claude Code, Codex, or another tool performs the work instead of Atelier calling model APIs directly.
+As a workflow operator, I want persona stages to produce paste-ready prompts for the selected agent tool so Claude Code, Codex, or another tool performs the work instead of Spanweave calling model APIs directly.
 
 **Why this priority**: This corrects the core architecture for main workflow stages.
 

@@ -22,7 +22,7 @@ Every generated `evidence.json` document contains:
 
 ## Filesystem Contract
 
-- Destination directory: `.atelier/runs/<run_id>/stages/<stage_id>/`
+- Destination directory: `.spanweave/runs/<run_id>/stages/<stage_id>/`
 - JSON sidecar: `evidence.json`
 - Markdown sidecar: `evidence.md`
 

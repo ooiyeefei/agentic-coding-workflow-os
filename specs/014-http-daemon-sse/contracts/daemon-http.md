@@ -1,8 +1,8 @@
-# Contract: atelier.daemon HTTP API
+# Contract: spanweave.daemon HTTP API
 
 ## Security Boundary
 
-- Every request requires the `X-Atelier-Secret` header.
+- Every request requires the `X-Spanweave-Secret` header.
 - Requests are accepted only from loopback client addresses.
 - CORS is limited to loopback origins (`localhost`, `127.0.0.1`, and `::1`).
 
@@ -20,7 +20,7 @@
 
 **Contract**:
 
-- Creates a new run under `.atelier/runs/<run_id>/`.
+- Creates a new run under `.spanweave/runs/<run_id>/`.
 - Starts daemon-side workflow execution for the new run.
 - Normalizes purely numeric issue references to the Phase 0 `issue #<n>` form.
 - Returns HTTP `201` with the created run snapshot.
@@ -30,7 +30,7 @@
 
 **Contract**:
 
-- Reads the run snapshot from repo-local `.atelier/runs/<run_id>/` state.
+- Reads the run snapshot from repo-local `.spanweave/runs/<run_id>/` state.
 - Returns HTTP `200` with the same metadata shape used by the CLI read model.
 - Returns HTTP `404` when the run does not exist.
 - Returns HTTP `400` when `run_id` is malformed.

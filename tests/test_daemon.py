@@ -6,8 +6,8 @@ from pathlib import Path
 import httpx
 import pytest
 import yaml
-from atelier.daemon.server import DAEMON_SECRET_HEADER, create_app
-from atelier.workflow.stages import StageExecutorDeps
+from spanweave.daemon.server import DAEMON_SECRET_HEADER, create_app
+from spanweave.workflow.stages import StageExecutorDeps
 
 _TEST_SECRET = "test-daemon-secret"
 
@@ -56,7 +56,7 @@ async def _wait_for_run_state(
 
 @pytest.fixture
 def approval_workflow_dir(tmp_path: Path) -> Path:
-    workflow_dir = tmp_path / ".atelier" / "workflows"
+    workflow_dir = tmp_path / ".spanweave" / "workflows"
     workflow_dir.mkdir(parents=True)
     (workflow_dir / "approval-check.yaml").write_text(
         yaml.safe_dump(
@@ -88,7 +88,7 @@ def test_create_app_persists_secret_when_env_missing(
 
     app = create_app(repo_root=tmp_path)
 
-    secret_path = tmp_path / ".atelier" / "daemon" / "secret.txt"
+    secret_path = tmp_path / ".spanweave" / "daemon" / "secret.txt"
     assert secret_path.is_file()
     assert secret_path.read_text(encoding="utf-8").strip() == app.state.daemon_config.shared_secret
 

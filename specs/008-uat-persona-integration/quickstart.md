@@ -19,7 +19,7 @@ pytest tests/test_uat.py -q
 ```python
 import asyncio
 
-from atelier.personas.uat import UAT
+from spanweave.personas.uat import UAT
 
 
 async def main() -> None:
@@ -28,7 +28,7 @@ async def main() -> None:
         {
             "app_path": "demo/app",
             "skill_path": "/tmp/mock-uat-skill.sh",
-            "test_user": "demo@atelier.dev",
+            "test_user": "demo@spanweave.dev",
             "test_password": "demo1234",
         }
     )

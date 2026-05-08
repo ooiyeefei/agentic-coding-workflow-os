@@ -13,8 +13,8 @@
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [x] T002 Add atelier/personas/callers.py with AgentToolCaller and DirectAPICaller skeletons
-- [x] T003 Update exports in atelier/personas/__init__.py
+- [x] T002 Add spanweave/personas/callers.py with AgentToolCaller and DirectAPICaller skeletons
+- [x] T003 Update exports in spanweave/personas/__init__.py
 
 ## Phase 3: User Story 1 - Generate Agent Tool Prompts (Priority: P1)
 
@@ -22,9 +22,9 @@
 
 **Independent Test**: `pytest tests/test_persona_callers.py -k agent_tool`
 
-- [x] T004 [US1] Implement tool adapter resolution in atelier/personas/callers.py
-- [x] T005 [US1] Implement AgentToolCaller prompt composition and stdout printing in atelier/personas/callers.py
-- [x] T006 [US1] Add Persona.respond_via_tool() in atelier/personas/base.py
+- [x] T004 [US1] Implement tool adapter resolution in spanweave/personas/callers.py
+- [x] T005 [US1] Implement AgentToolCaller prompt composition and stdout printing in spanweave/personas/callers.py
+- [x] T006 [US1] Add Persona.respond_via_tool() in spanweave/personas/base.py
 
 ## Phase 4: User Story 2 - Preserve Direct API Compatibility (Priority: P2)
 
@@ -32,9 +32,9 @@
 
 **Independent Test**: `pytest tests/test_personas.py tests/test_persona_callers.py -k direct`
 
-- [x] T007 [US2] Extract Persona direct response internals in atelier/personas/base.py
-- [x] T008 [US2] Implement DirectAPICaller delegation in atelier/personas/callers.py
-- [x] T009 [US2] Keep Persona.respond() default behavior backward compatible in atelier/personas/base.py
+- [x] T007 [US2] Extract Persona direct response internals in spanweave/personas/base.py
+- [x] T008 [US2] Implement DirectAPICaller delegation in spanweave/personas/callers.py
+- [x] T009 [US2] Keep Persona.respond() default behavior backward compatible in spanweave/personas/base.py
 
 ## Phase 5: User Story 3 - Use Correct Callers In Workflow Execution (Priority: P3)
 
@@ -42,8 +42,8 @@
 
 **Independent Test**: `pytest tests/test_workflow.py tests/test_persona_callers.py`
 
-- [x] T010 [US3] Add default dependency construction using AgentToolCaller in atelier/workflow/engine.py
-- [x] T011 [US3] Preserve explicit StageExecutorDeps injection behavior in atelier/workflow/engine.py
+- [x] T010 [US3] Add default dependency construction using AgentToolCaller in spanweave/workflow/engine.py
+- [x] T011 [US3] Preserve explicit StageExecutorDeps injection behavior in spanweave/workflow/engine.py
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 

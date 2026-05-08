@@ -17,9 +17,9 @@
 
 **Purpose**: Establish the shared schema and memory plumbing the council depends on
 
-- [X] T002 Create the council schema models in `atelier/council/schema.py`
-- [X] T003 Create the council report memory writer and exports in `atelier/memory/council.py` and `atelier/memory/__init__.py`
-- [X] T004 Create council package exports in `atelier/council/__init__.py`
+- [X] T002 Create the council schema models in `spanweave/council/schema.py`
+- [X] T003 Create the council report memory writer and exports in `spanweave/memory/council.py` and `spanweave/memory/__init__.py`
+- [X] T004 Create council package exports in `spanweave/council/__init__.py`
 
 **Checkpoint**: The repository has a stable council schema and a minimal persistence path before voting logic lands.
 
@@ -37,7 +37,7 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement vote tallying and report assembly in `atelier/council/tiebreaker.py`
+- [X] T006 [US1] Implement vote tallying and report assembly in `spanweave/council/tiebreaker.py`
 
 **Checkpoint**: The council produces deterministic outcomes for the core deadlock scenarios.
 
@@ -55,7 +55,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T008 [US2] Implement model resolution, adapter binding, strict verdict parsing, and concurrent voter dispatch in `atelier/council/tiebreaker.py`
+- [X] T008 [US2] Implement model resolution, adapter binding, strict verdict parsing, and concurrent voter dispatch in `spanweave/council/tiebreaker.py`
 
 **Checkpoint**: The council uses W02 honestly and executes the full three-model panel concurrently.
 
@@ -73,7 +73,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T010 [US3] Implement council report serialization in `atelier/memory/council.py` and wire report persistence into `atelier/council/tiebreaker.py`
+- [X] T010 [US3] Implement council report serialization in `spanweave/memory/council.py` and wire report persistence into `spanweave/council/tiebreaker.py`
 
 **Checkpoint**: Every completed council run leaves an auditable memory artifact behind.
 
@@ -84,7 +84,7 @@
 **Purpose**: Validate the council slice end-to-end and sync task state
 
 - [X] T011 Run focused pytest coverage for `tests/test_council.py`
-- [X] T012 Run lint and type checks for `atelier/council`, `atelier/memory`, and `tests/test_council.py`
+- [X] T012 Run lint and type checks for `spanweave/council`, `spanweave/memory`, and `tests/test_council.py`
 
 ---
 
@@ -93,14 +93,14 @@
 - Setup must complete before foundational work.
 - Foundational work blocks all user stories because voting logic depends on the shared council schema and memory writer.
 - User Story 1 must complete before User Story 2 and User Story 3 because majority/tie handling is the core council behavior.
-- User Story 2 and User Story 3 can proceed after User Story 1, although both still touch `atelier/council/tiebreaker.py` and should land sequentially in one branch.
+- User Story 2 and User Story 3 can proceed after User Story 1, although both still touch `spanweave/council/tiebreaker.py` and should land sequentially in one branch.
 - Polish happens last.
 
 ## Parallel Opportunities
 
 - `T005`, `T007`, and `T009` can be written before implementation to preserve a test-first loop.
 - `T002` and `T003` can be designed in parallel because schema and persistence responsibilities are separate files.
-- Once the shared schema exists, persistence formatting in `atelier/memory/council.py` can progress in parallel with parts of the voting logic.
+- Once the shared schema exists, persistence formatting in `spanweave/memory/council.py` can progress in parallel with parts of the voting logic.
 
 ## Implementation Strategy
 

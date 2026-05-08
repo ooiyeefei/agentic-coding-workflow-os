@@ -13,8 +13,8 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from atelier.adr import synthesize_adr
-from atelier.compiler import (
+from spanweave.adr import synthesize_adr
+from spanweave.compiler import (
     AcceptanceGate,
     ExactCommands,
     IssueText,
@@ -25,9 +25,9 @@ from atelier.compiler import (
     WorktreeRef,
     compile_packet,
 )
-from atelier.evidence import CommandOutput, EvidencePack, Finding, Severity, Verdict, generate
-from atelier.git import analyze_rebase, cleanup_run_worktrees, create_worktree
-from atelier.llm import (
+from spanweave.evidence import CommandOutput, EvidencePack, Finding, Severity, Verdict, generate
+from spanweave.git import analyze_rebase, cleanup_run_worktrees, create_worktree
+from spanweave.llm import (
     AnthropicAdapter,
     CapabilityManifest,
     CapabilityRequirements,
@@ -38,15 +38,15 @@ from atelier.llm import (
     load_capability_manifests,
     route_persona_to_model,
 )
-from atelier.memory import Decision, RejectedAlternative, write_record
-from atelier.personas import UAT, Coder, Reviewer
-from atelier.personas.base import DEFAULT_MODEL_DIR, load_persona_definition
-from atelier.personas.uat_runner import UATRequest, load_env_file
-from atelier.rungraph import list_stages
-from atelier.util.fs import atomic_write
-from atelier.util.paths import run_dir
-from atelier.workflow import RunStatus, WorkflowEngine, load_workflow
-from atelier.workflow.stages import PersonaCallResult, StageExecutorDeps
+from spanweave.memory import Decision, RejectedAlternative, write_record
+from spanweave.personas import UAT, Coder, Reviewer
+from spanweave.personas.base import DEFAULT_MODEL_DIR, load_persona_definition
+from spanweave.personas.uat_runner import UATRequest, load_env_file
+from spanweave.rungraph import list_stages
+from spanweave.util.fs import atomic_write
+from spanweave.util.paths import run_dir
+from spanweave.workflow import RunStatus, WorkflowEngine, load_workflow
+from spanweave.workflow.stages import PersonaCallResult, StageExecutorDeps
 from ulid import ULID
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[2]
@@ -131,7 +131,7 @@ def _build_real_adapter(
     ]
     if not available:
         message = (
-            "ATELIER_INTEGRATION_REAL_LLM=1 was set, but no matching provider credentials "
+            "SPANWEAVE_INTEGRATION_REAL_LLM=1 was set, but no matching provider credentials "
             "were available."
         )
         if not skip_on_missing_credentials:
@@ -673,8 +673,8 @@ def create_fixture_workspace(tmp_path: Path) -> IntegrationWorkspace:
     shutil.copy2(_SOURCE_ROOT / "README.md", repo_root / "README.md")
 
     _git("init", "-b", "main", cwd=repo_root)
-    _git("config", "user.email", "integration@atelier.test", cwd=repo_root)
-    _git("config", "user.name", "Atelier Integration", cwd=repo_root)
+    _git("config", "user.email", "integration@spanweave.test", cwd=repo_root)
+    _git("config", "user.name", "Spanweave Integration", cwd=repo_root)
     _git("add", ".", cwd=repo_root)
     _git("commit", "-m", "Initial integration fixture", cwd=repo_root)
 
@@ -734,7 +734,7 @@ async def run_repository_e2e(
 
 @pytest.fixture
 def real_llm_enabled() -> bool:
-    return _bool_from_env("ATELIER_INTEGRATION_REAL_LLM")
+    return _bool_from_env("SPANWEAVE_INTEGRATION_REAL_LLM")
 
 
 @pytest.fixture

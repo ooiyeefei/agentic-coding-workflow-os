@@ -8,7 +8,7 @@ decision-makers: coder, reviewer
 
 ## Context and Problem Statement
 
-The memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.atelier/memory/`.
+The memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.spanweave/memory/`.
 
 ## Decision Drivers
 
@@ -25,7 +25,7 @@ The memory system uses the local filesystem as its primary storage backend, writ
 
 ## Decision Outcome
 
-Chosen option: "Use filesystem-first storage", because the memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.atelier/memory/`.
+Chosen option: "Use filesystem-first storage", because the memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.spanweave/memory/`.
 
 ### Consequences
 * Good, because records are human-readable and reviewable with standard tools
@@ -39,7 +39,7 @@ Chosen option: "Use filesystem-first storage", because the memory system uses th
 
 ### Use filesystem-first storage
 
-The memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.atelier/memory/`.
+The memory system uses the local filesystem as its primary storage backend, writing typed records as individual markdown files under `.spanweave/memory/`.
 
 * Good, because records are human-readable and reviewable with standard tools
 * Good, because git tracks changes with full history and diff support

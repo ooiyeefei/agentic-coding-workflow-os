@@ -16,7 +16,7 @@
 
 ### User Story 1 - Redact Known Secrets Before Persistence (Priority: P1)
 
-As Atelier's persistence layer, I can pass transcript, packet, evidence, or audit-log text through one redaction function before it is stored, so persisted artifacts do not retain reusable credentials.
+As Spanweave's persistence layer, I can pass transcript, packet, evidence, or audit-log text through one redaction function before it is stored, so persisted artifacts do not retain reusable credentials.
 
 **Why this priority**: Stored secrets are the immediate liability. The MVP must remove common credential formats before anything else.
 

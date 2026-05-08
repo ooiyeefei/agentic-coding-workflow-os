@@ -17,7 +17,7 @@
 
 ### User Story 1 - Persist A Typed Memory Record (Priority: P1)
 
-As an Atelier workflow stage, I can persist a typed memory record to the filesystem as one markdown file with YAML frontmatter and a markdown body, so decisions and review artifacts become grep-able and committable.
+As an Spanweave workflow stage, I can persist a typed memory record to the filesystem as one markdown file with YAML frontmatter and a markdown body, so decisions and review artifacts become grep-able and committable.
 
 **Why this priority**: Without a stable write path, the knowledge plane does not exist and later ADR, review, and audit features have no durable substrate.
 
@@ -73,7 +73,7 @@ As a future compiler or ADR synthesizer, I can list typed memory records by reco
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST define Pydantic models for `Decision`, `ReviewFinding`, and `RejectedAlternative` in `atelier/memory/records.py`.
+- **FR-001**: The system MUST define Pydantic models for `Decision`, `ReviewFinding`, and `RejectedAlternative` in `spanweave/memory/records.py`.
 - **FR-002**: Each record model MUST persist frontmatter fields `id`, `type`, `version`, `run_id`, `stage_id`, `timestamp`, `related_issues`, `related_adrs`, `tags`, `confidence`, and `source`, plus a markdown `body`.
 - **FR-003**: Record schemas MUST reject unknown fields and validate `run_id`, `stage_id`, and record identifier ULID payloads.
 - **FR-004**: The system MUST generate `id` and `timestamp` automatically when callers omit them, while still persisting those values in frontmatter.
@@ -107,7 +107,7 @@ As a future compiler or ADR synthesizer, I can list typed memory records by reco
 
 ## Assumptions
 
-- The canonical memory root for Phase 0 is `.atelier/memory/`.
+- The canonical memory root for Phase 0 is `.spanweave/memory/`.
 - Type-specific collections map to `decisions/`, `findings/`, and `rejected_alternatives/`.
 - Later phases may add more record types and migrations, but Phase 0 only needs a stored `version` field and no migration engine.
 - Filtering remains in-process and filesystem-backed; no secondary index or database is introduced in this slice.

@@ -4,11 +4,11 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from atelier.cli.main import main
-from atelier.compiler import estimate_tokens
-from atelier.memory import Decision, ReviewFinding, list_records, write_record
-from atelier.session import generate_context, generate_prompt, ingest_transcript, resume
 from click.testing import CliRunner
+from spanweave.cli.main import main
+from spanweave.compiler import estimate_tokens
+from spanweave.memory import Decision, ReviewFinding, list_records, write_record
+from spanweave.session import generate_context, generate_prompt, ingest_transcript, resume
 
 
 def test_resume_formats_same_run_context_for_claude_and_codex(
@@ -117,7 +117,7 @@ def test_generate_context_is_standalone_and_budgeted(
 
     context = generate_context("chatgpt", 4000)
 
-    assert "Standalone Atelier memory context for chatgpt" in context
+    assert "Standalone Spanweave memory context for chatgpt" in context
     assert "Persist session continuity decisions in memory." in context
     assert estimate_tokens(context) <= 4000
 
@@ -140,7 +140,7 @@ def test_ingest_transcript_persists_extracted_memory(
     monkeypatch.chdir(tmp_path)
 
     records = ingest_transcript(transcript, "generic")
-    persisted = list_records(tmp_path / ".atelier" / "memory")
+    persisted = list_records(tmp_path / ".spanweave" / "memory")
 
     assert len(records) == 2
     assert len(persisted) == 2
@@ -165,7 +165,7 @@ def test_ingest_transcript_recognizes_natural_language_decisions(
     monkeypatch.chdir(tmp_path)
 
     records = ingest_transcript(transcript, "generic")
-    persisted = list_records(tmp_path / ".atelier" / "memory")
+    persisted = list_records(tmp_path / ".spanweave" / "memory")
 
     assert len(records) == 1
     assert len(persisted) == 1
@@ -191,7 +191,7 @@ def test_role_protocol_prompt_provenance_is_marked_in_memory_not_persisted(
     assert "Persistence: in-memory session prompt" in protocol_block
     assert "_Source: sample_doc" in protocol_block
     assert "| -_" in protocol_block
-    assert ".atelier/memory/" not in protocol_block
+    assert ".spanweave/memory/" not in protocol_block
 
 
 def test_session_cli_commands_support_json(
@@ -276,7 +276,7 @@ def _seed_tool_files(repo_root: Path) -> None:
 
 
 def _seed_run(repo_root: Path, run_id: str) -> None:
-    run_root = repo_root / ".atelier" / "runs" / run_id
+    run_root = repo_root / ".spanweave" / "runs" / run_id
     (run_root / "stages" / "001-specify" / "decisions").mkdir(parents=True)
     (run_root / "stages" / "001-specify" / "findings").mkdir()
     (run_root / "stages" / "001-specify" / ".complete").write_text(
@@ -329,7 +329,7 @@ def _seed_rich_stage_packets(repo_root: Path, run_id: str) -> None:
     Mirrors the real-run shape where each stage has a ~200-line packet.md
     capturing the issue text, acceptance criteria, and clarified constraints.
     """
-    run_root = repo_root / ".atelier" / "runs" / run_id
+    run_root = repo_root / ".spanweave" / "runs" / run_id
     specify_packet = run_root / "stages" / "001-specify" / "packet.md"
     specify_packet.write_text(
         (
@@ -365,7 +365,7 @@ def _seed_oversized_stage_packets(repo_root: Path, run_id: str) -> None:
     that, in aggregate, exceeds the default session budget. This forces the
     compiler's must-only fallback path and exposes the bug from issue #66.
     """
-    run_root = repo_root / ".atelier" / "runs" / run_id
+    run_root = repo_root / ".spanweave" / "runs" / run_id
     filler = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 200
     specify_packet = run_root / "stages" / "001-specify" / "packet.md"
     specify_packet.write_text(
@@ -407,7 +407,7 @@ def _seed_oversized_stage_packets(repo_root: Path, run_id: str) -> None:
 
 
 def _seed_memory(repo_root: Path, run_id: str, fixed_ulid_values: list[str]) -> None:
-    memory_root = repo_root / ".atelier" / "memory"
+    memory_root = repo_root / ".spanweave" / "memory"
     timestamp = datetime(2026, 4, 24, 0, 0, tzinfo=UTC)
     run_stage_id = f"stage_{fixed_ulid_values[1]}"
     other_run_id = f"run_{fixed_ulid_values[8]}"

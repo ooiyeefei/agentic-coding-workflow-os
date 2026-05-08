@@ -8,11 +8,11 @@ from typing import Any
 
 import frontmatter
 import pytest
-from atelier.council import DEFAULT_COUNCIL_MODELS, convene_council, tiebreak
-from atelier.council.schema import Verdict
-from atelier.llm import CapabilityManifest
-from atelier.llm.adapter import LLMAdapter, Message, Response, ToolCall, ToolDefinition
-from atelier.llm.capabilities import (
+from spanweave.council import DEFAULT_COUNCIL_MODELS, convene_council, tiebreak
+from spanweave.council.schema import Verdict
+from spanweave.llm import CapabilityManifest
+from spanweave.llm.adapter import LLMAdapter, Message, Response, ToolCall, ToolDefinition
+from spanweave.llm.capabilities import (
     CapabilityRequirements,
     UnsupportedCapabilityError,
 )

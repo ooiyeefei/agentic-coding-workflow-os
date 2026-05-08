@@ -5,19 +5,19 @@
 
 ## Summary
 
-Implement the filesystem-backed run graph module under `atelier/rungraph/` so the workflow engine can create canonical `.atelier/runs/<run_id>/` trees, create ordered stage directories, mark stage completion, resume from the first incomplete stage, and serialize writers with reclaimable per-run file locks.
+Implement the filesystem-backed run graph module under `spanweave/rungraph/` so the workflow engine can create canonical `.spanweave/runs/<run_id>/` trees, create ordered stage directories, mark stage completion, resume from the first incomplete stage, and serialize writers with reclaimable per-run file locks.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11  
-**Primary Dependencies**: pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `atelier.util.fs` helpers  
-**Storage**: Filesystem-only state under `.atelier/runs/<run_id>/...` matching the roadmap's canonical storage layout  
+**Primary Dependencies**: pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `spanweave.util.fs` helpers  
+**Storage**: Filesystem-only state under `.spanweave/runs/<run_id>/...` matching the roadmap's canonical storage layout  
 **Testing**: pytest unit tests plus subprocess-based lock contention checks in `tests/test_rungraph.py`  
-**Target Platform**: Local Linux or Unix-like developer machines and CI running the Atelier Python package  
+**Target Platform**: Local Linux or Unix-like developer machines and CI running the Spanweave Python package  
 **Project Type**: Shared internal library module for workflow persistence  
 **Performance Goals**: Run and stage creation stay lightweight and synchronous; resume scanning is linear in stage count; lock acquisition blocks correctly without busy looping  
-**Constraints**: Preserve the roadmap's `.atelier` storage layout; stage identifiers are sequence-prefixed slugs such as `001-specify`; stages without completion markers must be restartable; lock files live at `.atelier/runs/<run_id>/.lock`; no new third-party locking dependency is required  
-**Scale/Scope**: One new `atelier/rungraph/` slice with three modules, one focused test file, and minimal supporting exports required to make file tree creation, resume scanning, and locking verifiable
+**Constraints**: Preserve the roadmap's `.spanweave` storage layout; stage identifiers are sequence-prefixed slugs such as `001-specify`; stages without completion markers must be restartable; lock files live at `.spanweave/runs/<run_id>/.lock`; no new third-party locking dependency is required  
+**Scale/Scope**: One new `spanweave/rungraph/` slice with three modules, one focused test file, and minimal supporting exports required to make file tree creation, resume scanning, and locking verifiable
 
 ## Constitution Check
 
@@ -41,7 +41,7 @@ specs/007-rungraph-tree-ops/
 ### Source Code (repository root)
 
 ```text
-.atelier/
+.spanweave/
 └── runs/
     └── <run_id>/
         ├── .lock
@@ -58,7 +58,7 @@ specs/007-rungraph-tree-ops/
                 ├── decisions/
                 └── findings/
 
-atelier/
+spanweave/
 ├── rungraph/
 │   ├── __init__.py
 │   ├── cursor.py
@@ -74,7 +74,7 @@ tests/
 └── test_rungraph.py
 ```
 
-**Structure Decision**: Keep the new behavior isolated in `atelier/rungraph/`, reuse existing filesystem and ULID helpers from `atelier/util/`, and validate the public behavior through one focused end-to-end test module that inspects the real `.atelier/runs/` tree in a temporary working directory.
+**Structure Decision**: Keep the new behavior isolated in `spanweave/rungraph/`, reuse existing filesystem and ULID helpers from `spanweave/util/`, and validate the public behavior through one focused end-to-end test module that inspects the real `.spanweave/runs/` tree in a temporary working directory.
 
 ## Complexity Tracking
 

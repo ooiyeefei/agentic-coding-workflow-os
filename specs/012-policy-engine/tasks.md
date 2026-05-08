@@ -18,8 +18,8 @@
 
 **Purpose**: Establish hardcoded defaults and package exports shared by all policy behavior
 
-- [X] T003 Create hardcoded Phase 0 policy defaults in `atelier/policy/defaults.py`
-- [X] T004 Update `atelier/policy/__init__.py` to export the policy engine and related exceptions
+- [X] T003 Create hardcoded Phase 0 policy defaults in `spanweave/policy/defaults.py`
+- [X] T004 Update `spanweave/policy/__init__.py` to export the policy engine and related exceptions
 
 **Checkpoint**: Shared defaults and package exports are available for all policy stories.
 
@@ -37,7 +37,7 @@
 
 ### Implementation for User Story 1
 
-- [X] T006 [US1] Implement approval-gate behavior in `atelier/policy/engine.py`
+- [X] T006 [US1] Implement approval-gate behavior in `spanweave/policy/engine.py`
 
 **Checkpoint**: The workflow layer can query which stages require human approval.
 
@@ -55,7 +55,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T008 [US2] Implement dry-run decision logic in `atelier/policy/engine.py`
+- [X] T008 [US2] Implement dry-run decision logic in `spanweave/policy/engine.py`
 
 **Checkpoint**: Mutating git operations default to dry-run without contaminating workflow code.
 
@@ -73,8 +73,8 @@
 
 ### Implementation for User Story 3
 
-- [X] T010 [P] [US3] Implement JSONL cost aggregation in `atelier/policy/cost_tracker.py`
-- [X] T011 [US3] Implement cost-cap enforcement and `CostCapExceeded` in `atelier/policy/engine.py`
+- [X] T010 [P] [US3] Implement JSONL cost aggregation in `spanweave/policy/cost_tracker.py`
+- [X] T011 [US3] Implement cost-cap enforcement and `CostCapExceeded` in `spanweave/policy/engine.py`
 
 **Checkpoint**: Projected run and day totals are checked before new spend is approved.
 
@@ -85,7 +85,7 @@
 **Purpose**: Validate the slice and sync task state
 
 - [X] T012 Run focused pytest coverage for `tests/test_policy.py`
-- [X] T013 Run lint checks for `atelier/policy/` and `tests/test_policy.py`
+- [X] T013 Run lint checks for `spanweave/policy/` and `tests/test_policy.py`
 
 ---
 
@@ -94,7 +94,7 @@
 - Setup must complete before foundational work.
 - Foundational work blocks all user stories because the shared defaults and exports are used throughout the policy module.
 - User Story 1 must land before User Story 2 and User Story 3 because approval-gate decisions define the main `PolicyEngine` surface.
-- User Story 2 and User Story 3 can proceed after User Story 1, though both still share `atelier/policy/engine.py` and should land sequentially in one branch.
+- User Story 2 and User Story 3 can proceed after User Story 1, though both still share `spanweave/policy/engine.py` and should land sequentially in one branch.
 - Polish happens last.
 
 ## Parallel Opportunities

@@ -10,8 +10,8 @@
 
 - Optional CLI flags for run mode and model overrides.
 - Optional environment variables for model overrides and provider credentials.
-- Shipped capability manifests under `.atelier/defaults/models/`.
-- Shipped Reviewer prompt body under `.atelier/defaults/personas/reviewer.md`.
+- Shipped capability manifests under `.spanweave/defaults/models/`.
+- Shipped Reviewer prompt body under `.spanweave/defaults/personas/reviewer.md`.
 
 ## Outputs
 

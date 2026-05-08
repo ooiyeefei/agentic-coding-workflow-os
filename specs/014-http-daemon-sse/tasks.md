@@ -18,9 +18,9 @@
 
 **Purpose**: Add the shared daemon app, auth boundary, and audit streaming primitives reused by every story
 
-- [X] T003 Implement the FastAPI app factory, daemon config, secret resolution, localhost/CORS enforcement, and runnable daemon entrypoint in `atelier/daemon/server.py` and `atelier/daemon/__main__.py`
-- [X] T004 [P] Implement run loading, create, and approve route helpers in `atelier/daemon/routes.py`
-- [X] T005 [P] Implement audit-tail parsing and SSE event formatting in `atelier/daemon/events.py`
+- [X] T003 Implement the FastAPI app factory, daemon config, secret resolution, localhost/CORS enforcement, and runnable daemon entrypoint in `spanweave/daemon/server.py` and `spanweave/daemon/__main__.py`
+- [X] T004 [P] Implement run loading, create, and approve route helpers in `spanweave/daemon/routes.py`
+- [X] T005 [P] Implement audit-tail parsing and SSE event formatting in `spanweave/daemon/events.py`
 
 **Checkpoint**: The daemon has an app factory, a stable security boundary, and reusable route/event helpers.
 
@@ -38,7 +38,7 @@
 
 ### Implementation for User Story 1
 
-- [X] T007 [US1] Implement `POST /runs` and `GET /runs/<run_id>` in `atelier/daemon/routes.py`
+- [X] T007 [US1] Implement `POST /runs` and `GET /runs/<run_id>` in `spanweave/daemon/routes.py`
 
 **Checkpoint**: Clients can create and inspect runs without invoking the CLI.
 
@@ -56,8 +56,8 @@
 
 ### Implementation for User Story 2
 
-- [X] T009 [US2] Implement the SSE events route in `atelier/daemon/routes.py`
-- [X] T010 [US2] Finalize live audit tail streaming behavior in `atelier/daemon/events.py`
+- [X] T009 [US2] Implement the SSE events route in `spanweave/daemon/routes.py`
+- [X] T010 [US2] Finalize live audit tail streaming behavior in `spanweave/daemon/events.py`
 
 **Checkpoint**: Future dashboard and IDE clients can observe live run events over HTTP.
 
@@ -75,7 +75,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T012 [US3] Implement `POST /runs/<run_id>/approve` in `atelier/daemon/routes.py`
+- [X] T012 [US3] Implement `POST /runs/<run_id>/approve` in `spanweave/daemon/routes.py`
 
 **Checkpoint**: Future plugin clients can unblock human-gated stages over HTTP.
 
@@ -85,9 +85,9 @@
 
 **Purpose**: Validate contract details, security defaults, and focused daemon quality gates
 
-- [X] T013 Audit `atelier/daemon/server.py`, `atelier/daemon/routes.py`, `atelier/daemon/events.py`, and `atelier/daemon/__main__.py` for consistent error handling and local-only security behavior
+- [X] T013 Audit `spanweave/daemon/server.py`, `spanweave/daemon/routes.py`, `spanweave/daemon/events.py`, and `spanweave/daemon/__main__.py` for consistent error handling and local-only security behavior
 - [X] T014 Run `uv run pytest tests/test_daemon.py -q`
-- [X] T015 Run `uv run ruff check atelier/daemon tests/test_daemon.py`
+- [X] T015 Run `uv run ruff check spanweave/daemon tests/test_daemon.py`
 
 ---
 

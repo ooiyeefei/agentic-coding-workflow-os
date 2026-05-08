@@ -5,7 +5,7 @@
 - **Purpose**: Selects how the integration harness resolves persona calls.
 - **Values**:
   - `mock`: deterministic, repository-local responses for CI and default local runs.
-  - `real`: opt-in provider-backed persona execution enabled only when `ATELIER_INTEGRATION_REAL_LLM=1`.
+  - `real`: opt-in provider-backed persona execution enabled only when `SPANWEAVE_INTEGRATION_REAL_LLM=1`.
 - **Rules**:
   - `mock` is the default when the environment variable is absent or falsey.
   - `real` requires the provider credentials needed by the selected persona adapters.
@@ -28,7 +28,7 @@
   - `evidence_json_path`
   - `completion_marker_path`
 - **Rules**:
-  - Stage IDs must follow the sequence and slug defined by `atelier.rungraph`.
+  - Stage IDs must follow the sequence and slug defined by `spanweave.rungraph`.
   - The artifact set is considered complete only when every workflow stage has its expected files and completed stages carry `.complete`.
 
 ## Integration Harness
@@ -41,7 +41,7 @@
   - Persona mode (`mock` or `real`)
 - **Outputs**:
   - A completed `Workflow Artifact Set`
-  - Stored memory records under `.atelier/memory/`
+  - Stored memory records under `.spanweave/memory/`
   - Synthesized ADR files under `docs/adr/`
 - **Rules**:
   - Every harness run executes inside an isolated temporary repository root.

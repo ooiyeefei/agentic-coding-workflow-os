@@ -4,7 +4,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from atelier.util import (
+from pydantic import ValidationError
+from spanweave.util import (
     audit_log_path,
     evidence_json_path,
     evidence_md_path,
@@ -13,7 +14,6 @@ from atelier.util import (
     stage_dir,
     transcript_path,
 )
-from pydantic import ValidationError
 
 
 def test_run_dir_returns_canonical_path(fixed_run_id: str) -> None:
@@ -21,7 +21,7 @@ def test_run_dir_returns_canonical_path(fixed_run_id: str) -> None:
     path = run_dir(run_id)
 
     assert isinstance(path, Path)
-    assert path == Path(".atelier") / "runs" / run_id
+    assert path == Path(".spanweave") / "runs" / run_id
 
 
 def test_stage_dir_zero_pads_and_slugifies(fixed_run_id: str) -> None:
@@ -30,7 +30,7 @@ def test_stage_dir_zero_pads_and_slugifies(fixed_run_id: str) -> None:
     path = stage_dir(run_id, 1, "Spec Review!")
 
     assert isinstance(path, Path)
-    assert path == Path(".atelier") / "runs" / run_id / "stages" / "001-spec-review"
+    assert path == Path(".spanweave") / "runs" / run_id / "stages" / "001-spec-review"
 
 
 @pytest.mark.parametrize(
@@ -52,7 +52,7 @@ def test_stage_file_helpers_return_expected_locations(
     path = helper(run_id, 12, "Implement")
 
     assert isinstance(path, Path)
-    assert path == Path(".atelier") / "runs" / run_id / "stages" / "012-implement" / expected_name
+    assert path == Path(".spanweave") / "runs" / run_id / "stages" / "012-implement" / expected_name
 
 
 def test_audit_log_path_returns_run_scoped_path(fixed_run_id: str) -> None:
@@ -61,7 +61,7 @@ def test_audit_log_path_returns_run_scoped_path(fixed_run_id: str) -> None:
     path = audit_log_path(run_id)
 
     assert isinstance(path, Path)
-    assert path == Path(".atelier") / "runs" / run_id / "audit.jsonl"
+    assert path == Path(".spanweave") / "runs" / run_id / "audit.jsonl"
 
 
 @pytest.mark.parametrize(

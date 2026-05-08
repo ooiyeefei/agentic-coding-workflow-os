@@ -20,8 +20,8 @@ Three synthetic `SkillOutcome` JSON entries staged in `/tmp/skill_outcomes/`:
 Then exercised the four code paths:
 
 ```bash
-uv run atelier skill_feedback derive --entry <each entry>      # derive only
-uv run atelier skill_feedback derive --entry strong_match.json \
+uv run spanweave skill_feedback derive --entry <each entry>      # derive only
+uv run spanweave skill_feedback derive --entry strong_match.json \
   --skill-file /tmp/skill_outcomes/test_skill/SKILL.md --apply  # apply first time
 # (re-run to test idempotency)
 # (apply different entry to test additivity)
@@ -30,13 +30,13 @@ uv run atelier skill_feedback derive --entry strong_match.json \
 ## What worked
 
 - All three derivation paths produced the rule the design predicts:
-  - **strong**: matched `api_contract_change` (score 2 from error_type + 1+ pattern hits) — exact rule from `.atelier/defaults/feedback_rules/api_contract_change.yaml`
+  - **strong**: matched `api_contract_change` (score 2 from error_type + 1+ pattern hits) — exact rule from `.spanweave/defaults/feedback_rules/api_contract_change.yaml`
   - **weak**: matched `root_cause_vs_symptom` (score 2 from error_type alone)
   - **fallback**: no rule scored above 0 → generic FALLBACK_RULE with the failure message appended (truncated to 140 chars per design)
 - Output is human-readable: error_type, error_message, derived rule, rationale, matched pattern id, fallback flag — all printed.
 - `--apply` produces a clear unified diff *before* writing, then writes. Good operator UX.
 - **Idempotency on same rule**: re-running `--apply` with the same entry produces "(no changes)" and the file is unchanged.
-- The `<!-- Added by atelier.learning.feedback_loop -->` marker is the dedupe sentinel — clear, greppable, machine-readable.
+- The `<!-- Added by spanweave.learning.feedback_loop -->` marker is the dedupe sentinel — clear, greppable, machine-readable.
 
 ## What broke
 
@@ -61,7 +61,7 @@ When a SKILL.md already had any learned rule applied, applying a *different* rul
 
 ## Did not try
 
-- Real `SkillOutcome` written to `.atelier/memory/skill_outcomes/` (the dir doesn't exist; would have created it; held off to keep this scenario non-mutating to real memory)
+- Real `SkillOutcome` written to `.spanweave/memory/skill_outcomes/` (the dir doesn't exist; would have created it; held off to keep this scenario non-mutating to real memory)
 - Multiple entries chained
 - The `learned_rule_candidate` explicit-override path (third branch in `derive_rule_from_outcome`)
 

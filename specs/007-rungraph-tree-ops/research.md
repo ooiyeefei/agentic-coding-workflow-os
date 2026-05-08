@@ -1,12 +1,12 @@
 # Research: Run Graph Tree Ops
 
-## Decision 1: Store run graph state under `.atelier/runs/` and create the full canonical tree eagerly
+## Decision 1: Store run graph state under `.spanweave/runs/` and create the full canonical tree eagerly
 
-- **Decision**: Create runs and stages directly under `.atelier/runs/<run_id>/` and materialize the roadmap's canonical files and directories at creation time.
+- **Decision**: Create runs and stages directly under `.spanweave/runs/<run_id>/` and materialize the roadmap's canonical files and directories at creation time.
 - **Rationale**: The roadmap defines the filesystem tree as the durable schema. Creating the full skeleton up front makes later stages idempotent, keeps resume logic simple, and gives downstream features predictable file locations.
 - **Alternatives considered**:
   - Create only the minimal files needed for this issue: rejected because it would drift from the roadmap's stated canonical layout and force later features to backfill structure inconsistently.
-  - Store run graph state outside `.atelier/`: rejected because the roadmap's storage philosophy is explicit that `.atelier/` is the source of truth.
+  - Store run graph state outside `.spanweave/`: rejected because the roadmap's storage philosophy is explicit that `.spanweave/` is the source of truth.
 
 ## Decision 2: Use sequence-prefixed slug directories as stage identifiers
 
@@ -34,7 +34,7 @@
 
 ## Decision 5: Use `fcntl.flock` on `.lock` for writer serialization
 
-- **Decision**: Implement `run_lock(run_id)` with `fcntl.flock` on `.atelier/runs/<run_id>/.lock`.
+- **Decision**: Implement `run_lock(run_id)` with `fcntl.flock` on `.spanweave/runs/<run_id>/.lock`.
 - **Rationale**: `fcntl` is in the Python standard library on the target Unix-like platforms, provides kernel-managed blocking semantics, and automatically releases locks when the holding process exits.
 - **Alternatives considered**:
   - Add `portalocker`: rejected because the issue explicitly allows `fcntl`, and avoiding a new dependency keeps the change smaller.

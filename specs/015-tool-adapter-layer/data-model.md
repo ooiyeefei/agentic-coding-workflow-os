@@ -29,7 +29,7 @@
   - Source-specific tags such as `claude-code`, `codex`, or `generic`
 - **Rules**:
   - Must validate through existing memory schemas.
-  - Run and stage ids are synthesized as valid prefixed ULID identifiers when the source transcript lacks Atelier-native ids.
+  - Run and stage ids are synthesized as valid prefixed ULID identifiers when the source transcript lacks Spanweave-native ids.
 
 ## ToolContextPacket
 
@@ -53,5 +53,5 @@
   - `waiting_reason`
   - `stages`
 - **Rules**:
-  - Derived from `.atelier/runs/<run_id>/workflow_state.yaml` and stage directories when available.
+  - Derived from `.spanweave/runs/<run_id>/workflow_state.yaml` and stage directories when available.
   - Formatting must degrade gracefully when the run directory does not exist.

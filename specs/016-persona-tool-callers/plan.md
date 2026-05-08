@@ -10,7 +10,7 @@ Add two `PersonaCaller` implementations: `AgentToolCaller` for main workflow sta
 ## Technical Context
 
 **Language/Version**: Python 3.11  
-**Primary Dependencies**: pydantic v2, python-frontmatter, pathlib, existing Atelier persona/workflow/adapter modules  
+**Primary Dependencies**: pydantic v2, python-frontmatter, pathlib, existing Spanweave persona/workflow/adapter modules  
 **Storage**: Filesystem prompts/persona definitions and in-memory caller results; no new persistence  
 **Testing**: pytest, pytest-asyncio  
 **Target Platform**: Local developer CLI/library execution  
@@ -41,7 +41,7 @@ specs/016-persona-tool-callers/
 ### Source Code (repository root)
 
 ```text
-atelier/
+spanweave/
 ├── personas/
 │   ├── base.py
 │   └── callers.py
@@ -54,7 +54,7 @@ tests/
 └── test_workflow.py
 ```
 
-**Structure Decision**: Use the existing single-package Python layout under `atelier/` and focused pytest files under `tests/`.
+**Structure Decision**: Use the existing single-package Python layout under `spanweave/` and focused pytest files under `tests/`.
 
 ## Complexity Tracking
 
