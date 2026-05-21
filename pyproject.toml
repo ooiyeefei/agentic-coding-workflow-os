@@ -25,6 +25,10 @@ dependencies = [
   "uvicorn>=0.30.0",
 ]
 
+[project.optional-dependencies]
+interactive = ["questionary>=2.0,<3.0", "rich>=13.0,<14.0"]
+all = ["spanweave[interactive]"]
+
 [project.scripts]
 spanweave = "spanweave.cli.main:main"
 spanweave-daemon = "spanweave.daemon.__main__:main"
