@@ -38,7 +38,7 @@ from spanweave.llm import (
     load_capability_manifests,
     route_persona_to_model,
 )
-from spanweave.memory import Decision, RejectedAlternative, write_record
+from spanweave.memory import Decision, RejectedAlternative, WorkflowEvent, write_record
 from spanweave.personas import UAT, Coder, Reviewer
 from spanweave.personas.base import DEFAULT_MODEL_DIR, load_persona_definition
 from spanweave.personas.uat_runner import UATRequest, load_env_file
@@ -430,7 +430,9 @@ class IntegrationHarness:
 
     def write_memory_records(self, run_id: str, stage_id: str) -> None:
         tags = ["workflow-validation", stage_id.split("-", 1)[1]]
-        decision = Decision(
+        # Auto-stub records are now WorkflowEvent (not Decision) per fix #72.
+        # These are audit-trail and excluded from resume packets.
+        event = WorkflowEvent(
             run_id=run_id,
             stage_id=self.stage_record_id(stage_id),
             tags=tags,
@@ -444,9 +446,27 @@ class IntegrationHarness:
                 "* Bad, because each workflow run leaves behind more generated artifacts\n"
             ),
         )
-        write_record(decision)
+        write_record(event)
 
-        if not self._rejected_written and stage_id.endswith("implement"):
+        # Simulate a real persona-emitted Decision for substantive stages
+        # (implement/specify/plan). ADR synthesis requires real Decisions.
+        if stage_id.endswith("implement") and not self._rejected_written:
+            decision = Decision(
+                run_id=run_id,
+                stage_id=self.stage_record_id(stage_id),
+                tags=["workflow-validation", "implement"],
+                confidence=0.9,
+                source="coder",
+                body=(
+                    "# Use typed workflow validation for integration tests\n\n"
+                    "Integration tests validate the full speckit-loop by asserting "
+                    "on durable filesystem outputs.\n\n"
+                    "* Good, because integration tests can assert on durable filesystem outputs\n"
+                    "* Bad, because each workflow run leaves behind more generated artifacts\n"
+                ),
+            )
+            write_record(decision)
+
             rejected = RejectedAlternative(
                 run_id=run_id,
                 stage_id=self.stage_record_id(stage_id),

@@ -47,4 +47,14 @@ Python 3.11: Follow standard conventions
 - 007-rungraph-tree-ops: Added Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `spanweave.util.fs` helpers
 
 <!-- MANUAL ADDITIONS START -->
+
+## Auto-load context on session start
+
+Before responding to any substantive question about the current project or run:
+1. Check if `.spanweave/runs/` exists and contains any run directories.
+2. If yes, identify the most recently modified run directory.
+3. Read that run's most recent stage `packet.md` for context about what was decided.
+
+This ensures cross-tool context survival — if another agent (Claude Code, Cursor) worked on this repo before you, their decisions are captured in `.spanweave/` and you should use them.
+
 <!-- MANUAL ADDITIONS END -->

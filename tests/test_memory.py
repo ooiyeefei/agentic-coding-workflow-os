@@ -11,6 +11,7 @@ from spanweave.memory import (
     Decision,
     ReviewFinding,
     SkillOutcome,
+    WorkflowEvent,
     list_records,
     read_record,
     write_record,
@@ -241,3 +242,94 @@ def test_list_records_raises_on_malformed_markdown_file_in_tree(
 
     with pytest.raises(ValueError, match="missing valid YAML frontmatter"):
         list_records(memory_root)
+
+
+def test_workflow_event_round_trip_preserves_fields(
+    tmp_path: Path,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    memory_root = tmp_path / ".spanweave" / "memory"
+    record = WorkflowEvent(
+        id=f"workflow_event_{fixed_ulid_values[1]}",
+        run_id=fixed_run_id,
+        stage_id=f"stage_{fixed_ulid_values[2]}",
+        timestamp=datetime(2026, 4, 20, 0, 0, tzinfo=UTC),
+        tags=["workflow-validation", "specify"],
+        confidence=0.9,
+        source="integration-harness",
+        body=(
+            "# Persist workflow evidence for 001-specify\n\n"
+            "The 001-specify stage stores packet and evidence on disk.\n"
+        ),
+    )
+
+    written_path = write_record(record, memory_root)
+
+    assert record.id.startswith("workflow_event_")
+    assert written_path == memory_root / "workflow_events" / f"{record.id}.md"
+    assert written_path.exists()
+
+    loaded = read_record(written_path)
+    assert loaded == record
+    assert loaded.type == "WorkflowEvent"
+    assert loaded.collection_name == "workflow_events"
+
+
+def test_workflow_event_listed_by_type_filter(
+    tmp_path: Path,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    memory_root = tmp_path / ".spanweave" / "memory"
+    stage_id = f"stage_{fixed_ulid_values[1]}"
+    timestamp = datetime(2026, 4, 20, 0, 0, tzinfo=UTC)
+
+    event = WorkflowEvent(
+        id=f"workflow_event_{fixed_ulid_values[2]}",
+        run_id=fixed_run_id,
+        stage_id=stage_id,
+        timestamp=timestamp,
+        tags=["workflow-validation"],
+        source="integration-harness",
+        body="Stage evidence persisted.\n",
+    )
+    decision = Decision(
+        id=f"decision_{fixed_ulid_values[3]}",
+        run_id=fixed_run_id,
+        stage_id=stage_id,
+        timestamp=timestamp,
+        tags=["real-decision"],
+        source="coder",
+        body="Use typed records for all memory.\n",
+    )
+
+    write_record(event, memory_root)
+    write_record(decision, memory_root)
+
+    # Only WorkflowEvents
+    events_only = list_records(memory_root, type="WorkflowEvent")
+    assert events_only == [event]
+
+    # Only Decisions
+    decisions_only = list_records(memory_root, type="Decision")
+    assert decisions_only == [decision]
+
+    # All records
+    all_records = list_records(memory_root)
+    assert len(all_records) == 2
+
+
+def test_workflow_event_has_correct_id_prefix_validation(
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    """WorkflowEvent rejects IDs with wrong prefix."""
+    with pytest.raises(ValueError, match="expected 'workflow_event' ID"):
+        WorkflowEvent(
+            id=f"decision_{fixed_ulid_values[1]}",
+            run_id=fixed_run_id,
+            stage_id=f"stage_{fixed_ulid_values[2]}",
+            source="test",
+            body="body\n",
+        )

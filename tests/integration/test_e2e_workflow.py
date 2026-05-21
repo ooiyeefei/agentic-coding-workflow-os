@@ -75,8 +75,10 @@ async def test_full_speckit_loop_run_produces_expected_artifacts(
         else:
             assert pack.reviewer_persona_id == "reviewer.integration"
 
-    decisions = sorted((Path(".spanweave") / "memory" / "decisions").glob("*.md"))
-    assert decisions
+    workflow_events = sorted(
+        (Path(".spanweave") / "memory" / "workflow_events").glob("*.md")
+    )
+    assert workflow_events
     assert result.adr_paths
     assert all(path.is_file() for path in result.adr_paths)
     assert result.rebase_reports
