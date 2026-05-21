@@ -115,7 +115,7 @@ class TestExtractDecisionsFromChunk:
         with patch(
             "spanweave.learning.extractor._call_ollama",
             side_effect=OllamaNotAvailableError(
-                "Ollama not running. Install: https://ollama.ai then `ollama pull qwen2.5:1.5b`"
+                "Ollama not running. Install: https://ollama.ai then `ollama pull gemma4:e4b`"
             ),
         ):
             with pytest.raises(OllamaNotAvailableError):
@@ -269,7 +269,7 @@ class TestExtractCommand:
         with patch(
             "spanweave.learning.extractor._call_ollama",
             side_effect=OllamaNotAvailableError(
-                "Ollama not running. Install: https://ollama.ai then `ollama pull qwen2.5:1.5b`"
+                "Ollama not running. Install: https://ollama.ai then `ollama pull gemma4:e4b`"
             ),
         ):
             result = runner.invoke(

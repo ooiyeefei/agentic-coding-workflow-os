@@ -19,22 +19,30 @@ import httpx
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE = "http://localhost:11434"
+DEFAULT_MODEL = "gemma4:e4b"
+
+EXTRACTION_OPTIONS = {
+    "temperature": 0.3,
+    "top_p": 0.9,
+    "top_k": 40,
+    "num_predict": 2048,
+}
 
 EXTRACTION_PROMPT = """\
-Given this conversation between a developer and an AI coding agent,
-extract any engineering decisions that were made.
+You are a structured data extraction assistant. \
+Read the conversation and extract engineering decisions.
 
-For each decision, output JSON:
-{{
-  "type": "decision" | "rejected_alternative" | "finding",
-  "body": "what was decided/found",
-  "reasoning": "why",
-  "tags": ["relevant", "category", "tags"],
-  "confidence": 0.0-1.0
-}}
+Output ONLY a JSON array. No explanation, no markdown fences, no commentary.
 
-Only extract decisions that are definitive (not tentative/exploratory).
-If nothing was decided, output an empty array.
+Each object in the array:
+{{"type": "decision"|"rejected_alternative"|"finding", \
+"body": "what was decided", "reasoning": "why", \
+"tags": ["category"], "confidence": 0.0-1.0}}
+
+Rules:
+- Only definitive decisions (not tentative/exploratory)
+- Empty array [] if nothing was decided
+- Never wrap in ```json``` fences
 
 Conversation:
 ---
@@ -51,17 +59,22 @@ def _call_ollama(prompt: str, model: str) -> str:
     try:
         response = httpx.post(
             f"{OLLAMA_BASE}/api/generate",
-            json={"model": model, "prompt": prompt, "stream": False},
-            timeout=60.0,
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": EXTRACTION_OPTIONS,
+            },
+            timeout=120.0,
         )
         response.raise_for_status()
     except httpx.ConnectError as exc:
         raise OllamaNotAvailableError(
-            "Ollama not running. Install: https://ollama.ai then `ollama pull qwen2.5:1.5b`"
+            f"Ollama not running. Install: https://ollama.ai then `ollama pull {DEFAULT_MODEL}`"
         ) from exc
     except httpx.HTTPError as exc:
         raise OllamaNotAvailableError(
-            "Ollama not running. Install: https://ollama.ai then `ollama pull qwen2.5:1.5b`"
+            f"Ollama not running. Install: https://ollama.ai then `ollama pull {DEFAULT_MODEL}`"
         ) from exc
     return response.json()["response"]
 
@@ -140,7 +153,7 @@ def _parse_json_from_response(response: str) -> list[dict[str, Any]]:
 def extract_decisions_from_chunk(
     chunk: str,
     *,
-    model: str = "qwen2.5:1.5b",
+    model: str = DEFAULT_MODEL,
     provider: str = "ollama",
 ) -> list[dict[str, Any]]:
     """Send a conversation chunk to the model and parse structured decision JSON.
@@ -290,7 +303,7 @@ timestamp: {timestamp}
 def extract_from_session(
     session_path: Path,
     *,
-    model: str = "qwen2.5:1.5b",
+    model: str = DEFAULT_MODEL,
     provider: str = "ollama",
     repo_root: Path | None = None,
 ) -> list[dict[str, Any]]:

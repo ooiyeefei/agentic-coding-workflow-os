@@ -19,7 +19,7 @@ from spanweave.cli.formatters import build_help_epilog
         ),
         examples=(
             "spanweave extract --session transcript.jsonl",
-            "spanweave extract --session session.jsonl --model qwen2.5:1.5b",
+            "spanweave extract --session session.jsonl --model gemma4:e4b",
             "spanweave extract --session session.jsonl --repo /path/to/project",
         ),
     ),
@@ -33,9 +33,9 @@ from spanweave.cli.formatters import build_help_epilog
 )
 @click.option(
     "--model",
-    default="qwen2.5:1.5b",
+    default="gemma4:e4b",
     show_default=True,
-    help="Ollama model for extraction.",
+    help="Ollama model for extraction (gemma4:e2b for constrained devices).",
 )
 @click.option(
     "--repo",
