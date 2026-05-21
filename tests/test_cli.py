@@ -359,6 +359,93 @@ def test_run_show_and_list_report_click_errors_for_malformed_state_yaml(
     assert str(state_path) in result.output
 
 
+def test_resume_help_shows_agent_as_optional() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["resume", "--help"])
+
+    assert result.exit_code == 0
+    assert "--agent" in result.output
+    # Help text may wrap; check normalized content
+    normalized = " ".join(result.output.split())
+    assert "Auto- detected if omitted" in normalized or "Auto-detected if omitted" in normalized
+    # The no-flag example should be the primary pattern
+    assert "spanweave resume --run" in result.output
+
+
+def test_resume_auto_detects_agent_when_flag_omitted(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Confirm resume works without --agent when .claude/ exists (Claude Code detection)."""
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    # Set up a minimal spanweave workspace with a run
+    runner.invoke(main, ["init", "--repo", str(tmp_path)])
+    run_root = tmp_path / ".spanweave" / "runs"
+    run_root.mkdir(parents=True, exist_ok=True)
+
+    # Start a run to get a valid run_id
+    start = runner.invoke(
+        main,
+        ["run", "--issue", "99", "--repo", str(tmp_path), "--json"],
+    )
+    assert start.exit_code == 0
+    started = _json_output(start.output)
+    run_id = started["run_id"]
+
+    # Create .claude/ directory to trigger Claude Code adapter detection
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+
+    result = runner.invoke(
+        main,
+        ["resume", "--run", run_id, "--repo", str(tmp_path), "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = _json_output(result.output)
+    assert payload["agent"] == "claude-code"
+    assert payload["run_id"] == run_id
+    assert "prompt" in payload
+
+
+def test_resume_fails_gracefully_when_no_agent_detected(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Confirm resume prints a helpful error when auto-detection fails."""
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+
+    # Set up a minimal workspace but no agent markers
+    runner.invoke(main, ["init", "--repo", str(tmp_path)])
+    start = runner.invoke(
+        main,
+        ["run", "--issue", "100", "--repo", str(tmp_path), "--json"],
+    )
+    started = _json_output(start.output)
+    run_id = started["run_id"]
+
+    # Make sure no .claude/ or AGENTS.md exists at repo root
+    claude_dir = tmp_path / ".claude"
+    agents_file = tmp_path / "AGENTS.md"
+    if claude_dir.exists():
+        import shutil
+        shutil.rmtree(claude_dir)
+    if agents_file.exists():
+        agents_file.unlink()
+
+    result = runner.invoke(
+        main,
+        ["resume", "--run", run_id, "--repo", str(tmp_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "Could not auto-detect agent tool" in result.output
+    assert "--agent explicitly" in result.output
+
+
 def test_run_resume_gate_approval_advances_to_next_stage(
     tmp_path: Path,
     monkeypatch,

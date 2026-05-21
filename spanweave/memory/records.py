@@ -185,13 +185,23 @@ class SkillOutcome(MemoryRecord):
         return normalized or None
 
 
-Record: TypeAlias = Decision | ReviewFinding | RejectedAlternative | SkillOutcome
+class WorkflowEvent(MemoryRecord):
+    id_prefix = "workflow_event"
+    collection_name = "workflow_events"
+    record_type = "WorkflowEvent"
+
+    id: str = Field(default_factory=lambda: _new_record_id(WorkflowEvent.id_prefix))
+    type: str = "WorkflowEvent"
+
+
+Record: TypeAlias = Decision | ReviewFinding | RejectedAlternative | SkillOutcome | WorkflowEvent
 
 RECORD_TYPES: dict[str, type[MemoryRecord]] = {
     "Decision": Decision,
     "ReviewFinding": ReviewFinding,
     "RejectedAlternative": RejectedAlternative,
     "SkillOutcome": SkillOutcome,
+    "WorkflowEvent": WorkflowEvent,
 }
 
 __all__ = [
@@ -202,4 +212,5 @@ __all__ = [
     "RejectedAlternative",
     "ReviewFinding",
     "SkillOutcome",
+    "WorkflowEvent",
 ]

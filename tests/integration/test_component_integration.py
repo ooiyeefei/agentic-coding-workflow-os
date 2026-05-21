@@ -4,6 +4,7 @@ import json
 
 import pytest
 from spanweave.evidence import EvidencePack, Verdict
+from spanweave.memory import Decision, write_record
 from spanweave.rungraph import create_run, create_stage, list_stages
 from spanweave.workflow import RunStatus, WorkflowEngine
 
@@ -136,6 +137,25 @@ async def test_adr_synthesis_uses_memory_records_from_harness(
         Verdict.APPROVED,
         uat_result,
     )
+
+    # Write a real Decision (as a persona would) for ADR synthesis to consume.
+    # The harness now emits WorkflowEvent for auto-stubs (fix #72), so ADR
+    # synthesis requires an explicit real Decision.
+    real_decision = Decision(
+        run_id=run_id,
+        stage_id=mock_integration_harness.stage_record_id("implement"),
+        tags=["workflow-validation", "implement"],
+        confidence=0.9,
+        source="coder",
+        body=(
+            "# Use typed workflow validation for integration tests\n\n"
+            "Integration tests validate the full speckit-loop by asserting "
+            "on durable filesystem outputs.\n\n"
+            "* Good, because integration tests can assert on durable filesystem outputs\n"
+            "* Bad, because each workflow run leaves behind more generated artifacts\n"
+        ),
+    )
+    write_record(real_decision)
 
     adr_paths = mock_integration_harness.synthesize_adrs(run_id)
 

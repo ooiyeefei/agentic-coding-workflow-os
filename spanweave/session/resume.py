@@ -23,6 +23,7 @@ from spanweave.memory import (
     MemoryRecord,
     RejectedAlternative,
     ReviewFinding,
+    WorkflowEvent,
     list_records,
 )
 from spanweave.util.paths import run_dir
@@ -131,6 +132,8 @@ def _record_type_rank(record: MemoryRecord) -> int:
         return 1
     if isinstance(record, RejectedAlternative):
         return 2
+    if isinstance(record, WorkflowEvent):
+        return 4  # audit-trail, lowest priority
     return 3
 
 
@@ -344,6 +347,9 @@ def _source_from_file(
 def _memory_sources(records: Sequence[MemoryRecord], *, run_id: str) -> list[Source]:
     sources: list[Source] = []
     for record in records:
+        # WorkflowEvent records are audit-trail; omit from resume context
+        if isinstance(record, WorkflowEvent):
+            continue
         source_run = "run" if record.run_id == run_id else "memory"
         priority: PriorityTier = (
             "must" if record.run_id == run_id and isinstance(record, Decision) else "should"

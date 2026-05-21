@@ -7,6 +7,7 @@ from .records import (
     RejectedAlternative,
     ReviewFinding,
     SkillOutcome,
+    WorkflowEvent,
 )
 from .writer import write_record
 
@@ -19,6 +20,7 @@ __all__ = [
     "RejectedAlternative",
     "ReviewFinding",
     "SkillOutcome",
+    "WorkflowEvent",
     "list_records",
     "read_record",
     "write_council_report",
