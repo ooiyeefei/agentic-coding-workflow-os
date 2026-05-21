@@ -6,11 +6,13 @@ from spanweave import __version__
 from spanweave.cli.commands.cleanup import cleanup_command
 from spanweave.cli.commands.context import context_command
 from spanweave.cli.commands.daemon import daemon_group
+from spanweave.cli.commands.extract import extract_command
 from spanweave.cli.commands.grep import grep_command
 from spanweave.cli.commands.ingest import ingest_command
 from spanweave.cli.commands.init import init_command
 from spanweave.cli.commands.prompt import prompt_command
 from spanweave.cli.commands.resume import resume_command
+from spanweave.cli.commands.review import review_command
 from spanweave.cli.commands.run import run_command
 from spanweave.cli.commands.skill_feedback import skill_feedback_group
 from spanweave.cli.formatters import build_help_epilog
@@ -55,6 +57,8 @@ main.add_command(resume_command)
 main.add_command(prompt_command)
 main.add_command(context_command)
 main.add_command(ingest_command)
+main.add_command(extract_command)
+main.add_command(review_command)
 main.add_command(daemon_group)
 main.add_command(grep_command)
 main.add_command(skill_feedback_group)
