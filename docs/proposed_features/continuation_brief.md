@@ -21,7 +21,7 @@ This brief is the entry point for a fresh session. Read it end-to-end before doi
 **Read these in order before acting:**
 - `roadmap.md` — full vision, design principles (especially #1 "files first, indexes second" and #4 "format over platform"), Phase 0–8 overview
 - `README.md` — short product overview
-- `phase0_plan.md` — historical record of how Phase 0 shipped
+- `docs/historical/phase0_plan.md` — historical record of how Phase 0 shipped
 - `docs/dogfood/2026-04-28-*.md` — the three dogfood findings docs (scenarios 4, 5, and the cross-tool swap)
 - `docs/proposed_features/2026-05-07-spanweave-security-architecture-brief.md` — security harness design (committed but not yet implemented)
 - `docs/proposed_features/2026-05-07-security-best-practice-brief.md` — companion to the architecture brief
