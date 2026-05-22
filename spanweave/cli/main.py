@@ -7,6 +7,7 @@ from spanweave.cli.commands.cleanup import cleanup_command
 from spanweave.cli.commands.context import context_command
 from spanweave.cli.commands.daemon import daemon_group
 from spanweave.cli.commands.extract import extract_command
+from spanweave.cli.commands.extract_latest import extract_latest_command
 from spanweave.cli.commands.grep import grep_command
 from spanweave.cli.commands.ingest import ingest_command
 from spanweave.cli.commands.init import init_command
@@ -58,6 +59,7 @@ main.add_command(prompt_command)
 main.add_command(context_command)
 main.add_command(ingest_command)
 main.add_command(extract_command)
+main.add_command(extract_latest_command)
 main.add_command(review_command)
 main.add_command(daemon_group)
 main.add_command(grep_command)

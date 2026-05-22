@@ -35,10 +35,13 @@ def _write_if_missing(path: Path, content: str) -> bool:
     epilog=build_help_epilog(
         notes=(
             "This command is idempotent and does not overwrite existing workspace files.",
+            "Use --tool to wire auto-extraction hooks for specific agent tools.",
         ),
         examples=(
             "spanweave init --repo .",
             "spanweave init --repo /path/to/repo --json",
+            "spanweave init --tool claude-code --repo .",
+            "spanweave init --tool codex --tool cursor --repo .",
         ),
     ),
 )
@@ -50,7 +53,14 @@ def _write_if_missing(path: Path, content: str) -> bool:
     help="Repository root where .spanweave/ should be scaffolded.",
 )
 @click.option("--json", "json_output", is_flag=True, help="Emit machine-readable JSON.")
-def init_command(repo: Path, json_output: bool) -> None:
+@click.option(
+    "--tool",
+    "tools",
+    multiple=True,
+    type=click.Choice(["claude-code", "codex", "cursor", "windsurf"], case_sensitive=False),
+    help="Wire auto-extraction hooks for specific tools.",
+)
+def init_command(repo: Path, json_output: bool, tools: tuple[str, ...]) -> None:
     """Scaffold the local .spanweave workspace in the target repository."""
 
     repo_path = repo.resolve()
@@ -100,6 +110,19 @@ def init_command(repo: Path, json_output: bool) -> None:
         click.echo(f"Initialized Spanweave workspace at {spanweave_root}")
         for path in [*created_dirs, *created_files]:
             click.echo(f"- {path}")
-        return
+    else:
+        click.echo(f"Spanweave workspace already initialized at {spanweave_root}")
 
-    click.echo(f"Spanweave workspace already initialized at {spanweave_root}")
+    # Wire tool-specific hooks if requested
+    if tools:
+        from spanweave.init_tools import wire_claude_code, wire_codex, wire_cursor, wire_windsurf
+
+        tool_handlers = {
+            "claude-code": wire_claude_code,
+            "codex": wire_codex,
+            "cursor": wire_cursor,
+            "windsurf": wire_windsurf,
+        }
+        for tool in tools:
+            handler = tool_handlers[tool.lower()]
+            handler(repo_path)
