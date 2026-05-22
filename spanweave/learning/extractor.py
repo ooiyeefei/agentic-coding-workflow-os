@@ -14,11 +14,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import httpx
-
 logger = logging.getLogger(__name__)
 
-OLLAMA_BASE = "http://localhost:11434"
 DEFAULT_MODEL = "gemma4:e4b"
 
 EXTRACTION_OPTIONS = {
@@ -49,34 +46,16 @@ Conversation:
 {chunk}
 ---"""
 
-
-class OllamaNotAvailableError(Exception):
-    """Raised when Ollama is not running or unreachable."""
+# Re-export for backward compatibility
+from spanweave.learning.ollama_client import OllamaNotAvailableError, call_ollama  # noqa: E402
 
 
 def _call_ollama(prompt: str, model: str) -> str:
-    """Send a prompt to the Ollama API and return the response text."""
-    try:
-        response = httpx.post(
-            f"{OLLAMA_BASE}/api/generate",
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "options": EXTRACTION_OPTIONS,
-            },
-            timeout=120.0,
-        )
-        response.raise_for_status()
-    except httpx.ConnectError as exc:
-        raise OllamaNotAvailableError(
-            f"Ollama not running. Install: https://ollama.ai then `ollama pull {DEFAULT_MODEL}`"
-        ) from exc
-    except httpx.HTTPError as exc:
-        raise OllamaNotAvailableError(
-            f"Ollama not running. Install: https://ollama.ai then `ollama pull {DEFAULT_MODEL}`"
-        ) from exc
-    return response.json()["response"]
+    """Send a prompt to the Ollama API and return the response text.
+
+    Delegates to the shared ollama_client module.
+    """
+    return call_ollama(prompt, model, options=EXTRACTION_OPTIONS)
 
 
 def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:

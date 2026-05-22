@@ -194,7 +194,28 @@ class WorkflowEvent(MemoryRecord):
     type: str = "WorkflowEvent"
 
 
-Record: TypeAlias = Decision | ReviewFinding | RejectedAlternative | SkillOutcome | WorkflowEvent
+class Reflection(MemoryRecord):
+    id_prefix = "reflection"
+    collection_name = "reflections"
+    record_type = "Reflection"
+
+    id: str = Field(default_factory=lambda: _new_record_id(Reflection.id_prefix))
+    type: str = "Reflection"
+    lesson: str = Field(min_length=1)
+    supporting_decisions: list[str] = Field(default_factory=list)
+    applies_to: str = ""
+
+    @field_validator("lesson")
+    @classmethod
+    def validate_lesson(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("lesson must contain non-whitespace content")
+        return value
+
+
+Record: TypeAlias = (
+    Decision | ReviewFinding | RejectedAlternative | SkillOutcome | WorkflowEvent | Reflection
+)
 
 RECORD_TYPES: dict[str, type[MemoryRecord]] = {
     "Decision": Decision,
@@ -202,6 +223,7 @@ RECORD_TYPES: dict[str, type[MemoryRecord]] = {
     "RejectedAlternative": RejectedAlternative,
     "SkillOutcome": SkillOutcome,
     "WorkflowEvent": WorkflowEvent,
+    "Reflection": Reflection,
 }
 
 __all__ = [
@@ -209,6 +231,7 @@ __all__ = [
     "MemoryRecord",
     "Record",
     "RECORD_TYPES",
+    "Reflection",
     "RejectedAlternative",
     "ReviewFinding",
     "SkillOutcome",

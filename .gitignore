@@ -132,6 +132,7 @@ Thumbs.db
 .spanweave-user/
 .spanweave/runs/      # commit if you want reproducibility; ignore if bloat concern
 .spanweave/audit/
+.spanweave/memory/private/   # private decisions never leave your machine
 demo/warm-cache/*.local
 
 # Env / secrets

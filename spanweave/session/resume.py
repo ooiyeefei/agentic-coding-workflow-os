@@ -113,9 +113,21 @@ def _adapter_for_target(target_agent: str, *, repo_root: Path) -> ToolAdapter:
 
 
 def _load_memory_records(repo_root: Path) -> list[MemoryRecord]:
-    records = list_records(repo_root / ".spanweave" / "memory")
+    memory_root = repo_root / ".spanweave" / "memory"
+    seen_ids: set[str] = set()
+    all_records: list[MemoryRecord] = []
+
+    # Read from all locations: legacy flat, shared/, and private/
+    for subdir in (memory_root, memory_root / "shared", memory_root / "private"):
+        if not subdir.is_dir():
+            continue
+        for record in list_records(subdir):
+            if record.id not in seen_ids:
+                seen_ids.add(record.id)
+                all_records.append(record)
+
     return sorted(
-        records,
+        all_records,
         key=lambda record: (
             _record_type_rank(record),
             record.timestamp,
