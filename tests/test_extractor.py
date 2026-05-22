@@ -238,11 +238,14 @@ class TestReviewCommand:
         assert result.exit_code == 0
         assert "Accepted" in result.output
 
-        # Pending file should be moved to confirmed
+        # Pending file should be moved to routed location
+        # (sharing policy routes decisions to private/ or shared/)
         assert not pending_file.exists()
-        confirmed_dir = tmp_path / ".spanweave" / "memory" / "decisions"
-        assert confirmed_dir.exists()
-        confirmed_files = list(confirmed_dir.iterdir())
+        private_dir = tmp_path / ".spanweave" / "memory" / "private" / "decisions"
+        shared_dir = tmp_path / ".spanweave" / "memory" / "shared" / "decisions"
+        assert private_dir.exists() or shared_dir.exists()
+        dest_dir = private_dir if private_dir.exists() else shared_dir
+        confirmed_files = list(dest_dir.iterdir())
         assert len(confirmed_files) == 1
 
     def test_review_command_empty_pending(self, tmp_path: Path) -> None:

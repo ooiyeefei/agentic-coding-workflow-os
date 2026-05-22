@@ -20,6 +20,12 @@ from spanweave.learning.feedback_loop import (
     read_entry,
     render_diff,
 )
+from spanweave.learning.ollama_client import call_ollama
+from spanweave.learning.reflector import (
+    REFLECTION_MODEL,
+    reflect_on_decisions,
+    stage_reflection,
+)
 from spanweave.learning.rule_loader import RuleLoadError, RuleMatch, load_rules
 
 __all__ = [
@@ -27,9 +33,11 @@ __all__ = [
     "FALLBACK_RULE",
     "KNOWN_RULES_DIR",
     "OllamaNotAvailableError",
+    "REFLECTION_MODEL",
     "RuleLoadError",
     "RuleMatch",
     "build_rule_block",
+    "call_ollama",
     "chunk_session",
     "dedupe_against_existing",
     "derive_rule_from_outcome",
@@ -38,6 +46,8 @@ __all__ = [
     "load_rules",
     "patch_skill_file",
     "read_entry",
+    "reflect_on_decisions",
     "render_diff",
     "stage_pending_decisions",
+    "stage_reflection",
 ]

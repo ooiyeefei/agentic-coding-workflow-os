@@ -6,6 +6,7 @@ import click
 
 from spanweave.cli.formatters import build_help_epilog, echo_json
 from spanweave.defaults import DEFAULT_WORKFLOWS_DIR
+from spanweave.sharing import default_sharing_yaml
 
 _DEFAULT_WORKFLOW = DEFAULT_WORKFLOWS_DIR / "speckit-loop.yaml"
 _README_CONTENT = (
@@ -80,12 +81,20 @@ def init_command(repo: Path, json_output: bool, tools: tuple[str, ...]) -> None:
         spanweave_root / "memory" / "rejected_alternatives",
         spanweave_root / "memory" / "skill_outcomes",
         spanweave_root / "memory" / "council_reports",
+        spanweave_root / "memory" / "private" / "decisions",
+        spanweave_root / "memory" / "private" / "findings",
+        spanweave_root / "memory" / "private" / "reflections",
+        spanweave_root / "memory" / "shared" / "decisions",
+        spanweave_root / "memory" / "shared" / "findings",
     ):
         if _ensure_directory(directory):
             created_dirs.append(str(directory.relative_to(repo_path)))
 
     if _write_if_missing(spanweave_root / "README.md", _README_CONTENT):
         created_files.append(".spanweave/README.md")
+
+    if _write_if_missing(spanweave_root / "sharing.yaml", default_sharing_yaml()):
+        created_files.append(".spanweave/sharing.yaml")
 
     workflow_target = spanweave_root / "workflows" / "speckit-loop.yaml"
     if _DEFAULT_WORKFLOW.is_file() and _write_if_missing(
