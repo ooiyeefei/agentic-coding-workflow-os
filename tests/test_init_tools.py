@@ -59,7 +59,9 @@ class TestInitToolClaudeCode:
         assert "hooks" in settings
         assert "Stop" in settings["hooks"]
         hook_commands = _stop_hook_commands(settings)
-        assert "spanweave extract-latest --repo ." in hook_commands
+        # Tolerant of invocation form (plain vs .venv/bin) — tmp_path has no venv
+        # so it resolves to the plain command here.
+        assert any(c.endswith("extract-latest --repo .") for c in hook_commands)
         assert "Claude Code Stop hook wired" in result.output
 
     def test_preserves_existing_settings(self, tmp_path: Path) -> None:
@@ -84,7 +86,7 @@ class TestInitToolClaudeCode:
         assert settings["env"] == {"FOO": "bar"}
         # Hook added
         hook_commands = _stop_hook_commands(settings)
-        assert "spanweave extract-latest --repo ." in hook_commands
+        assert any(c.endswith("extract-latest --repo .") for c in hook_commands)
 
     def test_is_idempotent(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -94,8 +96,65 @@ class TestInitToolClaudeCode:
 
         settings = _settings_json(tmp_path)
         hook_commands = _stop_hook_commands(settings)
-        # Only one instance of our hook
-        assert hook_commands.count("spanweave extract-latest --repo .") == 1
+        # Only one spanweave extract-latest hook regardless of invocation form
+        extract_hooks = [c for c in hook_commands if c.endswith("extract-latest --repo .")]
+        assert len(extract_hooks) == 1
+
+    def test_uses_venv_binary_when_present(self, tmp_path: Path) -> None:
+        """When a repo-local venv exists, the hook must point at its binary.
+
+        The bare /bin/sh that Claude Code uses for Stop hooks has neither the
+        venv nor `uv` on PATH, so a plain `spanweave` command fails with
+        "not found". A repo-relative `.venv/bin/spanweave` path works because
+        hooks run with cwd = project root.
+        """
+        venv_bin = tmp_path / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        (venv_bin / "spanweave").write_text("#!/bin/sh\n", encoding="utf-8")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        hook_commands = _stop_hook_commands(_settings_json(tmp_path))
+        assert ".venv/bin/spanweave extract-latest --repo ." in hook_commands
+
+    def test_self_heals_stale_plain_command(self, tmp_path: Path) -> None:
+        """Re-running init upgrades a stale bare-`spanweave` hook in place.
+
+        Simulates a user bitten by the pre-fix bug (plain `spanweave` that
+        fails in the bare hook shell): the broken command is replaced with the
+        venv-resolved one rather than duplicated or left broken.
+        """
+        # Pre-populate with the old, broken hook command
+        claude_dir = tmp_path / ".claude"
+        claude_dir.mkdir()
+        stale = {
+            "hooks": {
+                "Stop": [
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {"type": "command", "command": "spanweave extract-latest --repo ."}
+                        ],
+                    }
+                ]
+            }
+        }
+        (claude_dir / "settings.json").write_text(json.dumps(stale, indent=2), encoding="utf-8")
+        # Give the repo a venv so the resolver upgrades to the venv path
+        venv_bin = tmp_path / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        (venv_bin / "spanweave").write_text("#!/bin/sh\n", encoding="utf-8")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        hook_commands = _stop_hook_commands(_settings_json(tmp_path))
+        # Upgraded in place — exactly one hook, now pointing at the venv binary
+        assert hook_commands == [".venv/bin/spanweave extract-latest --repo ."]
+        assert "updated" in result.output.lower()
 
 
 # ---------------------------------------------------------------------------
