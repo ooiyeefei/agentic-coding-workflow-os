@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "spanweave extract-latest --repo ."
+            "command": ".venv/bin/spanweave extract-latest --repo ."
           }
         ]
       }

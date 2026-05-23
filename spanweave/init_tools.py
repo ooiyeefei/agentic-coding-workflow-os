@@ -12,7 +12,27 @@ from typing import Any, cast
 
 import click
 
-_HOOK_COMMAND = "spanweave extract-latest --repo ."
+_EXTRACT_ARGS = "extract-latest --repo ."
+
+
+def _resolve_hook_command(repo_root: Path) -> str:
+    """Resolve a hook command that works in a bare /bin/sh (no venv, no uv).
+
+    Claude Code fires Stop hooks in a minimal shell where neither the venv nor
+    `uv` is on PATH, so a plain `spanweave ...` (or `uv run spanweave ...`)
+    command fails with "not found". When a repo-local virtualenv is present
+    (dev / uv-project install), point the hook at its entry-point binary via a
+    repo-relative path — hooks run with cwd = project root (the same guarantee
+    `--repo .` already relies on). Otherwise assume a global install on PATH.
+
+    We deliberately avoid ``shutil.which("spanweave")``: when this runs inside
+    ``uv run spanweave init``, the venv's binary is already on the process PATH,
+    so ``which`` would falsely report a global install.
+    """
+    venv_bin = repo_root / ".venv" / "bin" / "spanweave"
+    if venv_bin.exists():
+        return f".venv/bin/spanweave {_EXTRACT_ARGS}"
+    return f"spanweave {_EXTRACT_ARGS}"
 
 _CODEX_SECTION = """\
 
@@ -65,14 +85,33 @@ def wire_claude_code(repo_root: Path) -> None:
         hooks["Stop"] = []
     stop_blocks = cast(list[dict[str, Any]], hooks["Stop"])
 
-    # Check if our command is already present anywhere in the nested hooks
-    # arrays (idempotent). Each block carries its own "hooks" list.
+    hook_command = _resolve_hook_command(repo_root)
+
+    # Find any existing spanweave extract-latest hook, matching on the args
+    # suffix so we recognize it regardless of how spanweave is invoked
+    # (plain `spanweave`, `.venv/bin/spanweave`, `uv run spanweave`). This makes
+    # the wiring idempotent AND self-healing: a stale/broken invocation from an
+    # earlier version is upgraded in place rather than duplicated.
     for block in stop_blocks:
-        inner = block.get("hooks", []) if isinstance(block, dict) else []
-        if any(h.get("command") == _HOOK_COMMAND for h in inner):
+        if not isinstance(block, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+            continue
+        for inner_hook in block.get("hooks", []):
+            command = inner_hook.get("command", "")
+            if not command.endswith(_EXTRACT_ARGS):
+                continue
+            if command == hook_command:
+                click.echo(
+                    "✓ Claude Code Stop hook already wired. "
+                    "Decisions will be auto-extracted when sessions end."
+                )
+                return
+            # Stale invocation (e.g. the pre-fix bare `spanweave` that fails in
+            # the bare hook shell) — upgrade it in place.
+            inner_hook["command"] = hook_command
+            settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             click.echo(
-                "✓ Claude Code Stop hook already wired. "
-                "Decisions will be auto-extracted when sessions end."
+                "✓ Claude Code Stop hook updated to a shell-resilient command "
+                f"({hook_command})."
             )
             return
 
@@ -80,7 +119,7 @@ def wire_claude_code(repo_root: Path) -> None:
     stop_blocks.append(
         {
             "matcher": "",
-            "hooks": [{"type": "command", "command": _HOOK_COMMAND}],
+            "hooks": [{"type": "command", "command": hook_command}],
         }
     )
 
