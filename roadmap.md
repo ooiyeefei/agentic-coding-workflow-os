@@ -315,8 +315,10 @@ See `docs/proposed_features.md` for additional Phase 2 candidates currently in e
   - Solves the problem observed in agent-to-agent eval loops: improvement without durable memory is lossy and un-reproducible. Our files-first substrate makes the iteration graph queryable and portable.
   - CLI: `spanweave meta improve --target-run <id> --change persona:coder=v2.md` → produces side-by-side comparison report.
 
-### Phase 4 — Git Hygiene Complete + Event Bus + Observability
+### Phase 4 — HTTP Daemon + Event Bus + Observability + auth.md
 
+- **HTTP daemon** — local server with SSE for real-time run-state changes. Foundation for all non-CLI surfaces.
+- **auth.md support** — publish `/.well-known/oauth-protected-resource` + `auth.md` at the daemon endpoint following the [WorkOS auth.md open protocol](https://workos.com/auth-md). Agent-verified flow (ID-JAG assertions from trusted agent providers like Claude Code, Codex) for zero-interaction registration; user-claimed flow (OTP) for unknown agents. Enables: Bob's agent on a different machine accesses Alice's shared decisions via HTTP, without both needing git access to the same repo. Uses IETF ID-JAG draft for identity assertions, standard JWKS verification — no proprietary auth.
 - Rebase-before-PR full automation (analyze + suggest; human-approve destructive ops)
 - Force-with-lease safety wrapper
 - Event bus (webhooks for Slack/Linear/PagerDuty)
