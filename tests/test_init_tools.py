@@ -25,9 +25,22 @@ def _settings_json(repo: Path) -> dict[str, Any]:
 
 
 def _stop_hook_commands(settings: dict[str, Any]) -> list[str]:
-    """Extract the list of command strings from hooks.Stop entries."""
-    hooks: list[dict[str, str]] = settings["hooks"]["Stop"]
-    return [h["command"] for h in hooks]
+    """Extract command strings from hooks.Stop, validating the schema shape.
+
+    Claude Code requires each Stop entry to be a matcher-block with a nested
+    ``hooks`` array: ``{"matcher": "", "hooks": [{"type": "command", ...}]}``.
+    This helper asserts that shape (the bug /doctor caught was a flat entry
+    missing the ``hooks`` wrapper) and returns the inner command strings.
+    """
+    blocks: list[dict[str, Any]] = settings["hooks"]["Stop"]
+    commands: list[str] = []
+    for block in blocks:
+        assert "hooks" in block, f"Stop entry missing 'hooks' array: {block!r}"
+        assert isinstance(block["hooks"], list)
+        for inner in block["hooks"]:
+            assert inner.get("type") == "command"
+            commands.append(inner["command"])
+    return commands
 
 
 # ---------------------------------------------------------------------------
