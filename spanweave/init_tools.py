@@ -55,26 +55,34 @@ def wire_claude_code(repo_root: Path) -> None:
     else:
         data = {}
 
-    # Ensure hooks.Stop structure
+    # Ensure hooks.Stop structure. Claude Code expects each Stop entry to be a
+    # matcher-block: {"matcher": "", "hooks": [{"type": "command", ...}]}. The
+    # matcher is empty because Stop has no tool to match against.
     if "hooks" not in data:
         data["hooks"] = {}
     hooks = cast(dict[str, Any], data["hooks"])
     if "Stop" not in hooks:
         hooks["Stop"] = []
-    stop_hooks = cast(list[dict[str, str]], hooks["Stop"])
+    stop_blocks = cast(list[dict[str, Any]], hooks["Stop"])
 
-    # Check if our hook is already present (idempotent)
-    hook_entry: dict[str, str] = {"type": "command", "command": _HOOK_COMMAND}
-    existing_commands: list[str | None] = [h.get("command") for h in stop_hooks]
-    if _HOOK_COMMAND in existing_commands:
-        click.echo(
-            "✓ Claude Code Stop hook already wired. "
-            "Decisions will be auto-extracted when sessions end."
-        )
-        return
+    # Check if our command is already present anywhere in the nested hooks
+    # arrays (idempotent). Each block carries its own "hooks" list.
+    for block in stop_blocks:
+        inner = block.get("hooks", []) if isinstance(block, dict) else []
+        if any(h.get("command") == _HOOK_COMMAND for h in inner):
+            click.echo(
+                "✓ Claude Code Stop hook already wired. "
+                "Decisions will be auto-extracted when sessions end."
+            )
+            return
 
-    # Append our hook
-    stop_hooks.append(hook_entry)
+    # Append our hook as a properly-shaped matcher block
+    stop_blocks.append(
+        {
+            "matcher": "",
+            "hooks": [{"type": "command", "command": _HOOK_COMMAND}],
+        }
+    )
 
     # Write back preserving formatting
     settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
