@@ -280,8 +280,16 @@ class TestExtractLatest:
         # Patch Path.home() to point to our fake home
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "fakehome")
 
-        # Patch extract_from_session to just record the call
-        with patch("spanweave.learning.extractor.extract_from_session") as mock_extract:
+        # Patch extract_from_session to record the call, AND force the Ollama
+        # availability probe True. extract-latest gates extraction behind
+        # ollama_available() (added in #82); on CI there's no Ollama, so without
+        # this mock the command quietly early-returns and extract_from_session
+        # is never called. This test targets session *discovery*, so we assume
+        # Ollama is up.
+        with (
+            patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
+            patch("spanweave.learning.extractor.extract_from_session") as mock_extract,
+        ):
             mock_extract.return_value = [{"type": "decision", "body": "test"}]
             runner = CliRunner()
             result = runner.invoke(main, ["extract-latest", "--repo", str(repo)])
