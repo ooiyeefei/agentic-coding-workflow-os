@@ -156,6 +156,62 @@ class TestInitToolClaudeCode:
         assert hook_commands == [".venv/bin/spanweave extract-latest --repo ."]
         assert "updated" in result.output.lower()
 
+    def test_writes_read_pointer_to_claude_md(self, tmp_path: Path) -> None:
+        """Claude Code gets a CLAUDE.md read-pointer covering memory/ + runs/.
+
+        The Stop hook is the *capture* (write) side; the read side lives in
+        CLAUDE.md so a fresh session loads prior decisions. Both substrate dirs
+        must be named, mirroring the codex/cursor/windsurf read-pointer.
+        """
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        claude_md = tmp_path / "CLAUDE.md"
+        assert claude_md.is_file()
+        content = claude_md.read_text(encoding="utf-8")
+        assert "Load Spanweave context on session start" in content
+        assert ".spanweave/memory/" in content
+        assert ".spanweave/runs/" in content
+
+    def test_claude_md_has_no_manual_capture_instruction(self, tmp_path: Path) -> None:
+        """CLAUDE.md must NOT carry the manual capture (write) pointer.
+
+        Capture for Claude Code is automatic via the Stop hook. Adding a manual
+        'run spanweave extract-latest' instruction too would invite the model to
+        double-extract — so the write-pointer is deliberately omitted here (it's
+        only for hookless tools: codex/cursor/windsurf).
+        """
+        runner = CliRunner()
+
+        runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        content = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+        assert "Capture decisions on session end" not in content
+
+    def test_claude_md_read_pointer_is_idempotent(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+
+        runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+        runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        content = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+        assert content.count("## Load Spanweave context on session start") == 1
+
+    def test_preserves_existing_claude_md(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_text(
+            "# House Rules\n\nUse 4-space indents.\n", encoding="utf-8"
+        )
+        runner = CliRunner()
+
+        runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        content = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+        assert "# House Rules" in content
+        assert "Use 4-space indents." in content
+        assert "Load Spanweave context on session start" in content
+
 
 # ---------------------------------------------------------------------------
 # Codex hook tests
@@ -172,9 +228,31 @@ class TestInitToolCodex:
 
         assert result.exit_code == 0
         content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        # Existing user content is preserved (sections are appended, not rewritten).
+        assert "# My Project" in content
+        assert "Some content." in content
+        # Write-pointer (capture on end) is present.
         assert "spanweave extract-latest --repo ." in content
-        assert "Session end protocol" in content
-        assert "Codex instruction added" in result.output
+        assert "Capture decisions on session end" in content
+        assert "Codex" in result.output
+
+    def test_read_pointer_covers_memory_and_runs(self, tmp_path: Path) -> None:
+        """Codex's AGENTS.md must point at BOTH memory/ and runs/ on load.
+
+        This is the gap the fix closes: earlier wiring gave Codex only a
+        capture-on-end instruction (no load-context pointer at all), so a fresh
+        Codex session never learned to read decisions staged by extract-latest.
+        """
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "codex", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        # Read-pointer heading + both substrate locations.
+        assert "Load Spanweave context on session start" in content
+        assert ".spanweave/memory/" in content
+        assert ".spanweave/runs/" in content
 
     def test_creates_agents_md_if_missing(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -194,7 +272,34 @@ class TestInitToolCodex:
         runner.invoke(main, ["init", "--tool", "codex", "--repo", str(tmp_path)])
 
         content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        # Neither the write-pointer command nor either heading is duplicated.
         assert content.count("spanweave extract-latest --repo .") == 1
+        assert content.count("## Load Spanweave context on session start") == 1
+        assert content.count("## Capture decisions on session end") == 1
+
+    def test_adds_only_missing_section(self, tmp_path: Path) -> None:
+        """Migration case: a repo with only the old write-pointer gains the read one.
+
+        ``_ensure_sections`` keys off each heading independently, so a repo wired
+        by an older spanweave (capture-only) picks up the new load-context
+        pointer on re-init without duplicating the section it already has.
+        """
+        agents = tmp_path / "AGENTS.md"
+        agents.write_text(
+            "# Project\n\n## Capture decisions on session end\n\n"
+            "Before ending your session, run:\n"
+            "```bash\nspanweave extract-latest --repo .\n```\n",
+            encoding="utf-8",
+        )
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "codex", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = agents.read_text(encoding="utf-8")
+        # Read-pointer added; capture section not duplicated.
+        assert content.count("## Load Spanweave context on session start") == 1
+        assert content.count("## Capture decisions on session end") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -211,9 +316,11 @@ class TestInitToolCursor:
         assert result.exit_code == 0
         assert (tmp_path / ".cursorrules").is_file()
         content = (tmp_path / ".cursorrules").read_text(encoding="utf-8")
+        # Write-pointer (capture) + read-pointer covering BOTH substrate dirs.
         assert "spanweave extract-latest --repo ." in content
+        assert ".spanweave/memory/" in content
         assert ".spanweave/runs/" in content
-        assert "Cursor rules updated" in result.output
+        assert "Cursor" in result.output
 
     def test_preserves_existing_cursorrules(self, tmp_path: Path) -> None:
         (tmp_path / ".cursorrules").write_text("# Existing rules\nDo things.\n", encoding="utf-8")
@@ -241,9 +348,11 @@ class TestInitToolWindsurf:
         assert result.exit_code == 0
         assert (tmp_path / ".windsurfrules").is_file()
         content = (tmp_path / ".windsurfrules").read_text(encoding="utf-8")
+        # Write-pointer (capture) + read-pointer covering BOTH substrate dirs.
         assert "spanweave extract-latest --repo ." in content
+        assert ".spanweave/memory/" in content
         assert ".spanweave/runs/" in content
-        assert "Windsurf rules updated" in result.output
+        assert "Windsurf" in result.output
 
 
 # ---------------------------------------------------------------------------
