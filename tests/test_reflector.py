@@ -194,7 +194,7 @@ class TestReflectCommand:
     """Tests for the spanweave reflect CLI command."""
 
     def test_reflect_command_ollama_not_running(self, tmp_path: Path) -> None:
-        """Verify helpful error when Ollama is not available."""
+        """User-invoked reflect: helpful guidance, but exit 0 (not a crash)."""
         from spanweave.cli.main import main
         from spanweave.learning.ollama_client import OllamaNotAvailableError
 
@@ -210,7 +210,8 @@ class TestReflectCommand:
         ):
             result = runner.invoke(main, ["reflect", "--repo", str(tmp_path)])
 
-        assert result.exit_code != 0
+        # "Ollama not installed" is a user-environment state, not a crash.
+        assert result.exit_code == 0
         assert "Ollama not running" in result.output
 
     def test_reflect_command_not_enough_decisions(self, tmp_path: Path) -> None:

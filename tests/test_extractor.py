@@ -122,6 +122,83 @@ class TestExtractDecisionsFromChunk:
                 extract_decisions_from_chunk("some chunk")
 
 
+class TestOllamaAvailable:
+    """Tests for the cheap ollama_available() availability probe."""
+
+    def test_ollama_available_false_when_unreachable(self) -> None:
+        """Probe returns False when httpx raises a ConnectError."""
+        import httpx
+        from spanweave.learning.ollama_client import ollama_available
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.get",
+            side_effect=httpx.ConnectError("connection refused"),
+        ):
+            assert ollama_available() is False
+
+    def test_ollama_available_true_on_200(self) -> None:
+        """Probe returns True when /api/version answers 200."""
+        from unittest.mock import MagicMock
+
+        from spanweave.learning.ollama_client import ollama_available
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.get",
+            return_value=mock_resp,
+        ):
+            assert ollama_available() is True
+
+
+class TestCallOllamaErrorDistinction:
+    """call_ollama must distinguish 'down' (ConnectError) from 'slow' (Timeout)."""
+
+    def test_connect_error_raises_not_available_with_install_hint(self) -> None:
+        import httpx
+        from spanweave.learning.ollama_client import (
+            OllamaNotAvailableError,
+            OllamaTimeoutError,
+            call_ollama,
+        )
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.post",
+            side_effect=httpx.ConnectError("connection refused"),
+        ):
+            with pytest.raises(OllamaNotAvailableError) as excinfo:
+                call_ollama("prompt", "gemma4:e4b")
+        # Connection refused → "not running", and NOT the timeout subclass
+        assert not isinstance(excinfo.value, OllamaTimeoutError)
+        assert "not running" in str(excinfo.value).lower()
+
+    def test_timeout_raises_timeout_error_with_slow_model_hint(self) -> None:
+        import httpx
+        from spanweave.learning.ollama_client import OllamaTimeoutError, call_ollama
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.post",
+            side_effect=httpx.ReadTimeout("read timed out"),
+        ):
+            with pytest.raises(OllamaTimeoutError) as excinfo:
+                call_ollama("prompt", "gemma4:e4b", timeout=120.0)
+        message = str(excinfo.value).lower()
+        # Must NOT tell the user to install — it's running, just slow
+        assert "not running" not in message
+        assert "did not respond" in message
+        assert "qwen2.5:1.5b" in str(excinfo.value)  # suggests a faster model
+
+    def test_timeout_error_is_subclass_of_not_available(self) -> None:
+        """So existing `except OllamaNotAvailableError` handlers catch timeouts."""
+        from spanweave.learning.ollama_client import (
+            OllamaNotAvailableError,
+            OllamaTimeoutError,
+        )
+
+        assert issubclass(OllamaTimeoutError, OllamaNotAvailableError)
+
+
 class TestStagePendingDecisions:
     """Tests for staging decisions as pending markdown files."""
 
@@ -263,7 +340,7 @@ class TestExtractCommand:
     """Tests for the spanweave extract CLI command."""
 
     def test_extract_command_ollama_not_running(self, tmp_path: Path) -> None:
-        """Verify helpful error message when Ollama is not available."""
+        """User-invoked extract: helpful guidance, but exit 0 (not a crash)."""
         from spanweave.cli.main import main
         from spanweave.learning.extractor import OllamaNotAvailableError
 
@@ -279,8 +356,32 @@ class TestExtractCommand:
                 main, ["extract", "--session", str(SAMPLE_SESSION), "--repo", str(tmp_path)]
             )
 
-        assert result.exit_code != 0
+        # "Ollama not installed" is a user-environment state, not a spanweave
+        # failure, so scripts/CI should not treat it as a crash.
+        assert result.exit_code == 0
         assert "Ollama not running" in result.output
+
+    def test_extract_exits_zero_when_ollama_down(self, tmp_path: Path) -> None:
+        """Explicit: extract exits 0 with install guidance when Ollama is down."""
+        from spanweave.cli.main import main
+        from spanweave.learning.extractor import OllamaNotAvailableError
+
+        runner = CliRunner()
+
+        with patch(
+            "spanweave.learning.extractor._call_ollama",
+            side_effect=OllamaNotAvailableError(
+                "Ollama not running. Install: https://ollama.ai then `ollama pull gemma4:e4b`"
+            ),
+        ):
+            result = runner.invoke(
+                main, ["extract", "--session", str(SAMPLE_SESSION), "--repo", str(tmp_path)]
+            )
+
+        assert result.exit_code == 0
+        # Guidance goes to stderr; stdout stays clean.
+        assert "Ollama not running" in result.stderr
+        assert "ollama pull" in result.stderr
 
     def test_extract_command_success(self, tmp_path: Path) -> None:
         """Verify successful extraction flow with mocked Ollama."""
