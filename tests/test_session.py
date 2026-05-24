@@ -4,10 +4,17 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from spanweave.cli.main import main
 from spanweave.compiler import estimate_tokens
-from spanweave.memory import Decision, ReviewFinding, list_records, write_record
+from spanweave.memory import (
+    Decision,
+    RejectedAlternative,
+    ReviewFinding,
+    list_records,
+    write_record,
+)
 from spanweave.session import generate_context, generate_prompt, ingest_transcript, resume
 
 
@@ -104,6 +111,65 @@ def test_generate_prompt_adds_role_specific_protocols(
     assert "Execution is mandatory" in reviewer
     assert "findings ordered by severity" in reviewer
     assert "# CLAUDE.md Context Packet" in reviewer
+
+
+def test_generate_prompt_does_not_duplicate_role_protocol_in_prior_decisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    """Regression for #67: the role protocol is injected as a Decision so the
+    compiler can carry it, but it must render only once — as the leading
+    directive, not again as a bullet inside ``## Prior Decisions``.
+    """
+    _seed_repo(tmp_path, fixed_run_id, fixed_ulid_values)
+    monkeypatch.chdir(tmp_path)
+
+    coder = generate_prompt(fixed_run_id, "coder", "codex")
+
+    # The protocol must still lead the prompt.
+    assert "## Implementation-focused protocol" in coder
+    assert "Inspect the existing implementation before editing" in coder
+
+    # ...but it must not be repeated as a Decision bullet in Prior Decisions.
+    prior_decisions = _section_body(coder, "## Prior Decisions")
+    assert "Implementation-focused protocol" not in prior_decisions, (
+        "Role protocol leaked into the Prior Decisions section; #67 regressed."
+    )
+    # The genuine decision seeded by the fixture must still survive the filter.
+    assert "Persist session continuity decisions in memory." in prior_decisions
+
+    # The protocol must not render as a human-readable directive twice. It may
+    # still appear once more inside the Compiled Run Context as a provenance-
+    # tracked source (see the provenance test), so we assert against the two
+    # directive surfaces specifically rather than a global string count.
+    assert coder.count("## Implementation-focused protocol") == 1
+
+
+def test_resume_packet_links_disk_adrs_by_tag_match(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixed_run_id: str,
+    fixed_ulid_values: list[str],
+) -> None:
+    """Regression for #73: the resume packet must surface ADRs on disk that
+    match the run's tags even when no record carries a ``related_adrs``
+    back-reference.
+    """
+    _seed_repo(tmp_path, fixed_run_id, fixed_ulid_values)
+    _seed_tagged_record(tmp_path, fixed_run_id, fixed_ulid_values)
+    _seed_workflow_validation_adrs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    packet = resume(fixed_run_id, "claude-code")
+
+    adr_section = _section_body(packet, "## Relevant ADRs")
+    assert "No ADRs referenced" not in adr_section, (
+        "Resume packet failed to link workflow-validation ADRs on disk; #73 regressed."
+    )
+    assert "ADR-0001" in adr_section
+    assert "ADR-0002" in adr_section
 
 
 def test_generate_context_is_standalone_and_budgeted(
@@ -254,6 +320,15 @@ def _source_block_containing(text: str, needle: str) -> str:
     end = text.find("\n## ", needle_index)
     if start == -1:
         start = 0
+    if end == -1:
+        end = len(text)
+    return text[start:end]
+
+
+def _section_body(text: str, header: str) -> str:
+    """Return the body of a ``## `` section up to the next ``## `` header."""
+    start = text.index(header) + len(header)
+    end = text.find("\n## ", start)
     if end == -1:
         end = len(text)
     return text[start:end]
@@ -440,3 +515,43 @@ def _seed_memory(repo_root: Path, run_id: str, fixed_ulid_values: list[str]) -> 
     ]
     for record in records:
         write_record(record, memory_root)
+
+
+def _seed_tagged_record(repo_root: Path, run_id: str, fixed_ulid_values: list[str]) -> None:
+    """Seed a record whose tags match the workflow-validation ADRs but whose
+    ``related_adrs`` is empty — the #73 shape."""
+    memory_root = repo_root / ".spanweave" / "memory"
+    write_record(
+        RejectedAlternative(
+            id=f"rejected_alternative_{fixed_ulid_values[20]}",
+            run_id=run_id,
+            stage_id=f"stage_{fixed_ulid_values[1]}",
+            timestamp=datetime(2026, 4, 24, 0, 0, tzinfo=UTC),
+            related_adrs=[],
+            tags=["workflow-validation", "artifact-minimization"],
+            source="integration-harness",
+            body="Keep workflow validation in memory only.",
+        ),
+        memory_root,
+    )
+
+
+def _seed_workflow_validation_adrs(repo_root: Path) -> None:
+    adr_dir = repo_root / "docs" / "adr"
+    adr_dir.mkdir(parents=True, exist_ok=True)
+    body = (
+        "---\n"
+        'status: "accepted"\n'
+        "date: 2026-04-22\n"
+        "decision-makers: integration-harness\n"
+        "---\n\n"
+        "# Workflow Validation\n\n"
+        "## Context and Problem Statement\n\n"
+        "The 001-specify stage stores packet, transcript, and evidence "
+        "artifacts directly on disk for replay and inspection.\n\n"
+        "## Decision Drivers\n\n"
+        "* artifact-minimization\n"
+        "* specify\n"
+    )
+    (adr_dir / "0001-workflow-validation.md").write_text(body, encoding="utf-8")
+    (adr_dir / "0002-workflow-validation.md").write_text(body, encoding="utf-8")
