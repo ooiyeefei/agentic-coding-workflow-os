@@ -199,6 +199,57 @@ class TestCallOllamaErrorDistinction:
         assert issubclass(OllamaTimeoutError, OllamaNotAvailableError)
 
 
+class TestHardwareModelSelection:
+    """default_model() picks gemma4:e4b on GPU, qwen2.5:1.5b on CPU-only."""
+
+    def test_default_model_uses_gpu_model_when_gpu_present(self) -> None:
+        from spanweave.learning.ollama_client import GPU_MODEL, default_model
+
+        with patch("spanweave.learning.ollama_client.gpu_available", return_value=True):
+            assert default_model() == GPU_MODEL
+
+    def test_default_model_uses_cpu_model_when_no_gpu(self) -> None:
+        from spanweave.learning.ollama_client import CPU_MODEL, default_model
+
+        with patch("spanweave.learning.ollama_client.gpu_available", return_value=False):
+            assert default_model() == CPU_MODEL
+
+    def test_gpu_available_true_on_apple_silicon(self) -> None:
+        from spanweave.learning.ollama_client import gpu_available
+
+        with (
+            patch("spanweave.learning.ollama_client.platform.system", return_value="Darwin"),
+            patch("spanweave.learning.ollama_client.platform.machine", return_value="arm64"),
+        ):
+            assert gpu_available() is True
+
+    def test_gpu_available_true_when_nvidia_smi_succeeds(self) -> None:
+        from unittest.mock import MagicMock
+
+        from spanweave.learning.ollama_client import gpu_available
+
+        ok = MagicMock()
+        ok.returncode = 0
+        with (
+            patch("spanweave.learning.ollama_client.platform.system", return_value="Linux"),
+            patch(
+                "spanweave.learning.ollama_client.shutil.which",
+                side_effect=lambda name: "/usr/bin/nvidia-smi" if name == "nvidia-smi" else None,
+            ),
+            patch("spanweave.learning.ollama_client.subprocess.run", return_value=ok),
+        ):
+            assert gpu_available() is True
+
+    def test_gpu_available_false_when_cpu_only_linux(self) -> None:
+        from spanweave.learning.ollama_client import gpu_available
+
+        with (
+            patch("spanweave.learning.ollama_client.platform.system", return_value="Linux"),
+            patch("spanweave.learning.ollama_client.shutil.which", return_value=None),
+        ):
+            assert gpu_available() is False
+
+
 class TestStagePendingDecisions:
     """Tests for staging decisions as pending markdown files."""
 

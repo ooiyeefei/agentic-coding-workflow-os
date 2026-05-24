@@ -68,19 +68,25 @@ def _find_latest_session(repo_root: Path) -> Path | None:
 )
 @click.option(
     "--model",
-    default="gemma4:e4b",
-    show_default=True,
-    help="Ollama model for extraction.",
+    default=None,
+    help=(
+        "Ollama model for extraction. Defaults by hardware: gemma4:e4b on GPU, "
+        "qwen2.5:1.5b on CPU-only."
+    ),
 )
-def extract_latest_command(repo: Path, model: str) -> None:
+def extract_latest_command(repo: Path, model: str | None) -> None:
     """Extract decisions from the most recent session transcript.
 
     Finds the newest .jsonl file in ~/.claude/projects/<encoded-cwd>/
     and runs extraction on it. Designed to be called from tool hooks.
     """
     from spanweave.learning.extractor import OllamaNotAvailableError, extract_from_session
+    from spanweave.learning.ollama_client import default_model
 
     repo_path = repo.resolve()
+    # Hook context: resolve the hardware-aware model silently (no stdout noise).
+    if model is None:
+        model = default_model()
     session_path = _find_latest_session(repo_path)
 
     if session_path is None:

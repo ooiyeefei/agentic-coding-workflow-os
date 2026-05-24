@@ -15,7 +15,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from spanweave.learning.ollama_client import OllamaNotAvailableError, call_ollama
+from spanweave.learning.ollama_client import (
+    OllamaNotAvailableError,
+    call_ollama,
+    default_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +57,7 @@ Decisions from recent sessions:
 def reflect_on_decisions(
     *,
     repo_root: Path,
-    model: str = REFLECTION_MODEL,
+    model: str | None = None,
     min_decisions: int = 3,
     max_decisions: int = 20,
 ) -> dict[str, Any] | None:
@@ -63,9 +67,14 @@ def reflect_on_decisions(
     sends them to the model with thinking enabled, and returns the
     structured reflection.
 
+    ``model=None`` resolves to the hardware-aware default (gemma4:e4b on GPU,
+    qwen2.5:1.5b on CPU).
+
     Returns None if fewer than min_decisions are available (not enough
     data to reflect on).
     """
+    if model is None:
+        model = default_model()
     decisions = _gather_recent_decisions(repo_root, max_count=max_decisions)
 
     if len(decisions) < min_decisions:
