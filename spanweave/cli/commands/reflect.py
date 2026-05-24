@@ -34,9 +34,11 @@ from spanweave.cli.formatters import build_help_epilog
 )
 @click.option(
     "--model",
-    default="gemma4:e4b",
-    show_default=True,
-    help="Model for reflection (benefits from thinking/reasoning).",
+    default=None,
+    help=(
+        "Model for reflection (benefits from reasoning). Defaults by hardware: "
+        "gemma4:e4b on GPU, qwen2.5:1.5b on CPU-only."
+    ),
 )
 @click.option(
     "--min-decisions",
@@ -44,14 +46,14 @@ from spanweave.cli.formatters import build_help_epilog
     show_default=True,
     help="Minimum decisions needed to reflect.",
 )
-def reflect_command(repo: Path, model: str, min_decisions: int) -> None:
+def reflect_command(repo: Path, model: str | None, min_decisions: int) -> None:
     """Synthesize lessons from accumulated decisions.
 
     Reads recent decisions and uses a local model to derive a higher-order
     insight. The reflection is staged to .spanweave/memory/pending/reflections/
     for review via `spanweave review`.
     """
-    from spanweave.learning.ollama_client import OllamaNotAvailableError
+    from spanweave.learning.ollama_client import OllamaNotAvailableError, default_model
     from spanweave.learning.reflector import (
         _gather_recent_decisions,
         reflect_on_decisions,
@@ -59,6 +61,8 @@ def reflect_command(repo: Path, model: str, min_decisions: int) -> None:
     )
 
     repo_path = repo.resolve()
+    if model is None:
+        model = default_model()
 
     # Check how many decisions are available before calling the model
     decisions = _gather_recent_decisions(repo_path, max_count=20)

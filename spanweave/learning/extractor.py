@@ -16,7 +16,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemma4:e4b"
+# Sentinel: when a caller passes model=None, resolve to the hardware-aware
+# default (gemma4:e4b on GPU, qwen2.5:1.5b on CPU) at call time via
+# default_model(). We avoid calling it at import to keep imports subprocess-free.
 
 EXTRACTION_OPTIONS = {
     "temperature": 0.3,
@@ -47,7 +49,11 @@ Conversation:
 ---"""
 
 # Re-export for backward compatibility
-from spanweave.learning.ollama_client import OllamaNotAvailableError, call_ollama  # noqa: E402
+from spanweave.learning.ollama_client import (  # noqa: E402
+    OllamaNotAvailableError,
+    call_ollama,
+    default_model,
+)
 
 
 def _call_ollama(prompt: str, model: str) -> str:
@@ -132,7 +138,7 @@ def _parse_json_from_response(response: str) -> list[dict[str, Any]]:
 def extract_decisions_from_chunk(
     chunk: str,
     *,
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
     provider: str = "ollama",
 ) -> list[dict[str, Any]]:
     """Send a conversation chunk to the model and parse structured decision JSON.
@@ -140,10 +146,15 @@ def extract_decisions_from_chunk(
     The extraction prompt asks the model to output JSON array of decisions.
     Each decision has: type, body, reasoning, tags, confidence.
 
+    ``model=None`` resolves to the hardware-aware default (gemma4:e4b on GPU,
+    qwen2.5:1.5b on CPU).
+
     Falls back gracefully if:
     - Ollama is not running (raises OllamaNotAvailableError)
     - Model output is not valid JSON (returns empty list + logs warning)
     """
+    if model is None:
+        model = default_model()
     prompt = EXTRACTION_PROMPT.format(chunk=chunk)
     response = _call_ollama(prompt, model)
 
@@ -282,7 +293,7 @@ timestamp: {timestamp}
 def extract_from_session(
     session_path: Path,
     *,
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
     provider: str = "ollama",
     repo_root: Path | None = None,
 ) -> list[dict[str, Any]]:
@@ -292,10 +303,15 @@ def extract_from_session(
     sends each chunk to the configured model for structured extraction,
     deduplicates results, and stages them to .spanweave/memory/pending/decisions/.
 
+    ``model=None`` resolves to the hardware-aware default (gemma4:e4b on GPU,
+    qwen2.5:1.5b on CPU).
+
     Returns the list of extracted (but not yet confirmed) decision dicts.
     """
     if repo_root is None:
         repo_root = Path.cwd()
+    if model is None:
+        model = default_model()
 
     chunks = chunk_session(session_path)
     if not chunks:

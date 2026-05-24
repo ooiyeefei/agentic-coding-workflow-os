@@ -2,11 +2,61 @@
 
 from __future__ import annotations
 
+import platform
+import shutil
+import subprocess
 from typing import Any
 
 import httpx
 
 OLLAMA_BASE = "http://localhost:11434"
+
+# Hardware-aware model defaults. gemma4:e4b (9.6 GB) gives the best extraction
+# quality but is impractically slow on CPU-only machines (~120s/chunk → hook
+# timeouts). qwen2.5:1.5b (986 MB) runs in ~16s on CPU with reliable JSON
+# output. We pick by detected hardware; users always override with --model.
+GPU_MODEL = "gemma4:e4b"
+CPU_MODEL = "qwen2.5:1.5b"
+
+
+def gpu_available() -> bool:
+    """Best-effort detection of a GPU usable for local LLM inference.
+
+    - Apple Silicon (Darwin + arm64): Metal GPU is always present → True.
+    - NVIDIA: ``nvidia-smi`` on PATH and exits 0.
+    - AMD: ``rocm-smi`` on PATH and exits 0.
+    - Otherwise assume CPU-only.
+
+    Detection is best-effort and conservative: when unsure, return False so we
+    default to the CPU-fast model rather than a model that may hang the hook.
+    """
+    if platform.system() == "Darwin" and platform.machine() == "arm64":
+        return True
+    for probe in ("nvidia-smi", "rocm-smi"):
+        if shutil.which(probe) is None:
+            continue
+        try:
+            result = subprocess.run(
+                [probe],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0:
+            return True
+    return False
+
+
+def default_model() -> str:
+    """Return the extraction/reflection model that fits the current hardware.
+
+    GPU present → ``gemma4:e4b`` (best quality). CPU-only → ``qwen2.5:1.5b``
+    (fast, reliable JSON). Evaluated at call time, never at import, so a
+    subprocess probe never runs just from importing this module.
+    """
+    return GPU_MODEL if gpu_available() else CPU_MODEL
 
 
 class OllamaNotAvailableError(Exception):
@@ -96,9 +146,13 @@ def call_ollama(
 
 
 __all__ = [
+    "CPU_MODEL",
+    "GPU_MODEL",
     "OLLAMA_BASE",
     "OllamaNotAvailableError",
     "OllamaTimeoutError",
     "call_ollama",
+    "default_model",
+    "gpu_available",
     "ollama_available",
 ]
