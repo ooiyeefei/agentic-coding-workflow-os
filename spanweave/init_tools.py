@@ -34,32 +34,78 @@ def _resolve_hook_command(repo_root: Path) -> str:
         return f".venv/bin/spanweave {_EXTRACT_ARGS}"
     return f"spanweave {_EXTRACT_ARGS}"
 
-_CODEX_SECTION = """\
+# Read-pointer: tells a tool where to LOAD prior context on session start.
+# Covers BOTH .spanweave/memory/ (decisions from any free-form session) AND
+# .spanweave/runs/ (workflow-run packets) — earlier versions pointed only at
+# runs/, which missed decisions captured by `spanweave extract-latest`.
+_READ_POINTER_HEADING = "## Load Spanweave context on session start"
+_READ_POINTER = """\
+## Load Spanweave context on session start
 
-## Session end protocol
+Before substantive work on this project, load prior context from `.spanweave/`:
+- `.spanweave/memory/decisions/` and `.spanweave/memory/shared/decisions/` — \
+decisions captured from earlier sessions, in any tool.
+- The newest `.spanweave/runs/<id>/packet.md`, if a workflow run is active.
+
+This is cross-tool memory: another agent (Claude Code, Codex, Cursor) may have
+worked here before you. Build on the decisions recorded in `.spanweave/` instead
+of re-deriving them.
+"""
+
+# Write-pointer: tells a tool to CAPTURE this session's decisions on exit.
+# (Claude Code does this automatically via a Stop hook, so it gets the
+# read-pointer only; Codex/Cursor/Windsurf have no native hooks and rely on the
+# agent following this instruction.)
+_WRITE_POINTER_HEADING = "## Capture decisions on session end"
+_WRITE_POINTER = """\
+## Capture decisions on session end
 
 Before ending your session, run:
 ```bash
 spanweave extract-latest --repo .
 ```
-This captures decisions from this session into `.spanweave/memory/pending/`.
+This captures this session's decisions into `.spanweave/memory/pending/` for review.
 """
 
-_RULES_CONTENT = """\
-## Spanweave context
 
-Before responding to substantive questions, check .spanweave/runs/ for context from prior sessions.
+def _ensure_sections(path: Path, sections: list[tuple[str, str]]) -> list[str]:
+    """Append any sections whose heading marker is not already in the file.
 
-Before ending your session, run: spanweave extract-latest --repo .
-"""
+    ``sections`` is a list of ``(heading_marker, section_text)``. A section is
+    appended only when its heading is absent — making this idempotent AND
+    migration-friendly: a repo that already has one section but not another
+    gets only the missing one added, and existing user content is never
+    rewritten. Returns the headings that were added.
+    """
+    content = path.read_text(encoding="utf-8") if path.exists() else ""
+    added: list[str] = []
+    for heading, body in sections:
+        if heading in content:
+            continue
+        content = content.rstrip("\n")
+        content = f"{content}\n\n{body}" if content else body
+        added.append(heading)
+    if added:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not content.endswith("\n"):
+            content += "\n"
+        path.write_text(content, encoding="utf-8")
+    return added
 
 
 def wire_claude_code(repo_root: Path) -> None:
     """Wire a Claude Code Stop hook that runs extract-latest on session end.
 
-    Creates or updates .claude/settings.json with a hooks.Stop entry.
+    Creates or updates .claude/settings.json with a hooks.Stop entry (the
+    automatic *capture* mechanism), and ensures CLAUDE.md carries the
+    *read-pointer* so a fresh Claude Code session loads prior context.
     Preserves all existing content and is idempotent.
     """
+    # Read side: ensure CLAUDE.md tells the agent to load .spanweave/ context.
+    # (The Stop hook below is the write/capture side.)
+    if _ensure_sections(repo_root / "CLAUDE.md", [(_READ_POINTER_HEADING, _READ_POINTER)]):
+        click.echo("✓ Added Spanweave context-load instruction to CLAUDE.md.")
+
     claude_dir = repo_root / ".claude"
     claude_dir.mkdir(parents=True, exist_ok=True)
 
@@ -133,77 +179,56 @@ def wire_claude_code(repo_root: Path) -> None:
 
 
 def wire_codex(repo_root: Path) -> None:
-    """Add extraction instruction to AGENTS.md for Codex.
+    """Wire AGENTS.md for Codex: read-pointer (load context) + write-pointer.
 
-    Appends a 'Session end protocol' section if not already present.
-    Creates AGENTS.md if it doesn't exist.
+    Codex auto-reads AGENTS.md natively, so both the load-context and
+    capture-on-end instructions go there. Creates AGENTS.md if missing.
+    Idempotent and migration-friendly (adds only missing sections).
     """
     agents_path = repo_root / "AGENTS.md"
-
-    if agents_path.exists():
-        content = agents_path.read_text(encoding="utf-8")
-    else:
-        content = "# Development Guidelines\n"
-
-    # Check if already present (idempotent)
-    if "spanweave extract-latest --repo ." in content:
-        click.echo(
-            "✓ Codex instruction already present in AGENTS.md. "
-            "The agent will be prompted to extract on session end."
-        )
-        return
-
-    # Append the section
-    content = content.rstrip() + "\n" + _CODEX_SECTION
-    agents_path.write_text(content, encoding="utf-8")
-
-    click.echo(
-        "✓ Codex instruction added to AGENTS.md. "
-        "The agent will be prompted to extract on session end."
+    added = _ensure_sections(
+        agents_path,
+        [(_READ_POINTER_HEADING, _READ_POINTER), (_WRITE_POINTER_HEADING, _WRITE_POINTER)],
     )
+    if added:
+        click.echo(
+            "✓ Codex: wired AGENTS.md to load .spanweave/ context on start and "
+            "capture decisions on session end."
+        )
+    else:
+        click.echo("✓ Codex: AGENTS.md already has the Spanweave context + capture sections.")
     click.echo(
-        "  Note: Codex has no native hooks — "
-        "extraction depends on the agent following the instruction."
+        "  Note: Codex has no native hooks — capture on end depends on the agent "
+        "following the AGENTS.md instruction."
     )
 
 
 def wire_cursor(repo_root: Path) -> None:
-    """Create or update .cursorrules with Spanweave context and extraction instruction."""
-    rules_path = repo_root / ".cursorrules"
-    _wire_rules_file(rules_path, "Cursor")
+    """Create or update .cursorrules with Spanweave read + capture instructions."""
+    _wire_rules_file(repo_root / ".cursorrules", "Cursor")
 
 
 def wire_windsurf(repo_root: Path) -> None:
-    """Create or update .windsurfrules with Spanweave context and extraction instruction."""
-    rules_path = repo_root / ".windsurfrules"
-    _wire_rules_file(rules_path, "Windsurf")
+    """Create or update .windsurfrules with Spanweave read + capture instructions."""
+    _wire_rules_file(repo_root / ".windsurfrules", "Windsurf")
 
 
 def _wire_rules_file(rules_path: Path, tool_name: str) -> None:
-    """Shared logic for cursor/windsurf rules file wiring."""
-    if rules_path.exists():
-        content = rules_path.read_text(encoding="utf-8")
-    else:
-        content = ""
-
-    # Check if already present (idempotent)
-    if "spanweave extract-latest --repo ." in content:
-        click.echo(
-            f"✓ {tool_name} rules already contain Spanweave instructions. "
-            "Agent will be prompted to read context and extract on session end."
-        )
-        return
-
-    # Append our content
-    if content and not content.endswith("\n"):
-        content += "\n"
-    content += "\n" + _RULES_CONTENT
-    rules_path.write_text(content, encoding="utf-8")
-
-    click.echo(
-        f"✓ {tool_name} rules updated. "
-        "Agent will be prompted to read context and extract on session end."
+    """Shared logic for cursor/windsurf rules-file wiring (read + write pointers)."""
+    added = _ensure_sections(
+        rules_path,
+        [(_READ_POINTER_HEADING, _READ_POINTER), (_WRITE_POINTER_HEADING, _WRITE_POINTER)],
     )
+    if added:
+        click.echo(
+            f"✓ {tool_name}: wired {rules_path.name} to load .spanweave/ context on "
+            "start and capture decisions on session end."
+        )
+    else:
+        click.echo(
+            f"✓ {tool_name}: {rules_path.name} already has the Spanweave "
+            "context + capture sections."
+        )
 
 
 __all__ = ["wire_claude_code", "wire_codex", "wire_cursor", "wire_windsurf"]
