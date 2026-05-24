@@ -79,7 +79,11 @@ def reflect_command(repo: Path, model: str, min_decisions: int) -> None:
             min_decisions=min_decisions,
         )
     except OllamaNotAvailableError as exc:
-        raise click.ClickException(str(exc)) from exc
+        # An unavailable/slow local model is a user-environment state, not a
+        # spanweave failure, so exit 0 (not 1). Print the exception's own
+        # message: it distinguishes "not running" from "running but too slow".
+        click.echo(str(exc), err=True)
+        return
 
     if reflection is None:
         click.echo("Could not synthesize a reflection from the available decisions.")

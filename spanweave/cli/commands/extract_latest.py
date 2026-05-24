@@ -11,6 +11,7 @@ from pathlib import Path
 import click
 
 from spanweave.cli.formatters import build_help_epilog
+from spanweave.learning.ollama_client import ollama_available
 
 
 def _claude_project_dir(repo_root: Path) -> Path:
@@ -88,14 +89,35 @@ def extract_latest_command(repo: Path, model: str) -> None:
             f"Expected .jsonl files in {_claude_project_dir(repo_path)}"
         )
 
+    # This command runs as a tool hook (Claude Code Stop hook). When the
+    # optional local model server isn't running, fail fast and quietly:
+    # a single calm stderr line and exit 0. Erroring here would surface as a
+    # scary "Stop hook error" on every session end where Ollama is absent.
+    if not ollama_available():
+        click.echo(
+            "spanweave: Ollama not running; skipping auto-extraction.",
+            err=True,
+        )
+        return
+
     try:
         decisions = extract_from_session(
             session_path,
             model=model,
             repo_root=repo_path,
         )
-    except OllamaNotAvailableError as exc:
-        raise click.ClickException(str(exc)) from exc
+    except OllamaNotAvailableError:
+        # Backstop: the probe passed but the server died mid-run OR the model
+        # was too slow to respond (OllamaTimeoutError subclasses this). Same
+        # quiet exit-0 no-op — a hook must never exit non-zero for an
+        # unavailable/slow optional dependency. Message stays neutral because
+        # the cause may be "down" or "too slow".
+        click.echo(
+            "spanweave: skipping auto-extraction "
+            "(Ollama unavailable or model too slow).",
+            err=True,
+        )
+        return
     except FileNotFoundError as exc:
         raise click.ClickException(str(exc)) from exc
 

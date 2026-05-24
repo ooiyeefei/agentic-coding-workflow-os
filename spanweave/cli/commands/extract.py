@@ -58,7 +58,13 @@ def extract_command(session_path: Path, model: str, repo: Path) -> None:
             repo_root=repo_path,
         )
     except OllamaNotAvailableError as exc:
-        raise click.ClickException(str(exc)) from exc
+        # An unavailable/slow local model is a user-environment state, not a
+        # spanweave failure, so exit 0 (not 1) — exit 1 makes scripts/CI treat
+        # it as a crash. Print the exception's own message: it distinguishes
+        # "not running" (install/pull) from "running but too slow" (try a
+        # smaller model) so the guidance is accurate either way.
+        click.echo(str(exc), err=True)
+        return
     except FileNotFoundError as exc:
         raise click.ClickException(str(exc)) from exc
 
