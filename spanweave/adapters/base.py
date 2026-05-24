@@ -19,6 +19,7 @@ DEFAULT_ADAPTER_MANIFEST_DIR = Path(__file__).resolve().parent / "manifests"
 CapabilityName = Literal["tool_use", "file_access", "bash", "git", "mcp", "memory"]
 
 _ISSUE_PATTERN = re.compile(r"(?:issue\s+)?#\d+", re.IGNORECASE)
+_BARE_ISSUE_PATTERN = re.compile(r"#\d+")
 _ADR_PATTERN = re.compile(r"ADR-\d{4}", re.IGNORECASE)
 _MARKED_RECORD_PATTERN = re.compile(
     (
@@ -42,6 +43,57 @@ _NATURAL_LANGUAGE_DECISION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _ADR_FILE_PATTERN = re.compile(r"^(?P<number>\d{4})-")
+
+# Role-protocol Decisions are injected by the session-prompt builder so the
+# packet compiler can carry the persona's behavior contract. They are rendered
+# as the leading directive of the prompt, so they must be filtered out of the
+# "Prior Decisions" section to avoid showing the same text twice (issue #67).
+# The discriminator mirrors ``spanweave.session.resume._memory_record_path``.
+_ROLE_PROTOCOL_TAG = "role-protocol"
+_ROLE_PROTOCOL_SOURCE = "spanweave:session.prompt"
+
+
+def _is_role_protocol_record(record: MemoryRecord) -> bool:
+    return _ROLE_PROTOCOL_TAG in record.tags and record.source == _ROLE_PROTOCOL_SOURCE
+
+
+# Minimum normalized token length to consider for ADR tag matching. Guards
+# against trivial 1-2 char tokens producing false-positive substring matches.
+_MIN_MATCH_TOKEN_LEN = 3
+
+
+def _normalize_match_text(text: str) -> str:
+    """Lowercase, fold ``-``/``_`` to spaces, collapse whitespace.
+
+    Keeps ``#`` so issue refs (``#24``) survive; this lets a tag like
+    ``workflow-validation`` match an ADR title ``# Workflow Validation`` and a
+    driver ``* workflow-validation`` after the same normalization.
+    """
+    lowered = text.casefold().replace("-", " ").replace("_", " ")
+    return " ".join(lowered.split())
+
+
+def _run_match_tokens(memory_records: Sequence[MemoryRecord]) -> list[str]:
+    """Build normalized match tokens from a run's record tags and issue refs.
+
+    Tokens are normalized the same way as ADR text so substring matching is
+    stable across hyphen/space/case differences.
+    """
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for record in memory_records:
+        candidates: list[str] = [*record.tags]
+        # Match the bare ``#<n>`` form so an ADR referencing the issue matches
+        # regardless of an "issue " prefix on either side.
+        for issue in record.related_issues:
+            candidates.extend(match.group(0) for match in _BARE_ISSUE_PATTERN.finditer(issue))
+        for candidate in candidates:
+            normalized = _normalize_match_text(candidate)
+            if len(normalized) < _MIN_MATCH_TOKEN_LEN or normalized in seen:
+                continue
+            seen.add(normalized)
+            tokens.append(normalized)
+    return tokens
 
 
 class ToolManifest(BaseModel):
@@ -346,7 +398,11 @@ class ToolAdapter(ABC):
         memory_records: Sequence[MemoryRecord],
         record_class: type[Decision] | type[ReviewFinding] | type[RejectedAlternative],
     ) -> str:
-        records = [record for record in memory_records if isinstance(record, record_class)]
+        records = [
+            record
+            for record in memory_records
+            if isinstance(record, record_class) and not _is_role_protocol_record(record)
+        ]
         lines = [f"## {title}"]
         if not records:
             lines.append("- None captured.")
@@ -357,36 +413,85 @@ class ToolAdapter(ABC):
         return "\n".join(lines)
 
     def _render_relevant_adrs(self, memory_records: Sequence[MemoryRecord]) -> str:
+        """Render the "Relevant ADRs" section.
+
+        Surfaces ADRs two ways and de-dupes the union (issue #73):
+
+        1. Back-references — any ADR id in a record's ``related_adrs``.
+        2. On-disk match — ADRs under ``docs/adr/*.md`` whose
+           frontmatter/title/content matches the run's tags or issue refs.
+           This supplements the back-reference path so ADRs surface even when
+           no record was back-filled at ADR-generation time.
+        """
         referenced = _unique_strings(
             adr_id
             for record in memory_records
             for adr_id in record.related_adrs
         )
+        adrs_on_disk = self._load_adrs_on_disk()
+        matched = self._adrs_matching_run(memory_records, adrs_on_disk)
+
+        # Back-referenced ADRs first (provenance is explicit), then on-disk
+        # tag/issue matches not already shown. De-dupe by ADR id.
+        ordered_ids: list[str] = []
+        seen: set[str] = set()
+        for adr_id in [*referenced, *matched]:
+            if adr_id in seen:
+                continue
+            seen.add(adr_id)
+            ordered_ids.append(adr_id)
+
         lines = ["## Relevant ADRs"]
-        if not referenced:
+        if not ordered_ids:
             lines.append("- No ADRs referenced by transferred memory.")
             return "\n".join(lines)
 
-        adr_dir = self.repo_root / "docs" / "adr"
-        title_by_adr: dict[str, tuple[Path, str]] = {}
-        if adr_dir.is_dir():
-            for path in sorted(adr_dir.glob("*.md")):
-                match = _ADR_FILE_PATTERN.match(path.name)
-                if match is None:
-                    continue
-                adr_id = f"ADR-{match.group('number')}"
-                title_by_adr[adr_id] = (path, self._adr_title(path))
-
-        for adr_id in referenced:
-            if adr_id in title_by_adr:
-                path, title = title_by_adr[adr_id]
+        for adr_id in ordered_ids:
+            entry = adrs_on_disk.get(adr_id)
+            if entry is not None:
+                path, title, _ = entry
                 lines.append(f"- {adr_id}: {title} ({path.relative_to(self.repo_root)})")
             else:
                 lines.append(f"- {adr_id}: referenced by memory, file not found in docs/adr/")
         return "\n".join(lines)
 
-    def _adr_title(self, path: Path) -> str:
-        for line in path.read_text(encoding="utf-8").splitlines():
+    def _load_adrs_on_disk(self) -> dict[str, tuple[Path, str, str]]:
+        """Map ADR id -> (path, title, normalized searchable text).
+
+        Files-first: reads ``docs/adr/*.md`` directly; no index or DB.
+        """
+        adr_dir = self.repo_root / "docs" / "adr"
+        adrs: dict[str, tuple[Path, str, str]] = {}
+        if not adr_dir.is_dir():
+            return adrs
+        for path in sorted(adr_dir.glob("*.md")):
+            match = _ADR_FILE_PATTERN.match(path.name)
+            if match is None:
+                continue
+            adr_id = f"ADR-{match.group('number')}"
+            raw = path.read_text(encoding="utf-8", errors="ignore")
+            adrs[adr_id] = (path, self._adr_title_from_text(raw, path), _normalize_match_text(raw))
+        return adrs
+
+    def _adrs_matching_run(
+        self,
+        memory_records: Sequence[MemoryRecord],
+        adrs_on_disk: dict[str, tuple[Path, str, str]],
+    ) -> list[str]:
+        """Return ADR ids whose on-disk text matches the run's tags/issues."""
+        if not adrs_on_disk:
+            return []
+        tokens = _run_match_tokens(memory_records)
+        if not tokens:
+            return []
+        matched: list[str] = []
+        for adr_id, (_, _, searchable) in adrs_on_disk.items():
+            if any(token in searchable for token in tokens):
+                matched.append(adr_id)
+        return matched
+
+    def _adr_title_from_text(self, raw: str, path: Path) -> str:
+        for line in raw.splitlines():
             stripped = line.strip()
             if stripped.startswith("# "):
                 return stripped.removeprefix("# ").strip()
