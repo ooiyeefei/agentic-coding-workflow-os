@@ -128,11 +128,21 @@ Thumbs.db
 # ===========================
 # Spanweave-specific
 # ===========================
-# User-local daemon state (secrets, PIDs, session)
+# User-local daemon state (secrets, PIDs, session, locks, logs).
+# NOTE: .gitignore has no inline comments — keep each comment on its own line,
+# or the trailing text becomes part of the pattern and silently matches nothing.
 .spanweave-user/
-.spanweave/runs/      # commit if you want reproducibility; ignore if bloat concern
+# Runtime state incl. secret.txt — must NEVER be committed.
+.spanweave/daemon/
+# Workflow run packets (.spanweave/runs/) are intentionally TRACKED in this repo
+# for reproducibility (76+ files committed). To ignore them instead (bloat
+# concern), uncomment the next line AND run `git rm -r --cached .spanweave/runs`.
+# .spanweave/runs/
 .spanweave/audit/
-.spanweave/memory/private/   # private decisions never leave your machine
+# Private decisions never leave your machine.
+.spanweave/memory/private/
+# Pre-review extraction quarantine; review promotes keepers into decisions/.
+.spanweave/memory/pending/
 demo/warm-cache/*.local
 
 # Env / secrets
