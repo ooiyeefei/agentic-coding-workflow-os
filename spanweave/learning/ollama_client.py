@@ -18,6 +18,14 @@ OLLAMA_BASE = "http://localhost:11434"
 GPU_MODEL = "gemma4:e4b"
 CPU_MODEL = "qwen2.5:1.5b"
 
+# Quality default for *extraction* specifically. Extraction is now run detached
+# (async Stop hook), so its latency is decoupled from any interactive wait — we
+# can afford the best small model regardless of hardware. gemma4:e4b extracts
+# far more faithfully than the CPU-fast qwen2.5:1.5b, which drifts into Chinese
+# and misreads intent (~38% unusable in measured dogfooding). Override per-run
+# with --model; requires the model pulled (`ollama pull gemma4:e4b`).
+EXTRACTION_MODEL = "gemma4:e4b"
+
 
 def gpu_available() -> bool:
     """Best-effort detection of a GPU usable for local LLM inference.
@@ -154,6 +162,7 @@ def call_ollama(
 
 __all__ = [
     "CPU_MODEL",
+    "EXTRACTION_MODEL",
     "GPU_MODEL",
     "OLLAMA_BASE",
     "OllamaNotAvailableError",

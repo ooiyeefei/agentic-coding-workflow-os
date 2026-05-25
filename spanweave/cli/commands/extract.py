@@ -35,8 +35,8 @@ from spanweave.cli.formatters import build_help_epilog
     "--model",
     default=None,
     help=(
-        "Ollama model for extraction. Defaults by hardware: gemma4:e4b on GPU, "
-        "qwen2.5:1.5b on CPU-only. Override with any pulled model."
+        "Ollama model for extraction. Defaults to gemma4:e4b (quality); "
+        "override with any pulled model, e.g. --model qwen2.5:1.5b for speed."
     ),
 )
 @click.option(
@@ -49,13 +49,13 @@ from spanweave.cli.formatters import build_help_epilog
 def extract_command(session_path: Path, model: str | None, repo: Path) -> None:
     """Extract decisions from a coding session transcript."""
     from spanweave.learning.extractor import OllamaNotAvailableError, extract_from_session
-    from spanweave.learning.ollama_client import default_model
+    from spanweave.learning.ollama_client import EXTRACTION_MODEL
 
     repo_path = repo.resolve()
     transcript_path = session_path.resolve()
     if model is None:
-        model = default_model()
-        click.echo(f"Using model: {model} (auto-selected by hardware)", err=True)
+        model = EXTRACTION_MODEL
+        click.echo(f"Using model: {model} (quality default; --model to override)", err=True)
 
     try:
         decisions = extract_from_session(

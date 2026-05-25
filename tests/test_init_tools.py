@@ -60,8 +60,9 @@ class TestInitToolClaudeCode:
         assert "Stop" in settings["hooks"]
         hook_commands = _stop_hook_commands(settings)
         # Tolerant of invocation form (plain vs .venv/bin) — tmp_path has no venv
-        # so it resolves to the plain command here.
-        assert any(c.endswith("extract-latest --repo .") for c in hook_commands)
+        # so it resolves to the plain command here. The hook uses --detach so a
+        # slow model never trips the hook timeout.
+        assert any(c.endswith("extract-latest --repo . --detach") for c in hook_commands)
         assert "Claude Code Stop hook wired" in result.output
 
     def test_preserves_existing_settings(self, tmp_path: Path) -> None:
@@ -86,7 +87,7 @@ class TestInitToolClaudeCode:
         assert settings["env"] == {"FOO": "bar"}
         # Hook added
         hook_commands = _stop_hook_commands(settings)
-        assert any(c.endswith("extract-latest --repo .") for c in hook_commands)
+        assert any(c.endswith("extract-latest --repo . --detach") for c in hook_commands)
 
     def test_is_idempotent(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -97,7 +98,7 @@ class TestInitToolClaudeCode:
         settings = _settings_json(tmp_path)
         hook_commands = _stop_hook_commands(settings)
         # Only one spanweave extract-latest hook regardless of invocation form
-        extract_hooks = [c for c in hook_commands if c.endswith("extract-latest --repo .")]
+        extract_hooks = [c for c in hook_commands if "extract-latest --repo ." in c]
         assert len(extract_hooks) == 1
 
     def test_uses_venv_binary_when_present(self, tmp_path: Path) -> None:
@@ -117,14 +118,15 @@ class TestInitToolClaudeCode:
 
         assert result.exit_code == 0
         hook_commands = _stop_hook_commands(_settings_json(tmp_path))
-        assert ".venv/bin/spanweave extract-latest --repo ." in hook_commands
+        assert ".venv/bin/spanweave extract-latest --repo . --detach" in hook_commands
 
     def test_self_heals_stale_plain_command(self, tmp_path: Path) -> None:
-        """Re-running init upgrades a stale bare-`spanweave` hook in place.
+        """Re-running init upgrades a stale hook in place (no duplicate).
 
-        Simulates a user bitten by the pre-fix bug (plain `spanweave` that
-        fails in the bare hook shell): the broken command is replaced with the
-        venv-resolved one rather than duplicated or left broken.
+        The pre-populated command is the old form: bare `spanweave` (fails in
+        the bare hook shell) AND without `--detach` (pre-async). Re-running init
+        must upgrade it in place to the venv-resolved, detached command —
+        exercising both the PATH self-heal and the pre-detach migration.
         """
         # Pre-populate with the old, broken hook command
         claude_dir = tmp_path / ".claude"
@@ -152,8 +154,8 @@ class TestInitToolClaudeCode:
 
         assert result.exit_code == 0
         hook_commands = _stop_hook_commands(_settings_json(tmp_path))
-        # Upgraded in place — exactly one hook, now pointing at the venv binary
-        assert hook_commands == [".venv/bin/spanweave extract-latest --repo ."]
+        # Upgraded in place — exactly one hook, now venv-resolved AND detached.
+        assert hook_commands == [".venv/bin/spanweave extract-latest --repo . --detach"]
         assert "updated" in result.output.lower()
 
     def test_writes_read_pointer_to_claude_md(self, tmp_path: Path) -> None:

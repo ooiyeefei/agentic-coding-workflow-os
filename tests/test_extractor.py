@@ -242,6 +242,68 @@ class TestStructuredOutputFormat:
         assert m.call_args.kwargs.get("format") is not None
 
 
+class TestExtractionDefaults:
+    """Extraction defaults to a quality model + a generous per-chunk timeout."""
+
+    def test_extraction_model_is_gemma_e4b(self) -> None:
+        from spanweave.learning.ollama_client import EXTRACTION_MODEL
+
+        assert EXTRACTION_MODEL == "gemma4:e4b"
+
+    def test_call_ollama_uses_long_timeout(self) -> None:
+        """e4b chunks can hit ~120s on CPU; extraction must allow >= 300s."""
+        from spanweave.learning.extractor import _call_ollama
+
+        with patch("spanweave.learning.extractor.call_ollama", return_value="[]") as m:
+            _call_ollama("p", "gemma4:e4b")
+        assert m.call_args.kwargs.get("timeout", 0) >= 300
+
+
+class TestRecencyWindow:
+    """extract_from_session can bound work to the last N chunks (hook path)."""
+
+    def _session(self, tmp_path: Path) -> Path:
+        s = tmp_path / "s.jsonl"
+        s.write_text('{"type":"user","message":"x"}\n', encoding="utf-8")
+        return s
+
+    def test_recent_chunks_limits_to_last_n(self, tmp_path: Path) -> None:
+        from spanweave.learning import extractor
+
+        seen: list[str] = []
+
+        def _fake(chunk: str, **_: Any) -> list[dict[str, Any]]:
+            seen.append(chunk)
+            return []
+
+        with (
+            patch.object(extractor, "chunk_session", return_value=["c0", "c1", "c2", "c3", "c4"]),
+            patch.object(extractor, "extract_decisions_from_chunk", side_effect=_fake),
+        ):
+            extractor.extract_from_session(
+                self._session(tmp_path), recent_chunks=2, repo_root=tmp_path
+            )
+        assert seen == ["c3", "c4"]
+
+    def test_recent_chunks_none_processes_all(self, tmp_path: Path) -> None:
+        from spanweave.learning import extractor
+
+        seen: list[str] = []
+
+        def _fake(chunk: str, **_: Any) -> list[dict[str, Any]]:
+            seen.append(chunk)
+            return []
+
+        with (
+            patch.object(extractor, "chunk_session", return_value=["c0", "c1", "c2"]),
+            patch.object(extractor, "extract_decisions_from_chunk", side_effect=_fake),
+        ):
+            extractor.extract_from_session(
+                self._session(tmp_path), recent_chunks=None, repo_root=tmp_path
+            )
+        assert seen == ["c0", "c1", "c2"]
+
+
 class TestOllamaAvailable:
     """Tests for the cheap ollama_available() availability probe."""
 
