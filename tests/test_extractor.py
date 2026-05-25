@@ -122,6 +122,126 @@ class TestExtractDecisionsFromChunk:
                 extract_decisions_from_chunk("some chunk")
 
 
+class TestParseJsonRobustness:
+    """_parse_json_from_response must survive structured-output shapes.
+
+    With Ollama's forced-JSON/`format` modes a small model commonly returns a
+    JSON *object* (often ``{"decisions": [...]}``) or a single decision object,
+    or wraps output in ```` ```json ```` fences — rather than a bare array. The
+    earlier parser only accepted a top-level array, silently dropping these
+    (a chunk of the measured 29% parse-failure rate). Lock in the tolerant shapes.
+    """
+
+    def test_parses_bare_array(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        out = _parse_json_from_response('[{"body": "x"}]')
+        assert [d["body"] for d in out] == ["x"]
+
+    def test_parses_object_wrapped_array(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        out = _parse_json_from_response('{"decisions": [{"body": "x"}, {"body": "y"}]}')
+        assert [d["body"] for d in out] == ["x", "y"]
+
+    def test_parses_single_object_as_one_decision(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        out = _parse_json_from_response('{"body": "lone decision", "confidence": 0.9}')
+        assert len(out) == 1
+        assert out[0]["body"] == "lone decision"
+
+    def test_parses_fenced_single_object(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        out = _parse_json_from_response('```json\n{"body": "fenced decision"}\n```')
+        assert [d["body"] for d in out] == ["fenced decision"]
+
+    def test_empty_array_stays_empty(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        assert _parse_json_from_response("[]") == []
+
+    def test_garbage_returns_empty(self) -> None:
+        from spanweave.learning.extractor import _parse_json_from_response
+
+        assert _parse_json_from_response("no json here at all") == []
+
+
+class TestDedupeWithinBatch:
+    """Candidates from one session must be deduped against EACH OTHER.
+
+    dedupe_against_existing only compares to already-confirmed decisions, so two
+    near-identical extractions from different chunks both got staged (the
+    measured _010/_011 'run extract-latest' duplicate). dedupe_within_batch
+    collapses them before staging.
+    """
+
+    def test_collapses_near_identical_bodies(self) -> None:
+        from spanweave.learning.extractor import dedupe_within_batch
+
+        cands = [
+            {"body": "Run extract-latest on the conversation to capture decisions"},
+            {"body": "Run extract-latest on this conversation to capture decisions"},
+            {"body": "Use a bounded poll loop instead of chained sleeps"},
+        ]
+        out = dedupe_within_batch(cands)
+        bodies = [c["body"] for c in out]
+        assert len(out) == 2
+        assert "Use a bounded poll loop instead of chained sleeps" in bodies
+
+    def test_keeps_distinct(self) -> None:
+        from spanweave.learning.extractor import dedupe_within_batch
+
+        cands = [{"body": "alpha decision one"}, {"body": "beta decision two"}]
+        assert len(dedupe_within_batch(cands)) == 2
+
+    def test_empty(self) -> None:
+        from spanweave.learning.extractor import dedupe_within_batch
+
+        assert dedupe_within_batch([]) == []
+
+
+class TestStructuredOutputFormat:
+    """Extraction must request structured JSON from Ollama via the format param."""
+
+    def _mock_post_response(self) -> Any:
+        from unittest.mock import MagicMock
+
+        resp = MagicMock()
+        resp.json.return_value = {"response": "[]"}
+        resp.raise_for_status.return_value = None
+        return resp
+
+    def test_call_ollama_includes_format_in_payload(self) -> None:
+        from spanweave.learning.ollama_client import call_ollama
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.post",
+            return_value=self._mock_post_response(),
+        ) as m:
+            call_ollama("p", "qwen2.5:1.5b", format="json")
+        assert m.call_args.kwargs["json"]["format"] == "json"
+
+    def test_call_ollama_omits_format_when_none(self) -> None:
+        from spanweave.learning.ollama_client import call_ollama
+
+        with patch(
+            "spanweave.learning.ollama_client.httpx.post",
+            return_value=self._mock_post_response(),
+        ) as m:
+            call_ollama("p", "qwen2.5:1.5b")
+        assert "format" not in m.call_args.kwargs["json"]
+
+    def test_extractor_requests_structured_format(self) -> None:
+        """_call_ollama must pass a non-None format through to call_ollama."""
+        from spanweave.learning.extractor import _call_ollama
+
+        with patch("spanweave.learning.extractor.call_ollama", return_value="[]") as m:
+            _call_ollama("prompt", "qwen2.5:1.5b")
+        assert m.call_args.kwargs.get("format") is not None
+
+
 class TestOllamaAvailable:
     """Tests for the cheap ollama_available() availability probe."""
 

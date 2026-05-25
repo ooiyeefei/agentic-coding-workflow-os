@@ -12,7 +12,7 @@ import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +27,30 @@ EXTRACTION_OPTIONS = {
     "num_predict": 2048,
 }
 
+# Structured-output mode for extraction. "json" forces the model to emit
+# syntactically valid JSON, which eliminates the bulk of the ~29% prose/fence
+# parse-failures measured on small CPU models (qwen2.5:1.5b). The tolerant
+# parser below then accepts whatever valid shape comes back — a bare array,
+# an object wrapping the array (e.g. {"decisions": [...]}), or a single object.
+# Swappable to a JSON-schema dict for schema-constrained output (Ollama >= 0.5).
+EXTRACTION_FORMAT: str | dict[str, Any] = "json"
+
 EXTRACTION_PROMPT = """\
 You are a structured data extraction assistant. \
 Read the conversation and extract engineering decisions.
 
-Output ONLY a JSON array. No explanation, no markdown fences, no commentary.
+Output ONLY a JSON object of the form {{"decisions": [ ... ]}}. \
+No explanation, no commentary.
 
-Each object in the array:
+Each element of "decisions" is:
 {{"type": "decision"|"rejected_alternative"|"finding", \
 "body": "what was decided", "reasoning": "why", \
 "tags": ["category"], "confidence": 0.0-1.0}}
 
 Rules:
-- Only definitive decisions (not tentative/exploratory)
-- Empty array [] if nothing was decided
-- Never wrap in ```json``` fences
+- Only definitive decisions actually made (not tentative/exploratory/proposed)
+- Use {{"decisions": []}} if nothing was decided
+- "body" must be a concrete decision, not a description of the conversation
 
 Conversation:
 ---
@@ -59,9 +68,10 @@ from spanweave.learning.ollama_client import (  # noqa: E402
 def _call_ollama(prompt: str, model: str) -> str:
     """Send a prompt to the Ollama API and return the response text.
 
-    Delegates to the shared ollama_client module.
+    Delegates to the shared ollama_client module, requesting structured JSON
+    output (``EXTRACTION_FORMAT``) so the model can't answer with prose/fences.
     """
-    return call_ollama(prompt, model, options=EXTRACTION_OPTIONS)
+    return call_ollama(prompt, model, options=EXTRACTION_OPTIONS, format=EXTRACTION_FORMAT)
 
 
 def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
@@ -111,26 +121,66 @@ def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
     return chunks
 
 
-def _parse_json_from_response(response: str) -> list[dict[str, Any]]:
-    """Attempt to parse a JSON array from model response, handling common issues."""
-    # Try direct parse first
-    try:
-        parsed = json.loads(response)
-        if isinstance(parsed, list):
-            return parsed  # type: ignore[no-any-return]
+def _strip_code_fences(text: str) -> str:
+    """Strip a single wrapping ```lang ... ``` markdown fence, if present."""
+    fence = re.match(r"\s*```[a-zA-Z0-9]*\n(.*?)\n?```\s*$", text, re.DOTALL)
+    return fence.group(1) if fence else text
+
+
+def _coerce_to_decision_list(parsed: Any) -> list[dict[str, Any]] | None:
+    """Coerce a parsed JSON value into a list of decision dicts (or None).
+
+    Small models under forced-JSON return one of several shapes; normalize them:
+    - a bare array -> itself
+    - a single decision object (has "body") -> wrapped in a one-item list
+    - an object that wraps the array under some key ({"decisions": [...]}) ->
+      the first list-of-objects value
+    Returns None when the value isn't a usable JSON container, so the caller
+    can fall through to substring extraction.
+    """
+    if isinstance(parsed, list):
+        return cast("list[dict[str, Any]]", parsed)
+    if isinstance(parsed, dict):
+        obj = cast("dict[str, Any]", parsed)
+        # A single decision object takes priority over its own inner lists
+        # (e.g. its "tags" array), which a naive value-scan would grab.
+        if "body" in obj:
+            return [obj]
+        for value in obj.values():
+            if isinstance(value, list) and (not value or isinstance(value[0], dict)):
+                return cast("list[dict[str, Any]]", value)
         return []
+    return None
+
+
+def _parse_json_from_response(response: str) -> list[dict[str, Any]]:
+    """Parse a list of decision objects from a model response, tolerantly.
+
+    Handles the shapes small models emit even under forced JSON: a bare array,
+    an object wrapping the array under a key, a single decision object, and
+    ```json``` fences. Returns [] when nothing usable is found.
+    """
+    text = _strip_code_fences(response).strip()
+
+    # Direct parse of the de-fenced text.
+    try:
+        coerced = _coerce_to_decision_list(json.loads(text))
+        if coerced is not None:
+            return coerced
     except json.JSONDecodeError:
         pass
 
-    # Try to find a JSON array in the response text
-    match = re.search(r"\[.*\]", response, re.DOTALL)
-    if match:
+    # Fall back to locating a JSON array, then object, substring in free text.
+    for pattern in (r"\[.*\]", r"\{.*\}"):
+        match = re.search(pattern, text, re.DOTALL)
+        if not match:
+            continue
         try:
-            parsed = json.loads(match.group(0))
-            if isinstance(parsed, list):
-                return parsed  # type: ignore[no-any-return]
+            coerced = _coerce_to_decision_list(json.loads(match.group(0)))
         except json.JSONDecodeError:
-            pass
+            continue
+        if coerced:
+            return coerced
 
     return []
 
@@ -160,7 +210,10 @@ def extract_decisions_from_chunk(
 
     results = _parse_json_from_response(response)
     if not results:
-        logger.warning("Model returned no parseable JSON for chunk (len=%d)", len(chunk))
+        # Empty either because the model emitted no decisions (often correct —
+        # e.g. a noisy/tool-output chunk) or, rarely under forced JSON, output we
+        # couldn't parse. Either way: stage nothing for this chunk.
+        logger.debug("No decisions parsed from chunk (len=%d)", len(chunk))
         return []
 
     # Validate each decision has required fields
@@ -243,6 +296,28 @@ def _compute_overlap(text_a: str, text_b: str) -> float:
     intersection = words_a & words_b
     smaller = min(len(words_a), len(words_b))
     return len(intersection) / smaller
+
+
+def dedupe_within_batch(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse near-identical decisions extracted within a single session.
+
+    ``dedupe_against_existing`` only compares candidates to already-confirmed
+    decisions, so two chunks that surface the same decision both survive (the
+    measured 'run extract-latest' duplicate). This compares candidates against
+    each other with the same >0.8 word-overlap heuristic, keeping the first
+    occurrence and dropping empty-bodied items.
+    """
+    kept: list[dict[str, Any]] = []
+    kept_norms: list[str] = []
+    for candidate in candidates:
+        body = candidate.get("body", "").strip().lower()
+        if not body:
+            continue
+        if any(_compute_overlap(body, norm) > 0.8 for norm in kept_norms):
+            continue
+        kept.append(candidate)
+        kept_norms.append(body)
+    return kept
 
 
 def stage_pending_decisions(
@@ -331,8 +406,10 @@ def extract_from_session(
     if not all_decisions:
         return []
 
-    # Deduplicate against existing confirmed decisions
-    unique_decisions = dedupe_against_existing(all_decisions, repo_root=repo_root)
+    # First collapse duplicates surfaced across chunks within THIS session, then
+    # drop any that duplicate an already-confirmed decision.
+    batch_unique = dedupe_within_batch(all_decisions)
+    unique_decisions = dedupe_against_existing(batch_unique, repo_root=repo_root)
 
     if not unique_decisions:
         return []
@@ -347,6 +424,7 @@ __all__ = [
     "OllamaNotAvailableError",
     "chunk_session",
     "dedupe_against_existing",
+    "dedupe_within_batch",
     "extract_decisions_from_chunk",
     "extract_from_session",
     "stage_pending_decisions",

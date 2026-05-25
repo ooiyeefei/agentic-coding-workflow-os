@@ -92,6 +92,7 @@ def call_ollama(
     model: str,
     *,
     options: dict[str, Any] | None = None,
+    format: str | dict[str, Any] | None = None,
     timeout: float = 120.0,
 ) -> str:
     """Send a prompt to Ollama and return the response text.
@@ -100,6 +101,10 @@ def call_ollama(
         prompt: The text prompt to send.
         model: Ollama model name (e.g. "gemma4:e4b").
         options: Optional model parameters (temperature, top_p, etc.).
+        format: Optional structured-output constraint passed straight to
+            Ollama's ``format`` field — ``"json"`` for free-form valid JSON, or
+            a JSON-schema dict for schema-constrained output (Ollama >= 0.5).
+            Omitted from the payload when None, preserving the prior behavior.
         timeout: HTTP timeout in seconds.
 
     Returns:
@@ -118,6 +123,8 @@ def call_ollama(
     }
     if options is not None:
         payload["options"] = options
+    if format is not None:
+        payload["format"] = format
 
     try:
         response = httpx.post(
