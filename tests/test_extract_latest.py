@@ -130,3 +130,109 @@ class TestExtractLatestGracefulDegradation:
 
         # No session is a different failure mode from Ollama-down; it stays an error.
         assert result.exit_code != 0
+
+
+class TestExtractLatestModelAndWindow:
+    """extract-latest defaults to the quality model and bounds work to recent chunks."""
+
+    def test_defaults_to_quality_model_and_bounded_window(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=SAMPLE_SESSION,
+            ),
+            patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
+            patch(
+                "spanweave.learning.extractor.extract_from_session", return_value=[]
+            ) as m,
+        ):
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert m.call_args.kwargs.get("model") == "gemma4:e4b"
+        # Hook path must be bounded, not a full-session run.
+        assert m.call_args.kwargs.get("recent_chunks") is not None
+        assert m.call_args.kwargs["recent_chunks"] > 0
+
+
+class TestExtractLatestDetach:
+    """--detach makes the hook a fast launcher: spawn a worker, return immediately."""
+
+    def test_detach_spawns_worker_and_does_not_extract_inline(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=SAMPLE_SESSION,
+            ),
+            patch("spanweave.cli.commands.extract_latest._spawn_detached") as spawn,
+            patch("spanweave.learning.extractor.extract_from_session") as extract,
+        ):
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--detach"]
+            )
+
+        assert result.exit_code == 0
+        spawn.assert_called_once()
+        extract.assert_not_called()  # the launcher must not block on extraction
+
+    def test_detach_no_session_still_errors(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        runner = CliRunner()
+        with patch(
+            "spanweave.cli.commands.extract_latest._find_latest_session", return_value=None
+        ):
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--detach"]
+            )
+        assert result.exit_code != 0
+
+
+class TestExtractLatestSingleFlight:
+    """A second worker must no-op while a live extraction holds the lock."""
+
+    def test_worker_skips_when_lock_held(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=SAMPLE_SESSION,
+            ),
+            patch("spanweave.cli.commands.extract_latest._acquire_lock", return_value=False),
+            patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
+            patch("spanweave.learning.extractor.extract_from_session") as extract,
+        ):
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        extract.assert_not_called()
+
+
+class TestExtractLatestLock:
+    """The PID lockfile primitive: fresh acquire, live-held reject, stale steal."""
+
+    def test_acquire_then_reject_then_release(self, tmp_path: Path) -> None:
+        from spanweave.cli.commands.extract_latest import _acquire_lock, _release_lock
+
+        lock = tmp_path / "extract.lock"
+        assert _acquire_lock(lock) is True
+        assert lock.exists()
+        # This (alive) PID already holds it -> a second acquire is refused.
+        assert _acquire_lock(lock) is False
+        _release_lock(lock)
+        assert not lock.exists()
+
+    def test_acquire_steals_stale_lock(self, tmp_path: Path) -> None:
+        from spanweave.cli.commands.extract_latest import _acquire_lock
+
+        lock = tmp_path / "extract.lock"
+        lock.write_text("not-a-pid", encoding="utf-8")  # unreadable PID -> stale
+        assert _acquire_lock(lock) is True

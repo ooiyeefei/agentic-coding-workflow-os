@@ -35,6 +35,11 @@ EXTRACTION_OPTIONS = {
 # Swappable to a JSON-schema dict for schema-constrained output (Ollama >= 0.5).
 EXTRACTION_FORMAT: str | dict[str, Any] = "json"
 
+# Per-chunk HTTP timeout for extraction. The quality model (gemma4:e4b) can take
+# ~120s for a large chunk on CPU; the default 120s timeout would spuriously fail
+# those. Extraction runs detached, so a generous timeout costs nothing interactive.
+EXTRACTION_TIMEOUT = 300.0
+
 EXTRACTION_PROMPT = """\
 You are a structured data extraction assistant. \
 Read the conversation and extract engineering decisions.
@@ -71,7 +76,13 @@ def _call_ollama(prompt: str, model: str) -> str:
     Delegates to the shared ollama_client module, requesting structured JSON
     output (``EXTRACTION_FORMAT``) so the model can't answer with prose/fences.
     """
-    return call_ollama(prompt, model, options=EXTRACTION_OPTIONS, format=EXTRACTION_FORMAT)
+    return call_ollama(
+        prompt,
+        model,
+        options=EXTRACTION_OPTIONS,
+        format=EXTRACTION_FORMAT,
+        timeout=EXTRACTION_TIMEOUT,
+    )
 
 
 def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
@@ -371,6 +382,7 @@ def extract_from_session(
     model: str | None = None,
     provider: str = "ollama",
     repo_root: Path | None = None,
+    recent_chunks: int | None = None,
 ) -> list[dict[str, Any]]:
     """Extract decisions from a session transcript JSONL file.
 
@@ -381,6 +393,12 @@ def extract_from_session(
     ``model=None`` resolves to the hardware-aware default (gemma4:e4b on GPU,
     qwen2.5:1.5b on CPU).
 
+    ``recent_chunks`` bounds work to the last N chunks — used by the Stop-hook
+    path so a huge/compacted transcript can't trigger a multi-hour run. Because
+    the hook fires every session end and dedup handles overlap, the most recent
+    window is what each run needs; None (the default) processes the whole file
+    (manual `extract`, first-time backfill).
+
     Returns the list of extracted (but not yet confirmed) decision dicts.
     """
     if repo_root is None:
@@ -389,6 +407,8 @@ def extract_from_session(
         model = default_model()
 
     chunks = chunk_session(session_path)
+    if recent_chunks is not None and recent_chunks > 0:
+        chunks = chunks[-recent_chunks:]
     if not chunks:
         return []
 

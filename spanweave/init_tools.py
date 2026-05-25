@@ -12,7 +12,14 @@ from typing import Any, cast
 
 import click
 
-_EXTRACT_ARGS = "extract-latest --repo ."
+# Full args for the Stop-hook command. `--detach` makes the hook a fast
+# launcher (spawns extraction, returns in <1s) so a slow quality model never
+# trips the hook timeout.
+_EXTRACT_ARGS = "extract-latest --repo . --detach"
+# Stable substring present in BOTH the current and the pre-`--detach` hook
+# forms. Matching on this (not the full args) lets a re-run upgrade an older
+# hook in place instead of appending a duplicate.
+_EXTRACT_RECOGNIZE = "extract-latest --repo ."
 
 
 def _resolve_hook_command(repo_root: Path) -> str:
@@ -143,7 +150,7 @@ def wire_claude_code(repo_root: Path) -> None:
             continue
         for inner_hook in block.get("hooks", []):
             command = inner_hook.get("command", "")
-            if not command.endswith(_EXTRACT_ARGS):
+            if _EXTRACT_RECOGNIZE not in command:
                 continue
             if command == hook_command:
                 click.echo(
