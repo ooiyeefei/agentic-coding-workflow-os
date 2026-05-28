@@ -42,19 +42,32 @@ def _resolve_hook_command(repo_root: Path) -> str:
     return f"spanweave {_EXTRACT_ARGS}"
 
 # Read-pointer: tells a tool where to LOAD prior context on session start.
-# Points at .spanweave/memory/ — decisions captured from any prior session in
-# any tool, plus the shared/ subtree promoted for team visibility.
+# Points at .spanweave/memory/ — records captured from any prior session in any
+# tool, plus the shared/ subtree promoted for team visibility. Each record type
+# lives in its own subdir; the pointer enumerates them so a fresh agent doesn't
+# silently skip findings, reflections, or rejected alternatives.
 _READ_POINTER_HEADING = "## Load Spanweave context on session start"
 _READ_POINTER = """\
 ## Load Spanweave context on session start
 
-Before substantive work on this project, load prior context from `.spanweave/memory/`:
+Before substantive work on this project, load prior context from
+`.spanweave/memory/`. Each record type has its own subdir; load all of them, and
+also the matching `shared/` copy (records a teammate promoted for team
+visibility):
+
 - `.spanweave/memory/decisions/` and `.spanweave/memory/shared/decisions/` — \
-decisions captured from earlier sessions, in any tool.
+choices made and the reasoning behind them.
+- `.spanweave/memory/findings/` and `.spanweave/memory/shared/findings/` — \
+non-obvious facts discovered about the code or system.
+- `.spanweave/memory/reflections/` and `.spanweave/memory/shared/reflections/` — \
+post-hoc lessons about what worked or didn't.
+- `.spanweave/memory/rejected_alternatives/` and \
+`.spanweave/memory/shared/rejected_alternatives/` — options considered and \
+ruled out, with the reason (so you don't re-propose them).
 
 This is cross-tool memory: another agent (Claude Code, Codex, Cursor) may have
-worked here before you. Build on the decisions recorded in `.spanweave/memory/`
-instead of re-deriving them.
+worked here before you. Build on what's already recorded instead of re-deriving
+it.
 """
 
 # Write-pointer: tells a tool to CAPTURE this session's decisions on exit.
