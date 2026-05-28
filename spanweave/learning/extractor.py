@@ -62,6 +62,45 @@ Conversation:
 {chunk}
 ---"""
 
+# String confidence labels gemma occasionally emits instead of a number.
+# Case-insensitive lookup; values match the numeric scale callers expect.
+_CONFIDENCE_LABEL_MAP: dict[str, float] = {
+    "high": 0.9,
+    "highest": 0.9,
+    "medium": 0.5,
+    "med": 0.5,
+    "low": 0.2,
+}
+
+
+def _coerce_confidence(value: Any) -> float:
+    """Coerce a raw model confidence value into a clamped ``[0.0, 1.0]`` float.
+
+    Small models (gemma in particular) sometimes emit a string label (``"High"``)
+    or a quoted number (``"0.85"``) instead of a numeric confidence. The previous
+    ``float(value)`` call raised ``ValueError`` on labels and dropped the whole
+    chunk's decisions. This helper:
+
+    - returns numerics directly (clamped to ``[0.0, 1.0]``),
+    - maps known case-insensitive labels (``"high"``/``"low"``/``"medium"``/etc.),
+    - attempts ``float()`` on other strings (handles ``"0.85"``),
+    - falls back to ``0.5`` for anything else (None, dict, list, junk strings).
+    """
+    # bool is a subclass of int — exclude it here so True/False don't silently
+    # turn into 1.0/0.0 (probably a model bug worth defaulting away from).
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return max(0.0, min(1.0, float(value)))
+    if isinstance(value, str):
+        label = _CONFIDENCE_LABEL_MAP.get(value.strip().lower())
+        if label is not None:
+            return label
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (ValueError, TypeError):
+            return 0.5
+    return 0.5
+
+
 # Re-export for backward compatibility
 from spanweave.learning.ollama_client import (  # noqa: E402
     OllamaNotAvailableError,
@@ -240,7 +279,7 @@ def extract_decisions_from_chunk(
             "body": item["body"],
             "reasoning": item.get("reasoning", ""),
             "tags": item.get("tags", []),
-            "confidence": float(item.get("confidence", 0.5)),
+            "confidence": _coerce_confidence(item.get("confidence", 0.5)),
         })
 
     return validated

@@ -122,6 +122,108 @@ class TestExtractDecisionsFromChunk:
                 extract_decisions_from_chunk("some chunk")
 
 
+class TestCoerceConfidence:
+    """_coerce_confidence must accept the weird shapes small models actually emit.
+
+    Gemma occasionally returns a string label (``"High"``/``"Low"``) for the
+    ``confidence`` field rather than a number. The earlier ``float(...)`` call
+    raised ``ValueError`` and the whole chunk's decisions were dropped. The
+    helper normalizes numeric, string-label, numeric-string, and junk inputs
+    into a clamped ``[0.0, 1.0]`` float.
+    """
+
+    def test_numeric_float_passes_through(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(0.85) == 0.85
+
+    def test_numeric_int_passes_through(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(1) == 1.0
+
+    def test_string_high_maps_to_0_9(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("High") == 0.9
+
+    def test_string_highest_maps_to_0_9(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Highest") == 0.9
+
+    def test_string_low_caseinsensitive_maps_to_0_2(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("LOW") == 0.2
+
+    def test_string_medium_maps_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Medium") == 0.5
+        assert _coerce_confidence("med") == 0.5
+
+    def test_numeric_string_is_parsed(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("0.42") == 0.42
+
+    def test_unknown_string_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Constraint") == 0.5
+
+    def test_none_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(None) == 0.5
+
+    def test_dict_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence({"foo": "bar"}) == 0.5
+
+    def test_list_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence([0.5]) == 0.5
+
+    def test_above_one_is_clamped(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(1.5) == 1.0
+
+    def test_below_zero_is_clamped(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(-0.1) == 0.0
+
+    def test_extract_decisions_survives_string_confidence(self) -> None:
+        """End-to-end: gemma emits ``"High"`` -> decision still extracted, conf=0.9.
+
+        Previously ``float("High")`` raised inside the validation loop and the
+        whole chunk's decisions vanished. Now the helper coerces it to 0.9.
+        """
+        from spanweave.learning.extractor import extract_decisions_from_chunk
+
+        mock_response = json.dumps([
+            {
+                "type": "decision",
+                "body": "Use Pydantic v2",
+                "reasoning": "Better perf",
+                "tags": ["deps"],
+                "confidence": "High",
+            }
+        ])
+
+        with patch("spanweave.learning.extractor._call_ollama", return_value=mock_response):
+            results = extract_decisions_from_chunk("chunk")
+
+        assert len(results) == 1
+        assert results[0]["body"] == "Use Pydantic v2"
+        assert results[0]["confidence"] == 0.9
+
+
 class TestParseJsonRobustness:
     """_parse_json_from_response must survive structured-output shapes.
 
