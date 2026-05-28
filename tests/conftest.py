@@ -29,11 +29,6 @@ def fixed_ulid_values() -> list[str]:
     return _deterministic_ulids(100)
 
 
-@pytest.fixture
-def fixed_run_id(fixed_ulid_values: list[str]) -> str:
-    return f"run_{fixed_ulid_values[0]}"
-
-
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if session.testscollected == 0 and exitstatus == pytest.ExitCode.NO_TESTS_COLLECTED:
         session.exitstatus = pytest.ExitCode.OK

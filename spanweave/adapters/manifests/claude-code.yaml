@@ -1,4 +1,0 @@
-capabilities: [tool_use, file_access, bash, git, mcp, memory]
-session_format: jsonl
-config_paths: [.claude/, CLAUDE.md, .claude/rules/]
-context_injection: ".claude/rules/*.md referenced from CLAUDE.md"

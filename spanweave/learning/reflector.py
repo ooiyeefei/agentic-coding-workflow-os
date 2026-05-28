@@ -13,7 +13,7 @@ import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from spanweave.learning.ollama_client import (
     OllamaNotAvailableError,
@@ -167,7 +167,7 @@ def _parse_reflection_response(
     try:
         parsed = json.loads(response)
         if isinstance(parsed, dict) and "lesson" in parsed:
-            return _validate_reflection(parsed, decisions)
+            return _validate_reflection(cast(dict[str, Any], parsed), decisions)
     except json.JSONDecodeError:
         pass
 
@@ -177,7 +177,7 @@ def _parse_reflection_response(
         try:
             parsed = json.loads(match.group(0))
             if isinstance(parsed, dict) and "lesson" in parsed:
-                return _validate_reflection(parsed, decisions)
+                return _validate_reflection(cast(dict[str, Any], parsed), decisions)
         except json.JSONDecodeError:
             pass
 
@@ -187,7 +187,7 @@ def _parse_reflection_response(
         try:
             parsed = json.loads(match.group(0))
             if isinstance(parsed, dict) and "lesson" in parsed:
-                return _validate_reflection(parsed, decisions)
+                return _validate_reflection(cast(dict[str, Any], parsed), decisions)
         except json.JSONDecodeError:
             pass
 

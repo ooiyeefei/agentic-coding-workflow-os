@@ -55,7 +55,7 @@ def reflect_command(repo: Path, model: str | None, min_decisions: int) -> None:
     """
     from spanweave.learning.ollama_client import OllamaNotAvailableError, default_model
     from spanweave.learning.reflector import (
-        _gather_recent_decisions,
+        _gather_recent_decisions,  # pyright: ignore[reportPrivateUsage]
         reflect_on_decisions,
         stage_reflection,
     )

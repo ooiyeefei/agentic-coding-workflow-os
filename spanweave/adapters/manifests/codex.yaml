@@ -1,4 +1,0 @@
-capabilities: [tool_use, file_access, bash, git]
-session_format: jsonl
-config_paths: [AGENTS.md, codex.md]
-context_injection: "AGENTS.md in repo root"

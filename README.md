@@ -1,11 +1,10 @@
 # Spanweave
 
-> Shared memory for AI coding teams. Context persists across agent tools. Decisions never die.
+> Ambient cross-tool memory for AI coding agents. Decisions live as markdown in your git repo — readable by every agent, syncable by git.
 
 [![CI](https://github.com/ooiyeefei/agentic-coding-workflow-os/actions/workflows/ci.yaml/badge.svg)](https://github.com/ooiyeefei/agentic-coding-workflow-os/actions/workflows/ci.yaml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 448+](https://img.shields.io/badge/tests-448%2B_passing-brightgreen.svg)]()
 
 ## The Problem
 
@@ -13,128 +12,64 @@ You spend two hours building context in Codex. Switch to Claude Code — start f
 
 ## The Solution
 
-Spanweave stores decisions, evidence, and context as **markdown files in your git repo** — the one thing every agent tool already reads. No platform to adopt. No SaaS. No switching cost. A `.spanweave/` directory that any tool can read, git can sync, and humans can grep.
+Spanweave captures decisions from each coding session via a local LLM (Ollama gemma/qwen) and stores them as **markdown files in your git repo** under `.spanweave/memory/`. Every agent tool already reads its convention file (CLAUDE.md, AGENTS.md, .cursorrules) — Spanweave wires those files to auto-load `.spanweave/memory/` on session start, so the next agent (Claude Code, Codex, Cursor) picks up where the last one left off.
 
-## Quick Demo (30 seconds)
-
-```bash
-# Work in Codex, make decisions during a workflow run...
-# Later, switch to Claude Code with zero context loss:
-spanweave resume --run run_01KPT1YDEK0F9MYKW4R1VMY7XY
-# -> Claude Code gets a full context packet: decisions, acceptance criteria, everything.
-# -> Answers "what was decided in specify?" correctly without re-explaining.
-```
-
-**Team collaboration — no shared platform needed:**
-
-```bash
-# Alice commits .spanweave/memory/ -> git push
-# Bob clones and picks up where Alice left off:
-spanweave resume --run run_01KPT1YDEK0F9MYKW4R1VMY7XY
-# -> Bob gets Alice's full context, typed decisions, temporal ordering.
-```
+No platform. No SaaS. No switching cost. Just markdown that any tool can read, git can sync, and humans can grep.
 
 ## Quick Start
 
 ```bash
-pip install spanweave                        # or: uv pip install spanweave
-ollama pull gemma3:4b                        # local model for auto-extraction (optional)
-spanweave init --tool claude-code --repo .   # one-time setup
-# Done. Open Claude Code — it auto-loads your last session's context.
+pip install spanweave                          # or: uv pip install spanweave
+ollama pull gemma3:4b                          # local model for auto-extraction
+spanweave init --tool claude-code --repo .     # one-time setup
+# Done. Open Claude Code — it auto-loads decisions on start,
+# and the Stop hook captures new ones when the session ends.
 ```
 
-## Features
-
-- **Cross-tool session swap** — switch between Claude Code, Codex, and Cursor without losing context
-- **Typed decisions** — Decision, ReviewFinding, RejectedAlternative records with timestamps, provenance, and tags
-- **Context compiler** — priority tiers, token budgets, deduplication, and provenance tracking
-- **Auto-extraction** — pulls decisions from session transcripts using a local LLM (no data leaves your machine)
-- **Tool-specific framing** — same decisions, formatted for each tool's conventions (CLAUDE.md, AGENTS.md, .cursorrules)
-- **Workflow engine** — define multi-stage workflows in YAML with review gates and evidence requirements
-- **Team sharing via git** — no Notion, no Confluence, no SaaS middleware; git push/pull is the sync
-- **Temporal queries** — decisions are timestamped and stage-linked; grep by time, run, or tag
-- **Skill feedback loop** — agents learn from past outcomes and derive concrete rules for future runs
-- **Evidence packs** — every review produces structured proof of execution (JSON + Markdown)
+For Codex / Cursor / Windsurf, swap `--tool claude-code` for `--tool codex`, `--tool cursor`, or `--tool windsurf` (you can pass `--tool` multiple times to wire several).
 
 ## How It Works
 
-```
-┌───────────────── YOUR AGENT TOOLS ─────────────────┐
-│  Claude Code  |  Codex  |  Cursor  |  Any tool     │
-└──────────────────────┬─────────────────────────────┘
-                       │ reads/writes
-┌──────────────────────▼─────────────────────────────┐
-│              TOOL ADAPTER LAYER                      │
-│  Each adapter knows how to:                         │
-│    1. INGEST session transcripts -> extract decisions│
-│    2. FORMAT context packets for the tool's style   │
-│    3. DETECT which tool is running                  │
-└──────────────────────┬─────────────────────────────┘
-                       │
-┌──────────────────────▼─────────────────────────────┐
-│            SPANWEAVE CONTROL PLANE                   │
-│  Context compiler | Workflow engine | Policy engine  │
-│  Typed memory | Evidence packs | Skill feedback     │
-└──────────────────────┬─────────────────────────────┘
-                       │
-┌──────────────────────▼─────────────────────────────┐
-│       .spanweave/ (files in git = the substrate)    │
-│  runs/ | memory/decisions/ | memory/findings/       │
-│  workflows/ | policy.yaml | audit/                  │
-│  All markdown. All git-tracked. All tool-readable.  │
-└────────────────────────────────────────────────────┘
-```
-
-## Comparison
-
-| Tool | What it does | Spanweave difference |
-|------|-------------|---------------------|
-| **Conductor** | macOS workspace orchestrator for Claude Code + Codex | No context portability across tools, no persistent memory |
-| **Mesh Code** | Real-time state sharing across agents | Team-first, centralized SaaS. Spanweave is files-first, git-native, zero infra |
-| **Mem0 / Cognee** | Memory layer for LLM API apps | Built for apps calling APIs. Spanweave is for humans using agent *tools*. Different category |
-| **Hindsight** | Session replay for Claude Code | Single-tool, read-only. Spanweave is cross-tool and writes structured decisions |
-| **Claude Code / Codex** | Single-vendor CLI agents | Session-locked. Context dies. Spanweave makes their context portable and persistent |
-
-## Supported Tools
-
-| Tool | Status | Integration |
-|------|--------|-------------|
-| Claude Code | Fully supported | Auto-loads context via CLAUDE.md; extracts from session JSONL |
-| Codex | Fully supported | Auto-loads via AGENTS.md; extracts from session logs |
-| Cursor | Supported | Reads .cursorrules; generic adapter for ingestion |
-| Windsurf | Supported | Generic adapter (same mechanism as Cursor) |
-| ChatGPT / Gemini | Paste mode | `spanweave context --for chatgpt` generates paste-ready output |
-| Any MCP tool | Planned | MCP server exposing `.spanweave/` as resources |
+1. **Capture.** When a coding session ends, Spanweave reads the transcript and asks a local LLM to extract decisions, findings, and rejected alternatives. Each is written as a markdown file with YAML frontmatter under `.spanweave/memory/pending/`.
+2. **Review.** Run `spanweave review` to triage what was extracted — accept, edit, or dismiss. Accepted decisions land in `private/` or `shared/` per your `.spanweave/sharing.yaml` policy.
+3. **Reflect.** `spanweave reflect` synthesizes higher-order lessons from your accumulated decisions using a thinking-mode local model.
+4. **Promote.** `spanweave promote <id>` (or `--all-pending`) moves private decisions to `shared/` so teammates pick them up on git pull.
+5. **Auto-load.** Every supported tool's convention file (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.windsurfrules`) carries a read-pointer to `.spanweave/memory/` so a fresh session loads prior context natively.
 
 ## CLI Commands
 
 ```
-spanweave init          # Scaffold .spanweave/ workspace
-spanweave run           # Start a workflow run or inspect existing runs
-spanweave resume        # Cross-tool session swap (the killer feature)
-spanweave prompt        # Generate role-specific prompts for a run
-spanweave context       # Generate standalone context for paste into any tool
-spanweave extract       # Extract decisions from a transcript
-spanweave ingest        # Ingest a transcript into durable memory
-spanweave review        # Review pending learnings from auto-extraction
-spanweave grep          # Search across .spanweave/ workspace
-spanweave skill_feedback # Inspect and apply feedback rules
-spanweave cleanup       # Remove finished run worktrees
-spanweave daemon        # Background auto-extraction (placeholder)
+spanweave init             # Scaffold .spanweave/, optionally wire tool hooks (--tool)
+spanweave extract          # Extract decisions from a specific transcript
+spanweave extract-latest   # Extract from the most recent session (Stop-hook target)
+spanweave review           # Interactively confirm pending learnings
+spanweave reflect          # Synthesize lessons from accumulated decisions
+spanweave promote          # Move a private decision to shared (team-visible via git)
+spanweave grep             # Regex search across .spanweave/
+spanweave skill_feedback   # Inspect and apply derived feedback rules
 ```
+
+## Supported Tools
+
+| Tool         | Read (load context)        | Write (capture)              |
+|--------------|----------------------------|------------------------------|
+| Claude Code  | CLAUDE.md                  | Automatic via Stop hook      |
+| Codex        | AGENTS.md                  | Manual (run `extract-latest`) |
+| Cursor       | .cursorrules               | Manual (run `extract-latest`) |
+| Windsurf     | .windsurfrules             | Manual (run `extract-latest`) |
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup instructions.
-
-**TL;DR:**
 ```bash
 git clone https://github.com/ooiyeefei/agentic-coding-workflow-os.git
 cd agentic-coding-workflow-os
 uv sync
-uv run pytest              # 448+ tests, should all pass
-uv run ruff check .        # linting
+uv run pytest              # unit tests
+uv run ruff check .        # lint
+uv run pyright spanweave/  # type-check
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for more.
 
 ## License
 

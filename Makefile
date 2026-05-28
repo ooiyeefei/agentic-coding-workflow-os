@@ -1,6 +1,6 @@
 UV ?= uv
 
-.PHONY: install test lint type run daemon clean
+.PHONY: install test lint type run clean
 
 install:
 	$(UV) sync
@@ -15,10 +15,7 @@ type:
 	$(UV) run pyright
 
 run:
-	$(UV) run python -m atelier --help
-
-daemon:
-	$(UV) run python -m atelier.daemon --help
+	$(UV) run spanweave --help
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .venv build dist

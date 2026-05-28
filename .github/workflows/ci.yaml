@@ -30,17 +30,8 @@ jobs:
       - run: uv sync --frozen
       - run: >-
           uv run pyright
-          spanweave/compiler
-          spanweave/council
           spanweave/defaults
-          spanweave/evidence
-          spanweave/git
-          spanweave/memory
-          spanweave/personas
           spanweave/skills
-          spanweave/workflow
-          tests/integration
-          scripts/run_e2e.py
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -51,19 +42,4 @@ jobs:
           python-version: "3.11"
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv run pytest tests --ignore=tests/integration -q
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    env:
-      SPANWEAVE_INTEGRATION_REAL_LLM: "0"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.11"
-          enable-cache: true
-      - run: uv sync --frozen
-      - run: bash -n scripts/run-e2e.sh
-      - run: rm -rf .spanweave
-      - run: ./scripts/run-e2e.sh
+      - run: uv run pytest tests -q

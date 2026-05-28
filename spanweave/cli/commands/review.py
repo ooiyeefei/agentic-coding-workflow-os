@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import click
 import yaml
@@ -12,14 +12,29 @@ import yaml
 from spanweave.cli.formatters import build_help_epilog
 from spanweave.sharing import load_sharing_policy, should_auto_promote
 
+# Optional 'interactive' extra. Pyright can't see these modules in a fresh dev
+# install (they're declared as an optional extra in pyproject.toml), so we
+# silence the missing-import / unknown-type complaints here — the runtime
+# fallback branch below makes the absence safe.
+questionary: Any  # noqa: PLW0604
+Console: Any  # noqa: PLW0604
+Panel: Any  # noqa: PLW0604
 try:
-    import questionary
-    from rich.console import Console
-    from rich.panel import Panel
+    # ruff: noqa: I001
+    import questionary  # type: ignore[no-redef]  # pyright: ignore[reportMissingImports]
+    from rich.console import Console  # type: ignore[no-redef]  # pyright: ignore[reportMissingImports]
+    from rich.panel import Panel  # type: ignore[no-redef]  # pyright: ignore[reportMissingImports]
 
-    HAS_INTERACTIVE = True
+    has_interactive = True
 except ImportError:
-    HAS_INTERACTIVE = False
+    questionary = None  # type: ignore[no-redef]
+    Console = None  # type: ignore[no-redef]
+    Panel = None  # type: ignore[no-redef]
+    has_interactive = False
+
+# Public alias for tests / external readers; lower-case mutable name keeps
+# pyright from complaining about constant-redefinition in the try/except.
+HAS_INTERACTIVE = has_interactive
 
 
 def _parse_record_frontmatter(filepath: Path) -> dict[str, object]:

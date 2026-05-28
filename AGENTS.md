@@ -1,66 +1,39 @@
 # agentic-coding-workflow-os Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-22
-
-## Active Technologies
-- Python 3.11 + pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os` (008-uat-persona-integration)
-- In-memory Pydantic models plus repo-local markdown/YAML files; subprocess evidence kept in memory for this slice (008-uat-persona-integration)
-- Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `spanweave.util.fs` helpers (007-rungraph-tree-ops)
-- Filesystem-only state under `.spanweave/runs/<run_id>/...` matching the roadmap's canonical storage layout (007-rungraph-tree-ops)
-- Python 3.11 + Python `re` and `typing` from the standard library, plus `pytest` for validation (006-secret-redaction)
-- N/A for the redaction function itself; transforms in-memory strings before persistence (006-secret-redaction)
-- Python 3.11 + pydantic v2, pathlib, pytest (006-context-compiler)
-- In-memory source models and markdown strings; optional filesystem paths only as provenance metadata (006-context-compiler)
-- Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, python-ulid, pytest (005-typed-memory-records)
-- Markdown files with YAML frontmatter under `.spanweave/memory/{decisions,findings,rejected_alternatives}/` (005-typed-memory-records)
-- Python 3.11 + pydantic v2, pathlib, pytest (012-policy-engine)
-- Filesystem JSONL audit logs under `.spanweave/runs/` and `.spanweave/audit/` (012-policy-engine)
-- Python 3.11 + anthropic SDK, openai SDK, pydantic v2, python-frontmatter, pathlib, pytest (005-swappability-demo)
-- Filesystem outputs under `demo/swap-demo-output/` and generated fixture files inside the demo workspace (005-swappability-demo)
-- Python 3.11 + pydantic v2, asyncio, pathlib, python-frontmatter, pyyaml, pytest, pytest-asyncio (005-council-tiebreaker)
-- Filesystem-backed council report records under `.spanweave/memory/council_reports/` plus in-process Pydantic models (005-council-tiebreaker)
-- Python 3.11 + pydantic v2, python-frontmatter, pathlib, pyyaml, pytest, pytest-asyncio (004-persona-library)
-- Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `spanweave.compiler`, `spanweave.personas`, `spanweave.workflow`, `spanweave.evidence`, `spanweave.memory`, `spanweave.adr`, and `spanweave.git` modules (acw-w24)
-- Temporary filesystem state under `.spanweave/runs/`, `.spanweave/memory/`, and `docs/adr/` inside isolated test repositories (acw-w24)
-- Python 3.11 + FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `spanweave.audit`, `spanweave.workflow`, and `spanweave.cli.commands.run` helpers (014-http-daemon-sse)
-- Filesystem-only state under `.spanweave/runs/` plus a repo-local daemon secret fallback under `.spanweave/daemon/` when `LOCAL_DAEMON_SECRET` is unset (014-http-daemon-sse)
-
 ## Project Structure
 
 ```text
-src/
-tests/
+spanweave/   # CLI + library (Python package)
+tests/       # unit tests
 ```
 
 ## Commands
 
-cd src && pytest && ruff check .
+```bash
+uv sync
+uv run pytest -q
+uv run ruff check .
+uv run pyright spanweave/
+```
 
 ## Code Style
 
-Python 3.11: Follow standard conventions
-
-## Recent Changes
-- 014-http-daemon-sse: Added Python 3.11 + FastAPI, sse-starlette, httpx, pydantic v2, pathlib, existing `spanweave.audit`, `spanweave.workflow`, and `spanweave.cli.commands.run` helpers
-- acw-w24: Added Python 3.11 plus Bash for the local runner + pytest, pytest-asyncio, pathlib, subprocess, existing `spanweave.compiler`, `spanweave.personas`, `spanweave.workflow`, `spanweave.evidence`, `spanweave.memory`, `spanweave.adr`, and `spanweave.git` modules
-- 008-uat-persona-integration: Added Python 3.11 + pydantic v2, python-frontmatter, pathlib, pytest, pytest-asyncio, Python standard library `subprocess`, `json`, `re`, `os`
-- 007-rungraph-tree-ops: Added Python 3.11 + pathlib, pydantic v2, python-ulid, pytest, pytest-asyncio, standard-library `fcntl`, existing `spanweave.util.fs` helpers
+Python 3.11+. Standard conventions; ruff + pyright in strict mode govern the bar.
 
 <!-- MANUAL ADDITIONS START -->
 
 ## Auto-load context on session start
 
-Before responding to any substantive question about the current project or run,
-load prior context from `.spanweave/` — it has two complementary stores:
-1. **Decisions** from earlier sessions (in any tool): read `.spanweave/memory/decisions/`,
-   plus `.spanweave/memory/shared/decisions/` if it exists (decisions promoted for sharing).
-   These are captured by `spanweave extract-latest` and survive across tools and sessions.
-2. **Active workflow run**: if `.spanweave/runs/` contains run directories, identify the
-   most recently modified one and read its latest stage `packet.md` for what was decided.
+Before responding to any substantive question about this project, load prior
+context from `.spanweave/memory/`:
 
-This ensures cross-tool context survival — if another agent (Claude Code, Cursor) worked on
-this repo before you, their decisions are captured in `.spanweave/` and you should build on
-them instead of re-deriving them.
+- `.spanweave/memory/decisions/` — decisions captured from earlier sessions.
+- `.spanweave/memory/shared/decisions/` — decisions promoted for team sharing.
+
+These are captured by `spanweave extract-latest` and survive across tools and
+sessions. If another agent (Claude Code, Cursor) worked on this repo before you,
+their decisions are recorded here and you should build on them instead of
+re-deriving them.
 
 ## Capture decisions on session end
 
@@ -70,7 +43,8 @@ Codex has no native session-end hook, so before ending your session run:
 spanweave extract-latest --repo .
 ```
 
-This stages this session's decisions into `.spanweave/memory/pending/` for review with
-`spanweave review`. (Claude Code does this automatically via a Stop hook.)
+This stages this session's decisions into `.spanweave/memory/pending/` for
+review with `spanweave review`. (Claude Code does this automatically via a Stop
+hook.)
 
 <!-- MANUAL ADDITIONS END -->
