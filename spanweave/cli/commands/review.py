@@ -52,39 +52,42 @@ def _parse_record_frontmatter(filepath: Path) -> dict[str, object]:
     return cast(dict[str, object], payload)
 
 
+# Mapping from accepted frontmatter `type:` values (case-insensitive) to the
+# memory subdirectory that holds them. The pending/ -> destination move is
+# routed by this map; anything not in it is rejected as "unknown type" so the
+# record stays in pending/ for the user to fix and re-review.
+#
+# Note: `reflection` is handled separately because its sharing policy field is
+# `new_reflections` (not `new_findings`/`new_decisions`), and historically the
+# extractor stages reflections under pending/reflections/ rather than
+# pending/decisions/.
+_TYPE_TO_DIR: dict[str, str] = {
+    "decision": "decisions",
+    "finding": "findings",
+    "rejected_alternative": "rejected_alternatives",
+}
+
+
 def _route_accepted_record(
     filepath: Path, kind: str, repo_path: Path
-) -> tuple[Path, str]:
+) -> tuple[Path, str] | None:
     """Determine where to route an accepted record based on sharing policy.
 
-    Returns (destination_path, reason_message).
+    Returns (destination_path, reason_message), or None if the record's
+    frontmatter `type:` is unknown/missing — in that case a warning is written
+    to stderr and the caller should leave the file untouched in pending/.
+
+    The route is decided by the frontmatter `type:` field (not by `kind`,
+    which only tells us which pending/ subdir the record was found in). This
+    way a `type: finding` record dropped into pending/decisions/ (the
+    extractor's only pending subdir) still lands in findings/.
     """
     policy = load_sharing_policy(repo_path)
     metadata = _parse_record_frontmatter(filepath)
     memory_root = repo_path / ".spanweave" / "memory"
 
-    if kind == "decision":
-        if metadata and should_auto_promote(metadata, policy):
-            dest_dir = memory_root / "shared" / "decisions"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            raw_tags = metadata.get("tags", [])
-            tags_list: list[str] = (
-                cast(list[str], raw_tags) if isinstance(raw_tags, list) else []
-            )
-            matched_tags: list[str] = [
-                t for t in tags_list if t in policy.auto_promote_tags
-            ]
-            if matched_tags:
-                reason = f"shared/ (auto-promoted: tagged '{matched_tags[0]}')"
-            else:
-                reason = "shared/ (auto-promoted: confidence threshold exceeded)"
-            return dest_dir / filepath.name, reason
-        else:
-            dest_dir = memory_root / "private" / "decisions"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            reason = "private/ (promote later with `spanweave promote`)"
-            return dest_dir / filepath.name, reason
-    elif kind == "reflection":
+    # Reflections: dedicated policy field; preserve existing behavior.
+    if kind == "reflection":
         if policy.new_reflections == "shared":
             dest_dir = memory_root / "shared" / "reflections"
         else:
@@ -92,11 +95,63 @@ def _route_accepted_record(
         dest_dir.mkdir(parents=True, exist_ok=True)
         reason = f"{policy.new_reflections}/"
         return dest_dir / filepath.name, reason
-    else:
-        # Fallback: use legacy flat layout
-        dest_dir = memory_root / kind
+
+    # All other kinds: route by frontmatter `type:`.
+    raw_type = metadata.get("type")
+    type_str = raw_type.strip().lower() if isinstance(raw_type, str) else ""
+    subdir = _TYPE_TO_DIR.get(type_str)
+    if subdir is None:
+        # Unknown / missing / non-string type: warn and leave in pending/.
+        click.echo(
+            f"  {filepath.stem} -> SKIPPED (unknown type "
+            f"{raw_type!r}; fix frontmatter and re-review). "
+            f"Left in pending/.",
+            err=True,
+        )
+        return None
+
+    # Apply existing sharing policy to determine private/ vs shared/.
+    if metadata and should_auto_promote(metadata, policy):
+        dest_dir = memory_root / "shared" / subdir
         dest_dir.mkdir(parents=True, exist_ok=True)
-        return dest_dir / filepath.name, "legacy/"
+        raw_tags = metadata.get("tags", [])
+        tags_list: list[str] = (
+            cast(list[str], raw_tags) if isinstance(raw_tags, list) else []
+        )
+        matched_tags: list[str] = [
+            t for t in tags_list if t in policy.auto_promote_tags
+        ]
+        if matched_tags:
+            reason = f"shared/{subdir}/ (auto-promoted: tagged '{matched_tags[0]}')"
+        else:
+            reason = (
+                f"shared/{subdir}/ (auto-promoted: confidence threshold exceeded)"
+            )
+        return dest_dir / filepath.name, reason
+
+    # Default-shared types (e.g. findings under default policy) still land in
+    # shared/ even without auto-promote criteria.
+    default_field = {
+        "decisions": policy.new_decisions,
+        "findings": policy.new_findings,
+        # No default policy field exists for rejected_alternatives; treat as
+        # private by default (same conservative default as decisions).
+        "rejected_alternatives": "private",
+    }[subdir]
+
+    if default_field == "shared":
+        dest_dir = memory_root / "shared" / subdir
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        reason = f"shared/{subdir}/ (policy default)"
+        return dest_dir / filepath.name, reason
+
+    dest_dir = memory_root / "private" / subdir
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    if subdir == "decisions":
+        reason = "private/ (promote later with `spanweave promote`)"
+    else:
+        reason = f"private/{subdir}/"
+    return dest_dir / filepath.name, reason
 
 
 @click.command(
@@ -149,10 +204,16 @@ def review_command(repo: Path, auto_accept: bool) -> None:
     accepted = 0
     dismissed = 0
     edited = 0
+    skipped = 0
 
     if auto_accept:
         for filepath, kind in pending_items:
-            dest, reason = _route_accepted_record(filepath, kind, repo_path)
+            routed = _route_accepted_record(filepath, kind, repo_path)
+            if routed is None:
+                # Unknown type: warning already emitted; leave file in pending/.
+                skipped += 1
+                continue
+            dest, reason = routed
             shutil.move(str(filepath), str(dest))
             record_id = filepath.stem
             click.echo(f"  {record_id} -> {reason}")
@@ -188,7 +249,12 @@ def review_command(repo: Path, auto_accept: bool) -> None:
             ).ask()
 
             if choice == "Accept":
-                dest, reason = _route_accepted_record(filepath, kind, repo_path)
+                routed = _route_accepted_record(filepath, kind, repo_path)
+                if routed is None:
+                    # Unknown type: warning already emitted; leave in pending/.
+                    skipped += 1
+                    continue
+                dest, reason = routed
                 shutil.move(str(filepath), str(dest))
                 click.echo(f"  -> {reason}")
                 accepted += 1
@@ -201,7 +267,11 @@ def review_command(repo: Path, auto_accept: bool) -> None:
                     else:
                         new_content = f"{new_body}\n"
                     filepath.write_text(new_content, encoding="utf-8")
-                dest, reason = _route_accepted_record(filepath, kind, repo_path)
+                routed = _route_accepted_record(filepath, kind, repo_path)
+                if routed is None:
+                    skipped += 1
+                    continue
+                dest, reason = routed
                 shutil.move(str(filepath), str(dest))
                 click.echo(f"  -> {reason}")
                 edited += 1
@@ -224,6 +294,8 @@ def review_command(repo: Path, auto_accept: bool) -> None:
         parts_summary.append(f"edited {edited}")
     if dismissed:
         parts_summary.append(f"dismissed {dismissed}")
+    if skipped:
+        parts_summary.append(f"skipped {skipped} (unknown type — left in pending/)")
 
     summary = ", ".join(parts_summary) + " learnings." if parts_summary else "No changes made."
     click.echo(summary)
