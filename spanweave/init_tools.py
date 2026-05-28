@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import click
 
-# Full args for the Stop-hook command. `--detach` makes the hook a fast
+# Full args for the SessionEnd-hook command. `--detach` makes the hook a fast
 # launcher (spawns extraction, returns in <1s) so a slow quality model never
 # trips the hook timeout.
 _EXTRACT_ARGS = "extract-latest --repo . --detach"
@@ -21,16 +21,25 @@ _EXTRACT_ARGS = "extract-latest --repo . --detach"
 # hook in place instead of appending a duplicate.
 _EXTRACT_RECOGNIZE = "extract-latest --repo ."
 
+# Claude Code hook event name. SessionEnd fires once when a session terminates
+# (window close, /clear, exit) — the right point to capture decisions. The
+# older `Stop` event fires after every assistant turn, which would re-extract
+# repeatedly during a long session and waste cycles. Migration: any existing
+# Stop entry pointing at extract-latest is moved to SessionEnd on re-init.
+_HOOK_EVENT = "SessionEnd"
+_LEGACY_HOOK_EVENT = "Stop"
+
 
 def _resolve_hook_command(repo_root: Path) -> str:
     """Resolve a hook command that works in a bare /bin/sh (no venv, no uv).
 
-    Claude Code fires Stop hooks in a minimal shell where neither the venv nor
-    `uv` is on PATH, so a plain `spanweave ...` (or `uv run spanweave ...`)
-    command fails with "not found". When a repo-local virtualenv is present
-    (dev / uv-project install), point the hook at its entry-point binary via a
-    repo-relative path — hooks run with cwd = project root (the same guarantee
-    `--repo .` already relies on). Otherwise assume a global install on PATH.
+    Claude Code fires SessionEnd hooks in a minimal shell where neither the
+    venv nor `uv` is on PATH, so a plain `spanweave ...` (or `uv run spanweave
+    ...`) command fails with "not found". When a repo-local virtualenv is
+    present (dev / uv-project install), point the hook at its entry-point
+    binary via a repo-relative path — hooks run with cwd = project root (the
+    same guarantee `--repo .` already relies on). Otherwise assume a global
+    install on PATH.
 
     We deliberately avoid ``shutil.which("spanweave")``: when this runs inside
     ``uv run spanweave init``, the venv's binary is already on the process PATH,
@@ -71,7 +80,7 @@ it.
 """
 
 # Write-pointer: tells a tool to CAPTURE this session's decisions on exit.
-# (Claude Code does this automatically via a Stop hook, so it gets the
+# (Claude Code does this automatically via a SessionEnd hook, so it gets the
 # read-pointer only; Codex/Cursor/Windsurf have no native hooks and rely on the
 # agent following this instruction.)
 _WRITE_POINTER_HEADING = "## Capture decisions on session end"
@@ -112,15 +121,17 @@ def _ensure_sections(path: Path, sections: list[tuple[str, str]]) -> list[str]:
 
 
 def wire_claude_code(repo_root: Path) -> None:
-    """Wire a Claude Code Stop hook that runs extract-latest on session end.
+    """Wire a Claude Code SessionEnd hook that runs extract-latest on session end.
 
-    Creates or updates .claude/settings.json with a hooks.Stop entry (the
+    Creates or updates .claude/settings.json with a hooks.SessionEnd entry (the
     automatic *capture* mechanism), and ensures CLAUDE.md carries the
     *read-pointer* so a fresh Claude Code session loads prior context.
-    Preserves all existing content and is idempotent.
+    Preserves all existing content and is idempotent. Migrates any legacy
+    hooks.Stop entry (which fired per-turn) to hooks.SessionEnd in place,
+    keeping the matcher block + command intact.
     """
     # Read side: ensure CLAUDE.md tells the agent to load .spanweave/ context.
-    # (The Stop hook below is the write/capture side.)
+    # (The SessionEnd hook below is the write/capture side.)
     if _ensure_sections(repo_root / "CLAUDE.md", [(_READ_POINTER_HEADING, _READ_POINTER)]):
         click.echo("✓ Added Spanweave context-load instruction to CLAUDE.md.")
 
@@ -139,15 +150,24 @@ def wire_claude_code(repo_root: Path) -> None:
     else:
         data = {}
 
-    # Ensure hooks.Stop structure. Claude Code expects each Stop entry to be a
+    # Ensure hooks.SessionEnd structure. Claude Code expects each entry to be a
     # matcher-block: {"matcher": "", "hooks": [{"type": "command", ...}]}. The
-    # matcher is empty because Stop has no tool to match against.
+    # matcher is empty because SessionEnd has no tool to match against.
     if "hooks" not in data:
         data["hooks"] = {}
     hooks = cast(dict[str, Any], data["hooks"])
-    if "Stop" not in hooks:
-        hooks["Stop"] = []
-    stop_blocks = cast(list[dict[str, Any]], hooks["Stop"])
+
+    # Migrate: move any legacy Stop entry whose inner command targets
+    # extract-latest into SessionEnd. SessionEnd fires once per session-end
+    # (close/exit/clear) — what we always meant — while Stop fires after every
+    # assistant turn and would re-extract repeatedly. Migration preserves the
+    # matcher block + inner hook intact; non-spanweave entries are left under
+    # Stop untouched so we don't break unrelated hooks.
+    _migrate_legacy_stop_to_session_end(hooks)
+
+    if _HOOK_EVENT not in hooks:
+        hooks[_HOOK_EVENT] = []
+    event_blocks = cast(list[dict[str, Any]], hooks[_HOOK_EVENT])
 
     hook_command = _resolve_hook_command(repo_root)
 
@@ -156,7 +176,7 @@ def wire_claude_code(repo_root: Path) -> None:
     # (plain `spanweave`, `.venv/bin/spanweave`, `uv run spanweave`). This makes
     # the wiring idempotent AND self-healing: a stale/broken invocation from an
     # earlier version is upgraded in place rather than duplicated.
-    for block in stop_blocks:
+    for block in event_blocks:
         if not isinstance(block, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             continue
         for inner_hook in block.get("hooks", []):
@@ -164,8 +184,12 @@ def wire_claude_code(repo_root: Path) -> None:
             if _EXTRACT_RECOGNIZE not in command:
                 continue
             if command == hook_command:
+                # If we migrated a legacy Stop entry that already had the right
+                # command, persist that move; otherwise this is a no-op write
+                # that keeps idempotency clean.
+                settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
                 click.echo(
-                    "✓ Claude Code Stop hook already wired. "
+                    f"✓ Claude Code {_HOOK_EVENT} hook already wired. "
                     "Decisions will be auto-extracted when sessions end."
                 )
                 return
@@ -174,13 +198,13 @@ def wire_claude_code(repo_root: Path) -> None:
             inner_hook["command"] = hook_command
             settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
             click.echo(
-                "✓ Claude Code Stop hook updated to a shell-resilient command "
-                f"({hook_command})."
+                f"✓ Claude Code {_HOOK_EVENT} hook updated to a shell-resilient "
+                f"command ({hook_command})."
             )
             return
 
     # Append our hook as a properly-shaped matcher block
-    stop_blocks.append(
+    event_blocks.append(
         {
             "matcher": "",
             "hooks": [{"type": "command", "command": hook_command}],
@@ -191,8 +215,84 @@ def wire_claude_code(repo_root: Path) -> None:
     settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     click.echo(
-        "✓ Claude Code Stop hook wired. "
+        f"✓ Claude Code {_HOOK_EVENT} hook wired. "
         "Decisions will be auto-extracted when sessions end."
+    )
+
+
+def _migrate_legacy_stop_to_session_end(hooks: dict[str, Any]) -> None:
+    """Move any legacy hooks.Stop spanweave entry to hooks.SessionEnd.
+
+    Earlier spanweave releases wired the capture command under ``hooks.Stop``,
+    which fires after every assistant turn. The correct event is ``SessionEnd``
+    (fires once when a session terminates). This helper migrates any matcher-
+    block under ``Stop`` whose inner ``hooks`` array contains a spanweave
+    extract-latest command into ``SessionEnd``.
+
+    Migration policy (preserves unrelated hooks):
+    - If a Stop matcher-block contains ONLY the spanweave hook, the whole block
+      moves to SessionEnd.
+    - If a Stop matcher-block also contains OTHER inner hooks (e.g. a
+      user-owned shell command, or a different tool's wiring), only the
+      spanweave inner hook is split out and moved — the rest stay under Stop
+      so we never silently drop a hook a user added themselves.
+    - If Stop ends up empty after migration, the empty list is left in place
+      (minimal-diff; existing settings.json shape is preserved).
+    """
+    legacy_raw = hooks.get(_LEGACY_HOOK_EVENT)
+    if not isinstance(legacy_raw, list) or not legacy_raw:
+        return
+    legacy = cast(list[dict[str, Any]], legacy_raw)
+
+    moved_inner_hooks: list[dict[str, Any]] = []
+    blocks_to_drop: list[int] = []
+
+    for idx, block in enumerate(legacy):
+        if not isinstance(block, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+            continue
+        inner_hooks_raw = block.get("hooks", [])
+        if not isinstance(inner_hooks_raw, list):
+            continue
+        inner_hooks = cast(list[dict[str, Any]], inner_hooks_raw)
+        spanweave_inner: list[dict[str, Any]] = []
+        other_inner: list[dict[str, Any]] = []
+        for inner in inner_hooks:
+            if not isinstance(inner, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+                other_inner.append(inner)
+                continue
+            command = inner.get("command", "")
+            if isinstance(command, str) and _EXTRACT_RECOGNIZE in command:
+                spanweave_inner.append(inner)
+            else:
+                other_inner.append(inner)
+        if not spanweave_inner:
+            continue
+        moved_inner_hooks.extend(spanweave_inner)
+        if other_inner:
+            # Block had a mix — leave non-spanweave hooks under Stop intact.
+            block["hooks"] = other_inner
+        else:
+            # Block was spanweave-only — drop it from Stop entirely.
+            blocks_to_drop.append(idx)
+
+    if not moved_inner_hooks:
+        return
+
+    # Apply Stop-side drops in reverse so indices stay valid.
+    for idx in reversed(blocks_to_drop):
+        del legacy[idx]
+
+    session_end_raw = hooks.setdefault(_HOOK_EVENT, [])
+    if not isinstance(session_end_raw, list):
+        # Legacy/garbled shape — replace with a fresh list rather than crash.
+        session_end_raw = []
+        hooks[_HOOK_EVENT] = session_end_raw
+    session_end_blocks = cast(list[dict[str, Any]], session_end_raw)
+    session_end_blocks.append(
+        {
+            "matcher": "",
+            "hooks": moved_inner_hooks,
+        }
     )
 
 

@@ -24,18 +24,22 @@ def _settings_json(repo: Path) -> dict[str, Any]:
     return result
 
 
-def _stop_hook_commands(settings: dict[str, Any]) -> list[str]:
-    """Extract command strings from hooks.Stop, validating the schema shape.
+def _session_end_hook_commands(settings: dict[str, Any]) -> list[str]:
+    """Extract command strings from hooks.SessionEnd, validating the schema shape.
 
-    Claude Code requires each Stop entry to be a matcher-block with a nested
-    ``hooks`` array: ``{"matcher": "", "hooks": [{"type": "command", ...}]}``.
-    This helper asserts that shape (the bug /doctor caught was a flat entry
-    missing the ``hooks`` wrapper) and returns the inner command strings.
+    Claude Code requires each SessionEnd entry to be a matcher-block with a
+    nested ``hooks`` array: ``{"matcher": "", "hooks": [{"type": "command", ...}]}``.
+    This helper asserts that shape and returns the inner command strings.
+
+    SessionEnd (not Stop) is the correct event for capturing at session end:
+    Stop fires per-turn (after every reply), while SessionEnd fires once when
+    the session terminates (close, /clear, exit) — matching the mental model
+    documented in README.md / CLAUDE.md.
     """
-    blocks: list[dict[str, Any]] = settings["hooks"]["Stop"]
+    blocks: list[dict[str, Any]] = settings["hooks"]["SessionEnd"]
     commands: list[str] = []
     for block in blocks:
-        assert "hooks" in block, f"Stop entry missing 'hooks' array: {block!r}"
+        assert "hooks" in block, f"SessionEnd entry missing 'hooks' array: {block!r}"
         assert isinstance(block["hooks"], list)
         for inner in block["hooks"]:
             assert inner.get("type") == "command"
@@ -103,13 +107,16 @@ class TestInitToolClaudeCode:
         assert result.exit_code == 0
         settings = _settings_json(tmp_path)
         assert "hooks" in settings
-        assert "Stop" in settings["hooks"]
-        hook_commands = _stop_hook_commands(settings)
+        assert "SessionEnd" in settings["hooks"]
+        # Stop must NOT be present — capture belongs on the per-session event,
+        # not the per-turn event.
+        assert "Stop" not in settings["hooks"]
+        hook_commands = _session_end_hook_commands(settings)
         # Tolerant of invocation form (plain vs .venv/bin) — tmp_path has no venv
         # so it resolves to the plain command here. The hook uses --detach so a
         # slow model never trips the hook timeout.
         assert any(c.endswith("extract-latest --repo . --detach") for c in hook_commands)
-        assert "Claude Code Stop hook wired" in result.output
+        assert "Claude Code SessionEnd hook wired" in result.output
 
     def test_preserves_existing_settings(self, tmp_path: Path) -> None:
         # Pre-populate with existing settings
@@ -131,8 +138,8 @@ class TestInitToolClaudeCode:
         # Existing keys preserved
         assert settings["permissions"] == {"allow": ["bash(git *)"]}
         assert settings["env"] == {"FOO": "bar"}
-        # Hook added
-        hook_commands = _stop_hook_commands(settings)
+        # Hook added on the SessionEnd event (per-session, not per-turn).
+        hook_commands = _session_end_hook_commands(settings)
         assert any(c.endswith("extract-latest --repo . --detach") for c in hook_commands)
 
     def test_is_idempotent(self, tmp_path: Path) -> None:
@@ -142,7 +149,7 @@ class TestInitToolClaudeCode:
         runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
 
         settings = _settings_json(tmp_path)
-        hook_commands = _stop_hook_commands(settings)
+        hook_commands = _session_end_hook_commands(settings)
         # Only one spanweave extract-latest hook regardless of invocation form
         extract_hooks = [c for c in hook_commands if "extract-latest --repo ." in c]
         assert len(extract_hooks) == 1
@@ -150,7 +157,7 @@ class TestInitToolClaudeCode:
     def test_uses_venv_binary_when_present(self, tmp_path: Path) -> None:
         """When a repo-local venv exists, the hook must point at its binary.
 
-        The bare /bin/sh that Claude Code uses for Stop hooks has neither the
+        The bare /bin/sh that Claude Code uses for hooks has neither the
         venv nor `uv` on PATH, so a plain `spanweave` command fails with
         "not found". A repo-relative `.venv/bin/spanweave` path works because
         hooks run with cwd = project root.
@@ -163,18 +170,20 @@ class TestInitToolClaudeCode:
         result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
-        hook_commands = _stop_hook_commands(_settings_json(tmp_path))
+        hook_commands = _session_end_hook_commands(_settings_json(tmp_path))
         assert ".venv/bin/spanweave extract-latest --repo . --detach" in hook_commands
 
     def test_self_heals_stale_plain_command(self, tmp_path: Path) -> None:
         """Re-running init upgrades a stale hook in place (no duplicate).
 
         The pre-populated command is the old form: bare `spanweave` (fails in
-        the bare hook shell) AND without `--detach` (pre-async). Re-running init
-        must upgrade it in place to the venv-resolved, detached command —
-        exercising both the PATH self-heal and the pre-detach migration.
+        the bare hook shell) AND without `--detach` (pre-async). The entry also
+        lives under the old `Stop` event key. Re-running init must move it to
+        `SessionEnd` AND upgrade it in place to the venv-resolved, detached
+        command — exercising the event migration, the PATH self-heal, and the
+        pre-detach migration in one shot.
         """
-        # Pre-populate with the old, broken hook command
+        # Pre-populate with the old, broken hook command on the old event key.
         claude_dir = tmp_path / ".claude"
         claude_dir.mkdir()
         stale = {
@@ -199,16 +208,70 @@ class TestInitToolClaudeCode:
         result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
-        hook_commands = _stop_hook_commands(_settings_json(tmp_path))
+        settings = _settings_json(tmp_path)
+        hook_commands = _session_end_hook_commands(settings)
         # Upgraded in place — exactly one hook, now venv-resolved AND detached.
         assert hook_commands == [".venv/bin/spanweave extract-latest --repo . --detach"]
+        # The old Stop entry must no longer contain a spanweave hook (key may be
+        # dropped entirely OR left as an empty list — both are acceptable).
+        stop_blocks = settings.get("hooks", {}).get("Stop", [])
+        stop_commands: list[str] = []
+        for block in stop_blocks:
+            for inner in block.get("hooks", []):
+                stop_commands.append(inner.get("command", ""))
+        assert not any("extract-latest --repo ." in c for c in stop_commands)
         assert "updated" in result.output.lower()
+
+    def test_self_heals_stale_stop_hook_to_sessionend(self, tmp_path: Path) -> None:
+        """Migration: a hook on the old `Stop` event is moved to `SessionEnd`.
+
+        Earlier spanweave versions wired the capture command under `hooks.Stop`,
+        which fires after every Claude Code turn instead of once per session
+        end. Re-running `init --tool claude-code` on such a repo must MOVE that
+        entry to `hooks.SessionEnd[]` (remove from Stop, add to SessionEnd),
+        preserving the inner command + matcher intact. This makes the wiring
+        self-healing across the Stop→SessionEnd migration.
+        """
+        claude_dir = tmp_path / ".claude"
+        claude_dir.mkdir()
+        # Pre-populate with the already-detached form on the old `Stop` event
+        # (worst case: the hook is "current" except for the event key).
+        stale = {
+            "hooks": {
+                "Stop": [
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "spanweave extract-latest --repo . --detach",
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        (claude_dir / "settings.json").write_text(json.dumps(stale, indent=2), encoding="utf-8")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        settings = _settings_json(tmp_path)
+        # The hook is now on SessionEnd, with the correct command.
+        hook_commands = _session_end_hook_commands(settings)
+        assert hook_commands == ["spanweave extract-latest --repo . --detach"]
+        # The old Stop list no longer references the spanweave hook.
+        stop_blocks = settings.get("hooks", {}).get("Stop", [])
+        for block in stop_blocks:
+            for inner in block.get("hooks", []):
+                assert "extract-latest --repo ." not in inner.get("command", "")
 
     def test_writes_read_pointer_to_claude_md(self, tmp_path: Path) -> None:
         """Claude Code gets a CLAUDE.md read-pointer covering memory/.
 
-        The Stop hook is the *capture* (write) side; the read side lives in
-        CLAUDE.md so a fresh session loads prior decisions from the ambient
+        The SessionEnd hook is the *capture* (write) side; the read side lives
+        in CLAUDE.md so a fresh session loads prior decisions from the ambient
         memory substrate.
         """
         runner = CliRunner()
@@ -240,10 +303,10 @@ class TestInitToolClaudeCode:
     def test_claude_md_has_no_manual_capture_instruction(self, tmp_path: Path) -> None:
         """CLAUDE.md must NOT carry the manual capture (write) pointer.
 
-        Capture for Claude Code is automatic via the Stop hook. Adding a manual
-        'run spanweave extract-latest' instruction too would invite the model to
-        double-extract — so the write-pointer is deliberately omitted here (it's
-        only for hookless tools: codex/cursor/windsurf).
+        Capture for Claude Code is automatic via the SessionEnd hook. Adding a
+        manual 'run spanweave extract-latest' instruction too would invite the
+        model to double-extract — so the write-pointer is deliberately omitted
+        here (it's only for hookless tools: codex/cursor/windsurf).
         """
         runner = CliRunner()
 
