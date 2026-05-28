@@ -42,21 +42,19 @@ def _resolve_hook_command(repo_root: Path) -> str:
     return f"spanweave {_EXTRACT_ARGS}"
 
 # Read-pointer: tells a tool where to LOAD prior context on session start.
-# Covers BOTH .spanweave/memory/ (decisions from any free-form session) AND
-# .spanweave/runs/ (workflow-run packets) — earlier versions pointed only at
-# runs/, which missed decisions captured by `spanweave extract-latest`.
+# Points at .spanweave/memory/ — decisions captured from any prior session in
+# any tool, plus the shared/ subtree promoted for team visibility.
 _READ_POINTER_HEADING = "## Load Spanweave context on session start"
 _READ_POINTER = """\
 ## Load Spanweave context on session start
 
-Before substantive work on this project, load prior context from `.spanweave/`:
+Before substantive work on this project, load prior context from `.spanweave/memory/`:
 - `.spanweave/memory/decisions/` and `.spanweave/memory/shared/decisions/` — \
 decisions captured from earlier sessions, in any tool.
-- The newest `.spanweave/runs/<id>/packet.md`, if a workflow run is active.
 
 This is cross-tool memory: another agent (Claude Code, Codex, Cursor) may have
-worked here before you. Build on the decisions recorded in `.spanweave/` instead
-of re-deriving them.
+worked here before you. Build on the decisions recorded in `.spanweave/memory/`
+instead of re-deriving them.
 """
 
 # Write-pointer: tells a tool to CAPTURE this session's decisions on exit.

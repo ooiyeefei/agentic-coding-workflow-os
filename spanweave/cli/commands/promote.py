@@ -35,7 +35,6 @@ def _collection_for_id(record_id: str) -> str | None:
         "review_finding": "findings",
         "rejected_alternative": "rejected_alternatives",
         "skill_outcome": "skill_outcomes",
-        "workflow_event": "workflow_events",
     }
     for prefix, collection in prefix_map.items():
         if record_id.startswith(f"{prefix}_"):
