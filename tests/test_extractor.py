@@ -49,6 +49,96 @@ class TestChunkSession:
             chunk_session(Path("/nonexistent/session.jsonl"))
 
 
+class TestChunkSessionFromOffset:
+    """chunk_session_from_offset reads only bytes >= start_byte.
+
+    The byte-offset watermark in extract-latest depends on this helper to do
+    delta-only chunking. It must (a) skip a possibly-partial line at the
+    boundary, (b) chunk the remainder the same way ``chunk_session`` does,
+    and (c) report the EOF byte position so callers can persist it.
+    """
+
+    def _write(self, tmp_path: Path, lines: list[str]) -> Path:
+        path = tmp_path / "s.jsonl"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return path
+
+    def test_offset_zero_matches_full_chunk_session(self, tmp_path: Path) -> None:
+        from spanweave.learning.extractor import chunk_session, chunk_session_from_offset
+
+        lines = [
+            json.dumps({"type": "user", "message": "first question"}),
+            json.dumps({"type": "assistant", "message": "first answer"}),
+            json.dumps({"type": "user", "message": "second question"}),
+        ]
+        path = self._write(tmp_path, lines)
+
+        full_chunks = chunk_session(path)
+        delta_chunks, end_byte = chunk_session_from_offset(path, start_byte=0)
+
+        assert delta_chunks == full_chunks
+        assert end_byte == path.stat().st_size
+
+    def test_offset_after_first_line_only_returns_remainder(self, tmp_path: Path) -> None:
+        from spanweave.learning.extractor import chunk_session_from_offset
+
+        line1 = json.dumps({"type": "user", "message": "first question"})
+        line2 = json.dumps({"type": "assistant", "message": "second answer"})
+        path = tmp_path / "s.jsonl"
+        path.write_text(line1 + "\n" + line2 + "\n", encoding="utf-8")
+
+        # Start exactly after line1 + newline -> only line2 should chunk.
+        offset = len((line1 + "\n").encode("utf-8"))
+        chunks, end_byte = chunk_session_from_offset(path, start_byte=offset)
+
+        assert end_byte == path.stat().st_size
+        joined = "\n".join(chunks)
+        assert "second answer" in joined
+        assert "first question" not in joined
+
+    def test_offset_in_middle_of_line_skips_partial(self, tmp_path: Path) -> None:
+        """A watermark recorded mid-line (rare but possible) must not corrupt parsing.
+
+        We seek to byte ``start_byte`` and skip whatever fragment of a line we
+        landed in, then resume at the next newline. The fragmented line is lost
+        — that's the intended tradeoff: dedup is the safety net.
+        """
+        from spanweave.learning.extractor import chunk_session_from_offset
+
+        line1 = json.dumps({"type": "user", "message": "first question"})
+        line2 = json.dumps({"type": "assistant", "message": "second answer"})
+        path = tmp_path / "s.jsonl"
+        path.write_text(line1 + "\n" + line2 + "\n", encoding="utf-8")
+
+        # Seek somewhere in the middle of line1 -> we must discard the partial
+        # fragment and pick up line2 cleanly.
+        mid = len(line1.encode("utf-8")) // 2
+        chunks, end_byte = chunk_session_from_offset(path, start_byte=mid)
+
+        assert end_byte == path.stat().st_size
+        joined = "\n".join(chunks)
+        assert "second answer" in joined
+
+    def test_offset_at_eof_returns_no_chunks(self, tmp_path: Path) -> None:
+        from spanweave.learning.extractor import chunk_session_from_offset
+
+        line1 = json.dumps({"type": "user", "message": "first question"})
+        path = tmp_path / "s.jsonl"
+        path.write_text(line1 + "\n", encoding="utf-8")
+
+        size = path.stat().st_size
+        chunks, end_byte = chunk_session_from_offset(path, start_byte=size)
+
+        assert chunks == []
+        assert end_byte == size
+
+    def test_missing_file_raises(self, tmp_path: Path) -> None:
+        from spanweave.learning.extractor import chunk_session_from_offset
+
+        with pytest.raises(FileNotFoundError):
+            chunk_session_from_offset(tmp_path / "nope.jsonl", start_byte=0)
+
+
 class TestExtractDecisionsFromChunk:
     """Tests for the LLM extraction from a single chunk."""
 
@@ -120,6 +210,108 @@ class TestExtractDecisionsFromChunk:
         ):
             with pytest.raises(OllamaNotAvailableError):
                 extract_decisions_from_chunk("some chunk")
+
+
+class TestCoerceConfidence:
+    """_coerce_confidence must accept the weird shapes small models actually emit.
+
+    Gemma occasionally returns a string label (``"High"``/``"Low"``) for the
+    ``confidence`` field rather than a number. The earlier ``float(...)`` call
+    raised ``ValueError`` and the whole chunk's decisions were dropped. The
+    helper normalizes numeric, string-label, numeric-string, and junk inputs
+    into a clamped ``[0.0, 1.0]`` float.
+    """
+
+    def test_numeric_float_passes_through(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(0.85) == 0.85
+
+    def test_numeric_int_passes_through(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(1) == 1.0
+
+    def test_string_high_maps_to_0_9(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("High") == 0.9
+
+    def test_string_highest_maps_to_0_9(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Highest") == 0.9
+
+    def test_string_low_caseinsensitive_maps_to_0_2(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("LOW") == 0.2
+
+    def test_string_medium_maps_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Medium") == 0.5
+        assert _coerce_confidence("med") == 0.5
+
+    def test_numeric_string_is_parsed(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("0.42") == 0.42
+
+    def test_unknown_string_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence("Constraint") == 0.5
+
+    def test_none_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(None) == 0.5
+
+    def test_dict_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence({"foo": "bar"}) == 0.5
+
+    def test_list_defaults_to_0_5(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence([0.5]) == 0.5
+
+    def test_above_one_is_clamped(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(1.5) == 1.0
+
+    def test_below_zero_is_clamped(self) -> None:
+        from spanweave.learning.extractor import _coerce_confidence
+
+        assert _coerce_confidence(-0.1) == 0.0
+
+    def test_extract_decisions_survives_string_confidence(self) -> None:
+        """End-to-end: gemma emits ``"High"`` -> decision still extracted, conf=0.9.
+
+        Previously ``float("High")`` raised inside the validation loop and the
+        whole chunk's decisions vanished. Now the helper coerces it to 0.9.
+        """
+        from spanweave.learning.extractor import extract_decisions_from_chunk
+
+        mock_response = json.dumps([
+            {
+                "type": "decision",
+                "body": "Use Pydantic v2",
+                "reasoning": "Better perf",
+                "tags": ["deps"],
+                "confidence": "High",
+            }
+        ])
+
+        with patch("spanweave.learning.extractor._call_ollama", return_value=mock_response):
+            results = extract_decisions_from_chunk("chunk")
+
+        assert len(results) == 1
+        assert results[0]["body"] == "Use Pydantic v2"
+        assert results[0]["confidence"] == 0.9
 
 
 class TestParseJsonRobustness:
