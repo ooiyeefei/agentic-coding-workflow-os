@@ -22,3 +22,11 @@ worked on this repo before you, their decisions are recorded in
 - `.claude/rules/*.md` files are also auto-loaded if present.
 - `.spanweave/memory/` is the durable memory substrate (markdown + YAML
   frontmatter).
+
+## Feature requests → GitHub issues
+
+This is a private GitHub repo. File all feature requests, proposals, and design
+directions as **GitHub issues** (`gh issue create`) — not as new markdown files
+under `docs/proposed_features/`. Issues are the single tracker for pending work;
+the detailed design can live in the issue body. (Existing `docs/proposed_features/`
+briefs predate this convention.)
