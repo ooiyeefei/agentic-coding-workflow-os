@@ -43,6 +43,52 @@ def _stop_hook_commands(settings: dict[str, Any]) -> list[str]:
     return commands
 
 
+def _extract_read_pointer_body(content: str) -> str:
+    """Slice out just the read-pointer section body from a wired convention file.
+
+    The convention files may contain multiple Spanweave headings (read-pointer
+    for cross-tool load + write-pointer that captures to ``pending/``), plus
+    user content. Scoping the negative assertions to the read-pointer body
+    avoids false positives from substrings that legitimately appear elsewhere
+    (e.g. the write-pointer's ``pending/`` target).
+    """
+    heading = "## Load Spanweave context on session start"
+    start = content.find(heading)
+    assert start != -1, f"read-pointer heading not found in:\n{content}"
+    rest = content[start + len(heading) :]
+    # Stop at the next top-level heading (``\n## ``) — whichever comes first.
+    end = rest.find("\n## ")
+    return rest if end == -1 else rest[:end]
+
+
+def _assert_read_pointer_covers_all_record_dirs(content: str) -> None:
+    """Assert the scaffolded read-pointer mentions every record-type dir.
+
+    Issue #96: prior wiring named only ``decisions/`` and ``shared/decisions/``,
+    so a fresh agent silently skipped findings, reflections, and
+    rejected_alternatives — defeating the cross-tool ambient-memory promise.
+    The pointer must point at every public record-type subtree (both the
+    local and ``shared/`` copies), and must NOT mention ``private/`` (local-
+    only, never crosses machines) or ``pending/`` (pre-review quarantine).
+    """
+    body = _extract_read_pointer_body(content)
+    # Positive: every public record-type dir + its shared/ promoted copy.
+    for record_type in ("decisions", "findings", "reflections", "rejected_alternatives"):
+        assert f".spanweave/memory/{record_type}/" in body, (
+            f"read-pointer missing .spanweave/memory/{record_type}/\nbody was:\n{body}"
+        )
+        assert f".spanweave/memory/shared/{record_type}/" in body, (
+            f"read-pointer missing .spanweave/memory/shared/{record_type}/\nbody was:\n{body}"
+        )
+    # Negative: private/ and pending/ are out of scope for cross-tool loading.
+    assert "private/" not in body, (
+        f"read-pointer must not point at private/ (local-only by definition)\nbody:\n{body}"
+    )
+    assert "pending/" not in body, (
+        f"read-pointer must not point at pending/ (pre-review quarantine)\nbody:\n{body}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Claude Code hook tests
 # ---------------------------------------------------------------------------
@@ -176,6 +222,21 @@ class TestInitToolClaudeCode:
         assert "Load Spanweave context on session start" in content
         assert ".spanweave/memory/" in content
 
+    def test_claude_md_read_pointer_covers_all_record_dirs(self, tmp_path: Path) -> None:
+        """Regression for #96: CLAUDE.md read-pointer must name every record-type dir.
+
+        Before this fix the pointer mentioned only ``decisions/`` — so a fresh
+        Claude Code session silently skipped findings, reflections, and
+        rejected_alternatives even though extract-latest had captured them.
+        """
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "claude-code", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+        _assert_read_pointer_covers_all_record_dirs(content)
+
     def test_claude_md_has_no_manual_capture_instruction(self, tmp_path: Path) -> None:
         """CLAUDE.md must NOT carry the manual capture (write) pointer.
 
@@ -253,6 +314,16 @@ class TestInitToolCodex:
         # Read-pointer heading + memory substrate location.
         assert "Load Spanweave context on session start" in content
         assert ".spanweave/memory/" in content
+
+    def test_agents_md_read_pointer_covers_all_record_dirs(self, tmp_path: Path) -> None:
+        """Regression for #96: AGENTS.md read-pointer must name every record-type dir."""
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "codex", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+        _assert_read_pointer_covers_all_record_dirs(content)
 
     def test_creates_agents_md_if_missing(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -332,6 +403,16 @@ class TestInitToolCursor:
         assert "# Existing rules" in content
         assert "spanweave extract-latest --repo ." in content
 
+    def test_cursorrules_read_pointer_covers_all_record_dirs(self, tmp_path: Path) -> None:
+        """Regression for #96: .cursorrules read-pointer must name every record-type dir."""
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "cursor", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = (tmp_path / ".cursorrules").read_text(encoding="utf-8")
+        _assert_read_pointer_covers_all_record_dirs(content)
+
 
 # ---------------------------------------------------------------------------
 # Windsurf hook tests
@@ -351,6 +432,16 @@ class TestInitToolWindsurf:
         assert "spanweave extract-latest --repo ." in content
         assert ".spanweave/memory/" in content
         assert "Windsurf" in result.output
+
+    def test_windsurfrules_read_pointer_covers_all_record_dirs(self, tmp_path: Path) -> None:
+        """Regression for #96: .windsurfrules read-pointer must name every record-type dir."""
+        runner = CliRunner()
+
+        result = runner.invoke(main, ["init", "--tool", "windsurf", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        content = (tmp_path / ".windsurfrules").read_text(encoding="utf-8")
+        _assert_read_pointer_covers_all_record_dirs(content)
 
 
 # ---------------------------------------------------------------------------
