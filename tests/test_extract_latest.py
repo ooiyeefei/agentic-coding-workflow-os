@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -133,9 +135,41 @@ class TestExtractLatestGracefulDegradation:
 
 
 class TestExtractLatestModelAndWindow:
-    """extract-latest defaults to the quality model and bounds work to recent chunks."""
+    """extract-latest uses the quality model in both watermark and recency modes."""
 
-    def test_defaults_to_quality_model_and_bounded_window(self, tmp_path: Path) -> None:
+    def test_default_uses_watermark_mode_with_quality_model(
+        self, tmp_path: Path
+    ) -> None:
+        """Default (no --recent) bypasses extract_from_session entirely and
+        runs the watermark pipeline with the gemma quality model."""
+        from spanweave.cli.main import main
+
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=SAMPLE_SESSION,
+            ),
+            patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
+            patch(
+                "spanweave.cli.commands.extract_latest._run_watermark_extraction",
+                return_value=0,
+            ) as m,
+            patch(
+                "spanweave.learning.extractor.extract_from_session"
+            ) as legacy,
+        ):
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        # Watermark path is the default; legacy recency window is bypassed.
+        m.assert_called_once()
+        assert m.call_args.kwargs.get("model") == "gemma4:e4b"
+        legacy.assert_not_called()
+
+    def test_explicit_recent_uses_legacy_path_with_quality_model(
+        self, tmp_path: Path
+    ) -> None:
         from spanweave.cli.main import main
 
         runner = CliRunner()
@@ -148,14 +182,19 @@ class TestExtractLatestModelAndWindow:
             patch(
                 "spanweave.learning.extractor.extract_from_session", return_value=[]
             ) as m,
+            patch(
+                "spanweave.cli.commands.extract_latest._run_watermark_extraction"
+            ) as wm,
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--recent", "12"]
+            )
 
         assert result.exit_code == 0
         assert m.call_args.kwargs.get("model") == "gemma4:e4b"
-        # Hook path must be bounded, not a full-session run.
-        assert m.call_args.kwargs.get("recent_chunks") is not None
-        assert m.call_args.kwargs["recent_chunks"] > 0
+        assert m.call_args.kwargs.get("recent_chunks") == 12
+        # And the watermark path is NOT used when --recent is explicit.
+        wm.assert_not_called()
 
 
 class TestExtractLatestDetach:
@@ -236,3 +275,373 @@ class TestExtractLatestLock:
         lock = tmp_path / "extract.lock"
         lock.write_text("not-a-pid", encoding="utf-8")  # unreadable PID -> stale
         assert _acquire_lock(lock) is True
+
+
+def _make_session(tmp_path: Path, name: str = "session.jsonl") -> Path:
+    """Build a minimal valid JSONL session in tmp_path and return its Path."""
+    path = tmp_path / name
+    path.write_text(
+        "\n".join([
+            json.dumps({"type": "user", "message": "first question"}),
+            json.dumps({"type": "assistant", "message": "first answer"}),
+        ])
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _append(path: Path, lines: list[dict[str, str]]) -> None:
+    with path.open("a", encoding="utf-8") as f:
+        for line in lines:
+            f.write(json.dumps(line) + "\n")
+
+
+def _mock_response(decisions: list[dict[str, Any]] | None = None) -> str:
+    if decisions is None:
+        decisions = [
+            {
+                "type": "decision",
+                "body": "Use Pydantic v2",
+                "reasoning": "Better perf",
+                "tags": ["deps"],
+                "confidence": 0.9,
+            }
+        ]
+    return json.dumps(decisions)
+
+
+class TestExtractLatestWatermark:
+    """extract-latest writes a byte-offset watermark and processes only deltas.
+
+    The Stop hook fires every session end, so without a watermark we'd
+    re-process the same recency window on every fire. The watermark records
+    the byte offset of EOF after the last successful run; subsequent fires
+    pass that offset to ``chunk_session_from_offset`` to chunk only new bytes.
+
+    Failure modes covered:
+    - first fire creates the watermark file
+    - second fire with no new bytes is a no-op
+    - second fire with new bytes processes only the delta
+    - truncation (file < watermark) resets to byte 0
+    - different session_path resets to byte 0
+    - worker crash mid-stage does NOT advance the watermark
+    - explicit ``--recent N`` ignores the watermark (manual override)
+    """
+
+    def _watermark_path(self, repo: Path) -> Path:
+        return repo / ".spanweave" / "daemon" / "extract-latest.watermark"
+
+    def _read_watermark(self, repo: Path) -> dict[str, Any]:
+        return json.loads(self._watermark_path(repo).read_text(encoding="utf-8"))
+
+    def test_first_fire_creates_watermark(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                return_value=_mock_response(),
+            ),
+        ):
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        wm_path = self._watermark_path(tmp_path)
+        assert wm_path.exists()
+        wm = self._read_watermark(tmp_path)
+        assert wm["session_path"] == str(session)
+        # Watermark must record EOF after the read.
+        assert wm["byte_offset"] == session.stat().st_size
+        assert "last_advanced_at" in wm
+
+    def test_second_fire_no_new_bytes_is_noop(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                return_value=_mock_response(),
+            ) as call_mock,
+        ):
+            # First fire processes everything.
+            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            first_calls = call_mock.call_count
+            wm_before = self._read_watermark(tmp_path)
+
+            # Second fire with no appended bytes: no new chunks -> no model calls.
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        # No additional Ollama calls because there were no new chunks.
+        assert call_mock.call_count == first_calls
+        wm_after = self._read_watermark(tmp_path)
+        assert wm_after["byte_offset"] == wm_before["byte_offset"]
+
+    def test_second_fire_with_appended_bytes_processes_only_delta(
+        self, tmp_path: Path
+    ) -> None:
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        runner = CliRunner()
+
+        seen_chunks: list[str] = []
+
+        def _record(prompt: str, *_a: Any, **_k: Any) -> str:
+            # Record only the chunk contents (after "Conversation:\n---\n").
+            marker = "Conversation:\n---\n"
+            if marker in prompt:
+                seen_chunks.append(prompt.split(marker, 1)[1])
+            return _mock_response()
+
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                side_effect=_record,
+            ),
+        ):
+            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            seen_after_first = list(seen_chunks)
+            seen_chunks.clear()
+
+            # Append two NEW messages and fire again.
+            _append(
+                session,
+                [
+                    {"type": "user", "message": "brand new question"},
+                    {"type": "assistant", "message": "brand new answer"},
+                ],
+            )
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert seen_after_first, "first fire should have processed initial bytes"
+        # Second fire's chunks should only contain the new content, never the
+        # old already-processed messages.
+        joined = "\n".join(seen_chunks)
+        assert "brand new" in joined
+        assert "first question" not in joined
+        assert "first answer" not in joined
+
+    def test_truncated_file_resets_watermark_to_zero(self, tmp_path: Path) -> None:
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        runner = CliRunner()
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                return_value=_mock_response(),
+            ),
+        ):
+            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            wm_before = self._read_watermark(tmp_path)
+            assert wm_before["byte_offset"] > 0
+
+            # Truncate to one short line.
+            session.write_text(
+                json.dumps({"type": "user", "message": "fresh"}) + "\n",
+                encoding="utf-8",
+            )
+            new_size = session.stat().st_size
+            assert new_size < wm_before["byte_offset"]
+
+            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        wm_after = self._read_watermark(tmp_path)
+        # After processing a truncated file from offset 0, watermark is the new size.
+        assert wm_after["byte_offset"] == new_size
+
+    def test_different_session_path_resets_watermark_to_zero(
+        self, tmp_path: Path
+    ) -> None:
+        from spanweave.cli.main import main
+
+        session_a = _make_session(tmp_path, "a.jsonl")
+        session_b = _make_session(tmp_path, "b.jsonl")
+        runner = CliRunner()
+
+        seen_chunks: list[str] = []
+
+        def _record(prompt: str, *_a: Any, **_k: Any) -> str:
+            marker = "Conversation:\n---\n"
+            if marker in prompt:
+                seen_chunks.append(prompt.split(marker, 1)[1])
+            return _mock_response()
+
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                side_effect=_record,
+            ),
+        ):
+            # First fire on session A.
+            with patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session_a,
+            ):
+                runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            wm_a = self._read_watermark(tmp_path)
+            assert wm_a["session_path"] == str(session_a)
+            seen_chunks.clear()
+
+            # Second fire on session B: must reset and process B fully.
+            with patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session_b,
+            ):
+                result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        assert result.exit_code == 0
+        wm_b = self._read_watermark(tmp_path)
+        assert wm_b["session_path"] == str(session_b)
+        assert wm_b["byte_offset"] == session_b.stat().st_size
+        # And session B's chunks were actually processed (not skipped).
+        assert seen_chunks, "session B should have been chunked from byte 0"
+
+    def test_worker_crash_does_not_advance_watermark(self, tmp_path: Path) -> None:
+        """If extract_from_session raises mid-run, watermark stays at its prior value.
+
+        Next fire then re-processes the same window; dedup is the safety net.
+        """
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        runner = CliRunner()
+
+        # Pre-seed a watermark at byte 0 by doing a first successful fire.
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                return_value=_mock_response(),
+            ),
+        ):
+            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+
+        wm_before = self._read_watermark(tmp_path)
+        _append(session, [{"type": "user", "message": "new line"}])
+
+        # Now make the staging step crash and verify watermark stays put.
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor._call_ollama",
+                return_value=_mock_response(),
+            ),
+            patch(
+                "spanweave.learning.extractor.stage_pending_decisions",
+                side_effect=RuntimeError("disk full"),
+            ),
+        ):
+            with pytest.raises(RuntimeError):
+                runner.invoke(
+                    main,
+                    ["extract-latest", "--repo", str(tmp_path)],
+                    catch_exceptions=False,
+                )
+
+        wm_after = self._read_watermark(tmp_path)
+        assert wm_after["byte_offset"] == wm_before["byte_offset"]
+
+    def test_explicit_recent_ignores_watermark(self, tmp_path: Path) -> None:
+        """--recent N is the manual override: use recency window, skip watermark."""
+        from spanweave.cli.main import main
+
+        session = _make_session(tmp_path)
+        # Make sure there are >= 5 messages so --recent 5 has something to bound.
+        _append(
+            session,
+            [
+                {"type": "user", "message": f"q{i}"} for i in range(6)
+            ],
+        )
+        runner = CliRunner()
+
+        captured: dict[str, Any] = {}
+
+        def _capture(
+            sp: Path, *, model: Any, repo_root: Path, recent_chunks: Any, **kw: Any
+        ) -> list[dict[str, Any]]:
+            captured["recent_chunks"] = recent_chunks
+            captured["call_kwargs"] = kw
+            return []
+
+        with (
+            patch(
+                "spanweave.cli.commands.extract_latest._find_latest_session",
+                return_value=session,
+            ),
+            patch(
+                "spanweave.cli.commands.extract_latest.ollama_available",
+                return_value=True,
+            ),
+            patch(
+                "spanweave.learning.extractor.extract_from_session",
+                side_effect=_capture,
+            ),
+        ):
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--recent", "5"]
+            )
+
+        assert result.exit_code == 0
+        # The explicit override flows through; watermark file is NOT created.
+        assert captured["recent_chunks"] == 5
+        assert not self._watermark_path(tmp_path).exists()

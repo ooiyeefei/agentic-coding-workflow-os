@@ -478,23 +478,26 @@ class TestExtractLatest:
         # Patch Path.home() to point to our fake home
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "fakehome")
 
-        # Patch extract_from_session to record the call, AND force the Ollama
+        # Patch _run_watermark_extraction to record the call, AND force the Ollama
         # availability probe True. extract-latest gates extraction behind
         # ollama_available() (added in #82); on CI there's no Ollama, so without
-        # this mock the command quietly early-returns and extract_from_session
-        # is never called. This test targets session *discovery*, so we assume
-        # Ollama is up.
+        # this mock the command quietly early-returns and extraction is never run.
+        # This test targets session *discovery*, so we assume Ollama is up.
+        # The default path now uses _run_watermark_extraction (not the legacy
+        # extract_from_session); the discovered session_path flows through that.
         with (
             patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
-            patch("spanweave.learning.extractor.extract_from_session") as mock_extract,
+            patch(
+                "spanweave.cli.commands.extract_latest._run_watermark_extraction",
+                return_value=1,
+            ) as mock_extract,
         ):
-            mock_extract.return_value = [{"type": "decision", "body": "test"}]
             runner = CliRunner()
             result = runner.invoke(main, ["extract-latest", "--repo", str(repo)])
 
         assert result.exit_code == 0
         mock_extract.assert_called_once()
-        called_path = mock_extract.call_args[0][0]
+        called_path = mock_extract.call_args.kwargs.get("session_path")
         assert called_path == new_session
 
     def test_no_sessions_gives_helpful_error(

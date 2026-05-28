@@ -124,33 +124,37 @@ def _call_ollama(prompt: str, model: str) -> str:
     )
 
 
-def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
-    """Split a session JSONL into conversation chunks for extraction.
+def _parse_jsonl_messages(lines: list[str]) -> list[str]:
+    """Convert raw JSONL lines into ``[user|assistant]: message`` strings.
 
-    Reads the JSONL, extracts user + assistant text messages, groups them
-    into chunks of roughly max_tokens size (estimated at 4 chars/token).
+    Skips blank lines, malformed JSON, and entries that aren't user/assistant
+    messages — the same shape ``chunk_session`` and ``chunk_session_from_offset``
+    feed into ``_messages_to_chunks``.
     """
-    if not session_path.exists():
-        raise FileNotFoundError(f"Session file not found: {session_path}")
-
     messages: list[str] = []
-    for line in session_path.read_text(encoding="utf-8").strip().splitlines():
-        line = line.strip()
-        if not line:
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
             continue
         try:
-            entry = json.loads(line)
+            entry = json.loads(stripped)
         except json.JSONDecodeError:
             continue
         msg_type = entry.get("type", "")
         message = entry.get("message", "")
         if msg_type in ("user", "assistant") and message:
             messages.append(f"[{msg_type}]: {message}")
+    return messages
 
+
+def _messages_to_chunks(messages: list[str], max_tokens: int) -> list[str]:
+    """Group messages into ~``max_tokens``-sized chunks (estimated at 4 chars/token).
+
+    Shared by ``chunk_session`` and ``chunk_session_from_offset`` so the chunking
+    contract stays single-sourced.
+    """
     if not messages:
         return []
-
-    # Group messages into chunks based on approximate token count
     max_chars = max_tokens * 4  # ~4 chars per token
     chunks: list[str] = []
     current_chunk: list[str] = []
@@ -167,8 +171,80 @@ def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
 
     if current_chunk:
         chunks.append("\n".join(current_chunk))
-
     return chunks
+
+
+def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
+    """Split a session JSONL into conversation chunks for extraction.
+
+    Reads the JSONL, extracts user + assistant text messages, groups them
+    into chunks of roughly max_tokens size (estimated at 4 chars/token).
+    """
+    if not session_path.exists():
+        raise FileNotFoundError(f"Session file not found: {session_path}")
+
+    raw_lines = session_path.read_text(encoding="utf-8").strip().splitlines()
+    messages = _parse_jsonl_messages(raw_lines)
+    return _messages_to_chunks(messages, max_tokens)
+
+
+def chunk_session_from_offset(
+    session_path: Path, start_byte: int, max_tokens: int = 2000
+) -> tuple[list[str], int]:
+    """Chunk only the bytes >= ``start_byte`` of a JSONL session.
+
+    Used by the watermark path in ``extract-latest``: each Stop-hook fire
+    chunks only what was appended since the last successful run, instead of
+    re-processing a fixed recency window.
+
+    Implementation:
+    - seeks to ``start_byte`` in binary mode,
+    - if ``start_byte > 0``, drops whatever line-fragment we landed in (it
+      was already processed up to its newline by the previous run; the
+      fragment can't be parsed as JSON anyway),
+    - decodes the remaining bytes as UTF-8, splits into JSONL lines,
+    - reuses the same ``_parse_jsonl_messages`` + ``_messages_to_chunks``
+      contract as ``chunk_session`` so the chunking shape stays identical.
+
+    Returns ``(chunks, end_byte_offset)`` where ``end_byte_offset`` is the
+    file size at read time — callers persist that as the new watermark.
+    """
+    if not session_path.exists():
+        raise FileNotFoundError(f"Session file not found: {session_path}")
+
+    end_byte = session_path.stat().st_size
+    if start_byte >= end_byte:
+        return [], end_byte
+
+    with session_path.open("rb") as f:
+        # Only skip the next line if we landed MID-line; if start_byte lands
+        # right after a newline (the common watermark case — previous run
+        # recorded EOF exactly), we're already at a clean line boundary and
+        # must NOT discard the first real line.
+        landed_at_line_boundary = False
+        if start_byte == 0:
+            landed_at_line_boundary = True
+        else:
+            f.seek(start_byte - 1)
+            landed_at_line_boundary = f.read(1) == b"\n"
+        f.seek(max(0, start_byte))
+        if not landed_at_line_boundary:
+            # We're mid-line: the fragment up to the next newline already
+            # shipped in the prior run's chunk — discard it.
+            f.readline()
+        remaining = f.read()
+
+    try:
+        text = remaining.decode("utf-8")
+    except UnicodeDecodeError:
+        # Extremely unlikely on Claude Code sessions (they're UTF-8 by spec),
+        # but if it happens we fall back to a lossy decode rather than crashing
+        # the whole worker.
+        text = remaining.decode("utf-8", errors="replace")
+
+    raw_lines = text.strip().splitlines()
+    messages = _parse_jsonl_messages(raw_lines)
+    return _messages_to_chunks(messages, max_tokens), end_byte
 
 
 def _strip_code_fences(text: str) -> str:
@@ -482,6 +558,7 @@ def extract_from_session(
 __all__ = [
     "OllamaNotAvailableError",
     "chunk_session",
+    "chunk_session_from_offset",
     "dedupe_against_existing",
     "dedupe_within_batch",
     "extract_decisions_from_chunk",
