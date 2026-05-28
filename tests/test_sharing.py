@@ -237,3 +237,191 @@ def test_review_auto_promotes_architecture_tagged(tmp_path: Path) -> None:
     assert "auto-promoted" in result.output
     assert (memory / "shared" / "decisions" / f"{record_id}.md").exists()
     assert not (memory / "pending" / "decisions" / f"{record_id}.md").exists()
+
+
+# --- Issue #95: type-aware routing tests ---
+
+
+def test_review_routes_finding_to_findings_dir(tmp_path: Path) -> None:
+    """Pending record with type=finding routes to findings/ (private or shared)."""
+    memory = _scaffold_memory(tmp_path)
+    record_id = "finding_01ARZ3NDEKTSV4RRFFQ69G5F11"
+    _write_decision_file(
+        memory / "pending" / "decisions",
+        record_id,
+        type="finding",
+        tags=["minor"],
+        confidence=0.3,
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    # Default policy: new_findings = shared
+    expected_dest = memory / "shared" / "findings" / f"{record_id}.md"
+    assert expected_dest.exists(), (
+        f"Expected finding at {expected_dest}; ls shared/findings/="
+        f"{list((memory / 'shared' / 'findings').glob('*'))} "
+        f"ls private/findings/={list((memory / 'private' / 'findings').glob('*'))} "
+        f"ls shared/decisions/={list((memory / 'shared' / 'decisions').glob('*'))} "
+        f"ls private/decisions/={list((memory / 'private' / 'decisions').glob('*'))}"
+    )
+    assert not (memory / "pending" / "decisions" / f"{record_id}.md").exists()
+    assert not (memory / "shared" / "decisions" / f"{record_id}.md").exists()
+    assert not (memory / "private" / "decisions" / f"{record_id}.md").exists()
+
+
+def test_review_routes_finding_to_private_when_low_confidence(tmp_path: Path) -> None:
+    """Finding with low confidence + no auto-promote tag goes to private/findings/.
+
+    Override default: set new_findings=private to verify private routing works.
+    """
+    memory = _scaffold_memory(tmp_path)
+    record_id = "finding_01ARZ3NDEKTSV4RRFFQ69G5F12"
+    _write_decision_file(
+        memory / "pending" / "decisions",
+        record_id,
+        type="finding",
+        tags=["minor"],
+        confidence=0.3,
+    )
+    # Override default to keep findings private by default
+    _write_sharing_yaml(
+        tmp_path,
+        "defaults:\n  new_decisions: private\n  new_findings: private\n  new_reflections: private\n"
+        "promote:\n  auto_promote_on_tags:\n    - architecture\n  require_confidence_above: 0.7\n",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert (memory / "private" / "findings" / f"{record_id}.md").exists()
+    assert not (memory / "pending" / "decisions" / f"{record_id}.md").exists()
+
+
+def test_review_routes_rejected_alternative(tmp_path: Path) -> None:
+    """Pending record with type=rejected_alternative routes to rejected_alternatives/."""
+    memory = _scaffold_memory(tmp_path)
+    record_id = "rejected_01ARZ3NDEKTSV4RRFFQ69G5F13"
+    _write_decision_file(
+        memory / "pending" / "decisions",
+        record_id,
+        type="rejected_alternative",
+        tags=["minor"],
+        confidence=0.3,
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    # With low confidence + no auto-promote tag -> private/rejected_alternatives/
+    assert (
+        memory / "private" / "rejected_alternatives" / f"{record_id}.md"
+    ).exists()
+    assert not (memory / "pending" / "decisions" / f"{record_id}.md").exists()
+    assert not (
+        memory / "private" / "decisions" / f"{record_id}.md"
+    ).exists()
+
+
+def test_review_unknown_type_stays_in_pending(tmp_path: Path) -> None:
+    """Unknown type (e.g. Constraint) leaves file in pending/ with stderr warning."""
+    memory = _scaffold_memory(tmp_path)
+    record_id = "constraint_01ARZ3NDEKTSV4RRFFQ69G5F14"
+    src = _write_decision_file(
+        memory / "pending" / "decisions",
+        record_id,
+        type="Constraint",
+        tags=["minor"],
+        confidence=0.5,
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    # Click 8.3+: stderr is captured separately on the result automatically.
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    # File MUST still be in pending/ (not moved, not deleted)
+    assert src.exists()
+    # Should not have leaked into any of the type dirs
+    for type_dir in ("decisions", "findings", "rejected_alternatives", "constraint", "Constraint"):
+        for sharing in ("private", "shared"):
+            assert not (memory / sharing / type_dir / f"{record_id}.md").exists()
+        assert not (memory / type_dir / f"{record_id}.md").exists()
+    # Warning on stderr mentions the unknown type
+    assert "Constraint" in result.stderr
+    # Warning should signal "unknown" / "skip" semantics so users know to act
+    assert "unknown" in result.stderr.lower() or "skipp" in result.stderr.lower()
+
+
+def test_review_missing_type_stays_in_pending(tmp_path: Path) -> None:
+    """Record with no type field is treated as unknown and stays pending."""
+    memory = _scaffold_memory(tmp_path)
+    record_id = "notype_01ARZ3NDEKTSV4RRFFQ69G5F15"
+    # Hand-craft a file with NO type key in frontmatter
+    pending_dir = memory / "pending" / "decisions"
+    src = pending_dir / f"{record_id}.md"
+    src.write_text(
+        f"---\nid: {record_id}\nsource: coder\nconfidence: 0.5\ntags: []\n---\nBody only.\n",
+        encoding="utf-8",
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert src.exists()
+    # Warns when type is missing too
+    assert "missing" in result.stderr.lower() or "unknown" in result.stderr.lower()
+
+
+def test_review_decision_still_routes_to_decisions_dir(tmp_path: Path) -> None:
+    """Regression: type=decision (lower-case) still routes to decisions/."""
+    memory = _scaffold_memory(tmp_path)
+    record_id = "decision_01ARZ3NDEKTSV4RRFFQ69G5F16"
+    _write_decision_file(
+        memory / "pending" / "decisions",
+        record_id,
+        type="decision",
+        tags=["minor"],
+        confidence=0.3,
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert (memory / "private" / "decisions" / f"{record_id}.md").exists()
+    assert not (memory / "pending" / "decisions" / f"{record_id}.md").exists()
+
+
+def test_review_reflection_still_routes_correctly(tmp_path: Path) -> None:
+    """Regression: type=Reflection in pending/reflections/ routes per policy."""
+    memory = _scaffold_memory(tmp_path)
+    # Reflections live in pending/reflections/ (their own kind subdir)
+    pending_refl_dir = memory / "pending" / "reflections"
+    pending_refl_dir.mkdir(parents=True, exist_ok=True)
+    record_id = "reflection_01ARZ3NDEKTSV4RRFFQ69G5F17"
+    src = pending_refl_dir / f"{record_id}.md"
+    src.write_text(
+        f"---\nid: {record_id}\ntype: Reflection\nsource: reflector\n"
+        "confidence: 0.5\ntags: []\n---\nA synthesized lesson.\n",
+        encoding="utf-8",
+    )
+    _write_sharing_yaml(tmp_path, default_sharing_yaml())
+
+    runner = CliRunner()
+    result = runner.invoke(review_command, ["--auto-accept", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    # Default policy: new_reflections = private
+    assert (memory / "private" / "reflections" / f"{record_id}.md").exists()
+    assert not src.exists()
