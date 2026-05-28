@@ -20,7 +20,7 @@ No platform. No SaaS. No switching cost. Just markdown that any tool can read, g
 
 ```bash
 pip install spanweave                          # or: uv pip install spanweave
-ollama pull gemma3:4b                          # local model for auto-extraction
+ollama pull gemma4:e4b                         # local model for auto-extraction
 spanweave init --tool claude-code --repo .     # one-time setup
 # Done. Open Claude Code — it auto-loads decisions on start,
 # and the Stop hook captures new ones when the session ends.

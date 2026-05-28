@@ -23,7 +23,7 @@ every agent and every human.
 - **Private / shared decision promotion** — `private/` decisions stay
   local-only; `promote` moves them to `shared/` where teammates pick them up on
   git pull. Sharing policy lives in `.spanweave/sharing.yaml`.
-- **Local LLM by default** via Ollama (`gemma3:4b` / `qwen2.5:1.5b`) —
+- **Local LLM by default** via Ollama (`gemma4:e4b` / `qwen2.5:1.5b`) —
   extraction and reflection happen on-device, so transcripts never leave the
   machine.
 
