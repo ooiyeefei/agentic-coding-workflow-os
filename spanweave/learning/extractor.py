@@ -15,7 +15,25 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+import yaml
+
 logger = logging.getLogger(__name__)
+
+
+def _yaml_scalar(value: Any) -> str:
+    """Serialize a value as a single-line YAML scalar, safely escaped.
+
+    Frontmatter was previously built by raw f-string interpolation, so a value
+    containing a colon (e.g. harvest's "Imported from Codex native memory:
+    x.md"), a quote, or a newline produced invalid YAML — which made
+    ``spanweave review`` fail to parse the record. ``yaml.safe_dump`` quotes/
+    escapes exactly when needed; ``default_flow_style=True`` keeps it on one
+    line, and we strip the trailing ``\\n...\\n`` document markers PyYAML adds.
+    """
+    dumped: str = yaml.safe_dump(value, default_flow_style=True, allow_unicode=True)
+    # safe_dump emits e.g. "plain\n...\n" or "'has: colon'\n...\n"; strip the
+    # trailing document-end marker and whitespace to get the bare scalar.
+    return dumped.removesuffix("\n").removesuffix("\n...").strip()
 
 # A message parser turns raw transcript text into the normalized
 # ``["[user]: ...", "[assistant]: ...", ...]`` list the chunker consumes.
@@ -496,14 +514,19 @@ def stage_pending_decisions(
     timestamp = datetime.now(UTC).isoformat()
 
     for i, decision in enumerate(decisions):
-        tags_yaml = "\n".join(f"- {tag}" for tag in decision.get("tags", []))
+        tags_yaml = "\n".join(f"- {_yaml_scalar(tag)}" for tag in decision.get("tags", []))
         tags_section = f"tags:\n{tags_yaml}" if tags_yaml else "tags: []"
 
+        # Scalar string fields are double-quoted/escaped so a value containing a
+        # colon (e.g. harvest's "Imported from Codex native memory: x.md"),
+        # quote, or newline can't break the YAML frontmatter — which would make
+        # `spanweave review` fail to parse the record. (gemma rarely emits
+        # colons; harvested native-memory records reliably do.)
         frontmatter = f"""\
-type: {decision.get('type', 'decision')}
-source: {source}
+type: {_yaml_scalar(decision.get('type', 'decision'))}
+source: {_yaml_scalar(source)}
 confidence: {decision.get('confidence', 0.5)}
-reasoning: {decision.get('reasoning', '')}
+reasoning: {_yaml_scalar(decision.get('reasoning', ''))}
 timestamp: {timestamp}
 {tags_section}"""
 

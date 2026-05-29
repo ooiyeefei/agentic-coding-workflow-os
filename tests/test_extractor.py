@@ -660,6 +660,45 @@ class TestStagePendingDecisions:
             content = path.read_text()
             assert "---" in content  # YAML frontmatter delimiter
 
+    def test_staged_frontmatter_is_valid_yaml_with_colons(self, tmp_path: Path) -> None:
+        """Frontmatter stays parseable when fields contain YAML metacharacters.
+
+        Regression for the harvest->review break found in end-to-end UAT: a
+        ``reasoning`` value like "Imported from Codex native memory: x.md"
+        (note the colon) produced invalid YAML, so ``spanweave review`` crashed
+        with "mapping values are not allowed here" and native-memory records
+        never routed. Scalars are now YAML-escaped on write.
+        """
+        import yaml
+        from spanweave.learning.extractor import stage_pending_decisions
+
+        reasoning = 'Imported from Codex native memory: x.md — see "summary"'
+        decisions: list[dict[str, Any]] = [
+            {
+                "type": "finding",
+                "body": "Body text",
+                "reasoning": reasoning,
+                "tags": ["source:x.md", "codex"],
+                "confidence": 0.8,
+            }
+        ]
+
+        paths = stage_pending_decisions(
+            decisions, repo_root=tmp_path, source="native-codex"
+        )
+        content = paths[0].read_text(encoding="utf-8")
+
+        # Parse the frontmatter block the same way review._parse_record_frontmatter does.
+        _, _, rest = content.partition("---\n")
+        fm_text, sep, _ = rest.partition("\n---\n")
+        assert sep, "frontmatter delimiters missing"
+        parsed = yaml.safe_load(fm_text)
+
+        assert parsed["type"] == "finding"
+        assert parsed["source"] == "native-codex"
+        assert parsed["reasoning"] == reasoning
+        assert parsed["tags"] == ["source:x.md", "codex"]
+
 
 class TestDedupeAgainstExisting:
     """Tests for deduplication logic."""
