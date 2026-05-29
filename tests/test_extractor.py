@@ -670,7 +670,6 @@ class TestStagePendingDecisions:
         never routed. Scalars are now YAML-escaped on write.
         """
         import yaml
-
         from spanweave.learning.extractor import stage_pending_decisions
 
         reasoning = 'Imported from Codex native memory: x.md — see "summary"'
