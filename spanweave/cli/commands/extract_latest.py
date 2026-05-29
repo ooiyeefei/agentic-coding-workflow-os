@@ -1,7 +1,17 @@
 """CLI command: spanweave extract-latest — extract from the most recent session transcript.
 
-Designed to be called from tool hooks (e.g. Claude Code Stop hook).
-Finds the newest .jsonl in ~/.claude/projects/<encoded-cwd>/ and runs extraction.
+Designed to be called from tool hooks (e.g. the Claude Code SessionEnd hook).
+
+Multi-source: the same chunk -> local-LLM -> stage pipeline runs over either
+Claude Code (``~/.claude/projects/<encoded-cwd>/*.jsonl``) or Codex
+(``~/.codex/sessions/**/rollout-*.jsonl`` matched by recorded cwd), behind the
+``spanweave.sources`` adapter abstraction. ``--tool`` selects sources
+explicitly (repeatable); the default auto mode processes every installed source
+that has a session for this repo.
+
+Each source tracks its own byte-offset watermark
+(``extract-latest-<tool>.watermark``) so Claude's and Codex's progress never
+interfere.
 """
 
 from __future__ import annotations
@@ -19,11 +29,12 @@ import click
 
 from spanweave.cli.formatters import build_help_epilog
 from spanweave.learning.ollama_client import EXTRACTION_MODEL, ollama_available
+from spanweave.sources import SessionSource, all_sources, get_source
 
 # Hook path used to bound work to the last N chunks (legacy recency window).
 # Still exposed via the explicit ``--recent N`` override for debugging /
-# backfill, but the default Stop-hook path now uses the byte-offset watermark
-# so successive fires don't re-process overlapping windows.
+# backfill, but the default SessionEnd-hook path now uses the byte-offset
+# watermark so successive fires don't re-process overlapping windows.
 DEFAULT_RECENT_CHUNKS = 15
 
 logger = logging.getLogger(__name__)
@@ -33,18 +44,31 @@ def _lock_path(repo_root: Path) -> Path:
     return repo_root / ".spanweave" / "daemon" / "extract-latest.lock"
 
 
-def _watermark_path(repo_root: Path) -> Path:
-    """Where the byte-offset watermark for the current repo lives."""
-    return repo_root / ".spanweave" / "daemon" / "extract-latest.watermark"
+def _watermark_path(repo_root: Path, source_name: str = "claude-code") -> Path:
+    """Where the byte-offset watermark for ``source_name`` in this repo lives.
+
+    Per-source watermark files (``extract-latest-<tool>.watermark``) keep each
+    tool's offset independent: extracting Codex never disturbs Claude's progress
+    and vice versa. ``source_name`` defaults to ``"claude-code"`` so the helper
+    (and any legacy caller / test) keeps the historical single-tool path.
+    """
+    return (
+        repo_root
+        / ".spanweave"
+        / "daemon"
+        / f"extract-latest-{source_name}.watermark"
+    )
 
 
-def _read_watermark(repo_root: Path) -> dict[str, Any]:
-    """Read the persisted watermark.
+def _read_watermark(
+    repo_root: Path, source_name: str = "claude-code"
+) -> dict[str, Any]:
+    """Read the persisted watermark for ``source_name``.
 
     Returns a fresh ``{"session_path": "", "byte_offset": 0}`` dict if the file
     is missing or unparseable — both mean "start from byte 0" semantically.
     """
-    path = _watermark_path(repo_root)
+    path = _watermark_path(repo_root, source_name)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
@@ -59,12 +83,17 @@ def _read_watermark(repo_root: Path) -> dict[str, Any]:
 
 
 def _write_watermark(
-    repo_root: Path, *, session_path: Path, byte_offset: int
+    repo_root: Path,
+    *,
+    session_path: Path,
+    byte_offset: int,
+    source_name: str = "claude-code",
 ) -> None:
-    """Persist the watermark after a successful extraction run."""
-    path = _watermark_path(repo_root)
+    """Persist the watermark for ``source_name`` after a successful run."""
+    path = _watermark_path(repo_root, source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
+        "source": source_name,
         "session_path": str(session_path),
         "byte_offset": int(byte_offset),
         "last_advanced_at": datetime.now(UTC).isoformat(),
@@ -72,8 +101,10 @@ def _write_watermark(
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def _resolve_start_byte(repo_root: Path, session_path: Path) -> int:
-    """Decide the start byte for delta extraction.
+def _resolve_start_byte(
+    repo_root: Path, session_path: Path, source_name: str = "claude-code"
+) -> int:
+    """Decide the start byte for delta extraction of ``source_name``.
 
     Rules (in order):
     - missing/garbage watermark -> 0,
@@ -82,7 +113,7 @@ def _resolve_start_byte(repo_root: Path, session_path: Path) -> int:
       was rotated/rewritten and we can't trust the old offset),
     - otherwise the watermark's recorded byte offset.
     """
-    wm = _read_watermark(repo_root)
+    wm = _read_watermark(repo_root, source_name)
     if not wm["session_path"] or wm["session_path"] != str(session_path):
         return 0
     try:
@@ -100,12 +131,17 @@ def _run_watermark_extraction(
     session_path: Path,
     model: str,
     provider: str = "ollama",
+    source: SessionSource | None = None,
 ) -> int:
     """Worker pipeline for the watermark-driven path.
 
-    Reads the watermark, chunks only the new bytes via
-    ``chunk_session_from_offset``, runs the same extract/dedupe/stage steps
-    as ``extract_from_session``, and advances the watermark only on success.
+    Reads the per-source watermark, chunks only the new bytes via
+    ``chunk_session_from_offset`` using the source's ``parse_messages``, runs
+    the same extract/dedupe/stage steps as ``extract_from_session``, and
+    advances the watermark only on success.
+
+    ``source`` defaults to the Claude Code adapter so the historical single-tool
+    behavior (and existing tests that call this without a source) is preserved.
 
     Returns the number of decisions staged (so the CLI can print the same
     "Extracted N decision(s)" message).
@@ -119,14 +155,25 @@ def _run_watermark_extraction(
         stage_pending_decisions,
     )
 
-    start_byte = _resolve_start_byte(repo_root, session_path)
-    chunks, end_byte = chunk_session_from_offset(session_path, start_byte=start_byte)
+    if source is None:
+        source = get_source("claude-code")
+    source_name = source.name
+
+    start_byte = _resolve_start_byte(repo_root, session_path, source_name)
+    chunks, end_byte = chunk_session_from_offset(
+        session_path, start_byte=start_byte, parse_messages=source.parse_messages
+    )
 
     if not chunks:
         # No new bytes -> success no-op, but still advance the watermark to
         # capture any file growth (e.g. metadata-only line that produced no
         # extractable message) so we don't re-scan the same bytes next fire.
-        _write_watermark(repo_root, session_path=session_path, byte_offset=end_byte)
+        _write_watermark(
+            repo_root,
+            session_path=session_path,
+            byte_offset=end_byte,
+            source_name=source_name,
+        )
         return 0
 
     all_decisions: list[dict[str, Any]] = []
@@ -155,7 +202,12 @@ def _run_watermark_extraction(
     else:
         staged_count = 0
 
-    _write_watermark(repo_root, session_path=session_path, byte_offset=end_byte)
+    _write_watermark(
+        repo_root,
+        session_path=session_path,
+        byte_offset=end_byte,
+        source_name=source_name,
+    )
     return staged_count
 
 
@@ -205,17 +257,17 @@ def _release_lock(lock_path: Path) -> None:
         pass
 
 
-def _spawn_detached(repo_root: Path, recent: int | None) -> None:
+def _spawn_detached(repo_root: Path, recent: int | None, tools: tuple[str, ...]) -> None:
     """Launch the (slow) extraction as a detached background process.
 
     Returns immediately; ``start_new_session=True`` detaches the child so it
-    survives the Stop hook returning — that's what keeps the hook under its
-    timeout while gemma4:e4b takes its time on CPU. Child output goes to a log
-    under .spanweave/daemon/ for inspection.
+    survives the hook returning — that's what keeps the hook under its timeout
+    while gemma4:e4b takes its time on CPU. Child output goes to a log under
+    .spanweave/daemon/ for inspection.
 
-    When ``recent`` is None (the default Stop-hook path) we omit ``--recent``
-    from the child's argv so the worker uses watermark mode. Passing
-    ``--recent N`` here would re-enable the legacy recency-window code path.
+    When ``recent`` is None (the default hook path) we omit ``--recent`` from
+    the child's argv so the worker uses watermark mode. Any explicit ``--tool``
+    selections are forwarded so the detached worker processes the same sources.
     """
     log_dir = repo_root / ".spanweave" / "daemon"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -223,6 +275,8 @@ def _spawn_detached(repo_root: Path, recent: int | None) -> None:
     argv = [sys.argv[0], "extract-latest", "--repo", str(repo_root)]
     if recent is not None:
         argv += ["--recent", str(recent)]
+    for tool in tools:
+        argv += ["--tool", tool]
     try:
         subprocess.Popen(  # noqa: S603
             argv,
@@ -236,35 +290,51 @@ def _spawn_detached(repo_root: Path, recent: int | None) -> None:
         log.close()
 
 
-def _claude_project_dir(repo_root: Path) -> Path:
-    """Compute the Claude Code project session directory.
+def _selected_sources(tools: tuple[str, ...]) -> list[SessionSource]:
+    """Resolve the ``--tool`` selection into source adapters.
 
-    Claude Code encodes the project path by replacing / with - as the directory name
-    under ~/.claude/projects/. For example:
-        /home/fei/project -> -home-fei-project
+    Explicit ``--tool`` values are looked up by name (a bad name raises a
+    ClickException). With no ``--tool`` (auto mode), every registered source is
+    returned; availability + per-repo session presence are filtered later, per
+    source, so auto mode silently skips uninstalled tools.
     """
-    resolved = str(repo_root.resolve())
-    encoded = resolved.replace("/", "-")
-    return Path.home() / ".claude" / "projects" / encoded
+    if not tools:
+        return all_sources()
+    resolved: list[SessionSource] = []
+    for name in tools:
+        try:
+            resolved.append(get_source(name))
+        except KeyError as exc:
+            raise click.ClickException(str(exc)) from exc
+    return resolved
 
 
-def _find_latest_session(repo_root: Path) -> Path | None:
-    """Find the most recent .jsonl session file for the given repo.
+def _resolve_source_sessions(
+    sources: list[SessionSource],
+    repo_root: Path,
+    *,
+    explicit: bool,
+) -> list[tuple[SessionSource, Path]]:
+    """Pair each source with its latest session for ``repo_root``.
 
-    Searches ~/.claude/projects/<encoded-cwd>/ for .jsonl files
-    and returns the one with the most recent modification time.
+    In auto mode (``explicit=False``) a source is skipped unless it
+    ``is_available()`` AND has a ``latest_session`` for this repo — so a machine
+    with only one tool installed just processes that one, no errors.
+
+    With explicit ``--tool`` we still require an actual session (you can't
+    extract from a tool that has no transcript for this repo) but we don't
+    pre-filter on ``is_available`` — an explicit request that finds a session is
+    honored regardless.
     """
-    project_dir = _claude_project_dir(repo_root)
-    if not project_dir.exists():
-        return None
-
-    jsonl_files = list(project_dir.glob("*.jsonl"))
-    if not jsonl_files:
-        return None
-
-    # Sort by modification time, newest first
-    jsonl_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return jsonl_files[0]
+    pairs: list[tuple[SessionSource, Path]] = []
+    for source in sources:
+        if not explicit and not source.is_available():
+            continue
+        session = source.latest_session(repo_root)
+        if session is None:
+            continue
+        pairs.append((source, session))
+    return pairs
 
 
 @click.command(
@@ -272,12 +342,17 @@ def _find_latest_session(repo_root: Path) -> Path | None:
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog=build_help_epilog(
         notes=(
-            "Finds the newest .jsonl session in ~/.claude/projects/<encoded-cwd>/.",
-            "Designed to be called from tool hooks (e.g. Claude Code Stop hook).",
+            "Reads the newest session for each selected tool: Claude Code "
+            "(~/.claude/projects/<encoded-cwd>/) and/or Codex "
+            "(~/.codex/sessions/ matched by repo).",
+            "Default (no --tool) auto-processes every installed tool with a "
+            "session for this repo.",
+            "Designed to be called from tool hooks (e.g. a SessionEnd hook).",
         ),
         examples=(
             "spanweave extract-latest --repo .",
-            "spanweave extract-latest --repo /path/to/project",
+            "spanweave extract-latest --repo . --tool codex",
+            "spanweave extract-latest --repo . --tool claude-code --tool codex",
         ),
     ),
 )
@@ -287,6 +362,16 @@ def _find_latest_session(repo_root: Path) -> Path | None:
     show_default=True,
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
     help="Repository root that contains the .spanweave workspace.",
+)
+@click.option(
+    "--tool",
+    "tools",
+    multiple=True,
+    type=click.Choice(["claude-code", "codex"]),
+    help=(
+        "Source tool to extract from (repeatable). Omit to auto-process every "
+        "installed tool that has a session for this repo."
+    ),
 )
 @click.option(
     "--model",
@@ -305,7 +390,7 @@ def _find_latest_session(repo_root: Path) -> Path | None:
     help=(
         "Manual override: bound work to the last N conversation chunks "
         "(recency-window mode, for debugging / backfill). When omitted, the "
-        "Stop-hook path uses the byte-offset watermark to process only new "
+        "hook path uses the byte-offset watermark to process only new "
         "bytes since the last successful run."
     ),
 )
@@ -315,38 +400,50 @@ def _find_latest_session(repo_root: Path) -> Path | None:
     default=False,
     help=(
         "Launch extraction as a detached background process and return "
-        "immediately. Used by the Stop hook so a slow model never trips the "
+        "immediately. Used by the hook so a slow model never trips the "
         "hook timeout."
     ),
 )
 def extract_latest_command(
-    repo: Path, model: str | None, recent: int | None, detach: bool
+    repo: Path,
+    tools: tuple[str, ...],
+    model: str | None,
+    recent: int | None,
+    detach: bool,
 ) -> None:
-    """Extract decisions from the most recent session transcript.
+    """Extract decisions from the most recent session transcript(s).
 
-    Finds the newest .jsonl file in ~/.claude/projects/<encoded-cwd>/
-    and runs extraction on it. Designed to be called from tool hooks.
+    For each selected tool, finds the newest transcript for this repo and runs
+    extraction on it. Designed to be called from tool hooks.
 
-    Default mode (no ``--recent``) uses a byte-offset watermark at
-    ``.spanweave/daemon/extract-latest.watermark`` so each fire processes only
-    the bytes appended since the last successful run. Pass ``--recent N`` to
+    Default mode (no ``--recent``) uses a per-tool byte-offset watermark at
+    ``.spanweave/daemon/extract-latest-<tool>.watermark`` so each fire processes
+    only the bytes appended since the last successful run. Pass ``--recent N`` to
     force the legacy recency window (e.g. for backfill).
     """
     from spanweave.learning.extractor import OllamaNotAvailableError, extract_from_session
 
     repo_path = repo.resolve()
-    session_path = _find_latest_session(repo_path)
+    explicit = bool(tools)
+    sources = _selected_sources(tools)
+    source_sessions = _resolve_source_sessions(sources, repo_path, explicit=explicit)
 
-    if session_path is None:
-        raise click.ClickException(
-            f"No session files found for {repo_path}. "
-            f"Expected .jsonl files in {_claude_project_dir(repo_path)}"
-        )
+    if not source_sessions:
+        # Auto mode with nothing to do is a graceful no-op (exit 0): a machine
+        # may simply have no recorded sessions for this repo yet. An explicit
+        # --tool that finds no session is a real error worth surfacing.
+        if explicit:
+            raise click.ClickException(
+                f"No session files found for {repo_path} "
+                f"from tool(s): {', '.join(tools)}."
+            )
+        return
 
-    # Launcher mode (the Stop hook): spawn a detached worker and return in <1s,
-    # so a slow model (gemma4:e4b on CPU) never blocks the hook past its timeout.
+    # Launcher mode (the hook): spawn a detached worker and return in <1s, so a
+    # slow model (gemma4:e4b on CPU) never blocks the hook past its timeout. The
+    # presence check above already confirmed there's work to do.
     if detach:
-        _spawn_detached(repo_path, recent)
+        _spawn_detached(repo_path, recent, tools)
         return
 
     # Worker mode. Default to the quality model (extraction runs detached, so
@@ -355,16 +452,19 @@ def extract_latest_command(
         model = EXTRACTION_MODEL
 
     # Single-flight: if a live extraction already holds the lock, no-op quietly
-    # so rapid session-ends don't pile up parallel CPU-bound Gemma runs.
+    # so rapid session-ends don't pile up parallel CPU-bound Gemma runs. One
+    # lock covers the whole run (all selected sources) — successive fires
+    # serialize, but the watermarks make re-runs cheap.
     lock_path = _lock_path(repo_path)
     if not _acquire_lock(lock_path):
         return
 
     try:
-        # This command runs as a tool hook (Claude Code Stop hook). When the
-        # optional local model server isn't running, fail fast and quietly:
-        # a single calm stderr line and exit 0. Erroring here would surface as a
-        # scary "Stop hook error" on every session end where Ollama is absent.
+        # This command runs as a tool hook (e.g. Claude Code SessionEnd hook).
+        # When the optional local model server isn't running, fail fast and
+        # quietly: a single calm stderr line and exit 0. Erroring here would
+        # surface as a scary "hook error" on every session end where Ollama is
+        # absent.
         if not ollama_available():
             click.echo(
                 "spanweave: Ollama not running; skipping auto-extraction.",
@@ -372,26 +472,30 @@ def extract_latest_command(
             )
             return
 
+        total_decisions = 0
         try:
-            if recent is not None:
-                # Manual override: legacy recency-window mode. Does NOT touch
-                # the watermark, so it's safe for ad-hoc backfill runs.
-                decisions = extract_from_session(
-                    session_path,
-                    model=model,
-                    repo_root=repo_path,
-                    recent_chunks=recent,
-                )
-                decision_count = len(decisions)
-            else:
-                # Default: byte-offset watermark mode. Advances the watermark
-                # only on success; on any failure the next fire re-processes
-                # the same bytes (dedup is the safety net).
-                decision_count = _run_watermark_extraction(
-                    repo_root=repo_path,
-                    session_path=session_path,
-                    model=model,
-                )
+            for source, session_path in source_sessions:
+                if recent is not None:
+                    # Manual override: legacy recency-window mode. Does NOT
+                    # touch the watermark, so it's safe for ad-hoc backfill.
+                    decisions = extract_from_session(
+                        session_path,
+                        model=model,
+                        repo_root=repo_path,
+                        recent_chunks=recent,
+                        parse_messages=source.parse_messages,
+                    )
+                    total_decisions += len(decisions)
+                else:
+                    # Default: per-source byte-offset watermark mode. Advances
+                    # the watermark only on success; on any failure the next
+                    # fire re-processes the same bytes (dedup is the safety net).
+                    total_decisions += _run_watermark_extraction(
+                        repo_root=repo_path,
+                        session_path=session_path,
+                        model=model,
+                        source=source,
+                    )
         except OllamaNotAvailableError:
             # Backstop: the probe passed but the server died mid-run OR the model
             # was too slow to respond (OllamaTimeoutError subclasses this). Same
@@ -407,12 +511,12 @@ def extract_latest_command(
         except FileNotFoundError as exc:
             raise click.ClickException(str(exc)) from exc
 
-        if not decision_count:
+        if not total_decisions:
             click.echo("No decisions extracted from latest session.")
             return
 
         click.echo(
-            f"Extracted {decision_count} decision(s) "
+            f"Extracted {total_decisions} decision(s) "
             f"→ .spanweave/memory/pending/decisions/"
         )
     finally:
