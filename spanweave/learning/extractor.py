@@ -10,11 +10,18 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 logger = logging.getLogger(__name__)
+
+# A message parser turns raw transcript text into the normalized
+# ``["[user]: ...", "[assistant]: ...", ...]`` list the chunker consumes.
+# Source adapters (spanweave.sources) supply tool-specific parsers; the default
+# is Claude Code's schema so existing call sites stay unchanged.
+MessageParser = Callable[[str], list[str]]
 
 # Sentinel: when a caller passes model=None, resolve to the hardware-aware
 # default (gemma4:e4b on GPU, qwen2.5:1.5b on CPU) at call time via
@@ -125,26 +132,30 @@ def _call_ollama(prompt: str, model: str) -> str:
 
 
 def _parse_jsonl_messages(lines: list[str]) -> list[str]:
-    """Convert raw JSONL lines into ``[user|assistant]: message`` strings.
+    """Convert raw Claude JSONL lines into ``[user|assistant]: message`` strings.
 
     Skips blank lines, malformed JSON, and entries that aren't user/assistant
     messages — the same shape ``chunk_session`` and ``chunk_session_from_offset``
     feed into ``_messages_to_chunks``.
+
+    Retained as the *default* parser (Claude Code schema) and as the historical
+    public name (kept in ``__all__`` so external callers / tests that import it
+    still work); multi-source callers pass a source adapter's ``parse_messages``
+    instead. Accepts a pre-split list of lines (its legacy contract).
     """
-    messages: list[str] = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            entry = json.loads(stripped)
-        except json.JSONDecodeError:
-            continue
-        msg_type = entry.get("type", "")
-        message = entry.get("message", "")
-        if msg_type in ("user", "assistant") and message:
-            messages.append(f"[{msg_type}]: {message}")
-    return messages
+    return _default_parse_messages("\n".join(lines))
+
+
+def _default_parse_messages(text: str) -> list[str]:
+    """Default (Claude Code) text->messages parser used when no source is given.
+
+    Delegates to ``ClaudeCodeSource.parse_messages`` so the Claude schema lives
+    in exactly one place (the source adapter) while keeping a parser usable from
+    the extractor without an explicit source argument.
+    """
+    from spanweave.sources.claude_code import ClaudeCodeSource
+
+    return ClaudeCodeSource().parse_messages(text)
 
 
 def _messages_to_chunks(messages: list[str], max_tokens: int) -> list[str]:
@@ -174,26 +185,40 @@ def _messages_to_chunks(messages: list[str], max_tokens: int) -> list[str]:
     return chunks
 
 
-def chunk_session(session_path: Path, max_tokens: int = 2000) -> list[str]:
-    """Split a session JSONL into conversation chunks for extraction.
+def chunk_session(
+    session_path: Path,
+    max_tokens: int = 2000,
+    *,
+    parse_messages: MessageParser | None = None,
+) -> list[str]:
+    """Split a session transcript into conversation chunks for extraction.
 
-    Reads the JSONL, extracts user + assistant text messages, groups them
-    into chunks of roughly max_tokens size (estimated at 4 chars/token).
+    Reads the transcript, extracts user + assistant text messages via
+    ``parse_messages`` (defaulting to the Claude Code schema), and groups them
+    into chunks of roughly ``max_tokens`` size (estimated at 4 chars/token).
+
+    ``parse_messages`` lets a source adapter (Codex, etc.) supply its own
+    schema; omitting it keeps the original Claude-Code behavior.
     """
     if not session_path.exists():
         raise FileNotFoundError(f"Session file not found: {session_path}")
 
-    raw_lines = session_path.read_text(encoding="utf-8").strip().splitlines()
-    messages = _parse_jsonl_messages(raw_lines)
+    parser = parse_messages or _default_parse_messages
+    text = session_path.read_text(encoding="utf-8").strip()
+    messages = parser(text)
     return _messages_to_chunks(messages, max_tokens)
 
 
 def chunk_session_from_offset(
-    session_path: Path, start_byte: int, max_tokens: int = 2000
+    session_path: Path,
+    start_byte: int,
+    max_tokens: int = 2000,
+    *,
+    parse_messages: MessageParser | None = None,
 ) -> tuple[list[str], int]:
-    """Chunk only the bytes >= ``start_byte`` of a JSONL session.
+    """Chunk only the bytes >= ``start_byte`` of a transcript file.
 
-    Used by the watermark path in ``extract-latest``: each Stop-hook fire
+    Used by the watermark path in ``extract-latest``: each SessionEnd-hook fire
     chunks only what was appended since the last successful run, instead of
     re-processing a fixed recency window.
 
@@ -202,9 +227,13 @@ def chunk_session_from_offset(
     - if ``start_byte > 0``, drops whatever line-fragment we landed in (it
       was already processed up to its newline by the previous run; the
       fragment can't be parsed as JSON anyway),
-    - decodes the remaining bytes as UTF-8, splits into JSONL lines,
-    - reuses the same ``_parse_jsonl_messages`` + ``_messages_to_chunks``
-      contract as ``chunk_session`` so the chunking shape stays identical.
+    - decodes the remaining bytes as UTF-8, splits into lines,
+    - applies ``parse_messages`` (default: Claude schema) + ``_messages_to_chunks``
+      so the chunking shape stays identical across sources.
+
+    ``parse_messages`` lets a source adapter supply its own schema. Because the
+    transcript is line-delimited JSON for every supported tool, the byte-seek /
+    fragment-skip logic is source-independent and shared here.
 
     Returns ``(chunks, end_byte_offset)`` where ``end_byte_offset`` is the
     file size at read time — callers persist that as the new watermark.
@@ -242,8 +271,8 @@ def chunk_session_from_offset(
         # the whole worker.
         text = remaining.decode("utf-8", errors="replace")
 
-    raw_lines = text.strip().splitlines()
-    messages = _parse_jsonl_messages(raw_lines)
+    parser = parse_messages or _default_parse_messages
+    messages = parser(text.strip())
     return _messages_to_chunks(messages, max_tokens), end_byte
 
 
@@ -498,8 +527,9 @@ def extract_from_session(
     provider: str = "ollama",
     repo_root: Path | None = None,
     recent_chunks: int | None = None,
+    parse_messages: MessageParser | None = None,
 ) -> list[dict[str, Any]]:
-    """Extract decisions from a session transcript JSONL file.
+    """Extract decisions from a session transcript file.
 
     Reads the session file, chunks conversations into manageable windows,
     sends each chunk to the configured model for structured extraction,
@@ -508,11 +538,14 @@ def extract_from_session(
     ``model=None`` resolves to the hardware-aware default (gemma4:e4b on GPU,
     qwen2.5:1.5b on CPU).
 
-    ``recent_chunks`` bounds work to the last N chunks — used by the Stop-hook
+    ``recent_chunks`` bounds work to the last N chunks — used by the hook
     path so a huge/compacted transcript can't trigger a multi-hour run. Because
     the hook fires every session end and dedup handles overlap, the most recent
     window is what each run needs; None (the default) processes the whole file
     (manual `extract`, first-time backfill).
+
+    ``parse_messages`` lets a source adapter supply a non-Claude transcript
+    schema; omitting it parses the Claude Code format (the original behavior).
 
     Returns the list of extracted (but not yet confirmed) decision dicts.
     """
@@ -521,7 +554,7 @@ def extract_from_session(
     if model is None:
         model = default_model()
 
-    chunks = chunk_session(session_path)
+    chunks = chunk_session(session_path, parse_messages=parse_messages)
     if recent_chunks is not None and recent_chunks > 0:
         chunks = chunks[-recent_chunks:]
     if not chunks:
@@ -556,7 +589,9 @@ def extract_from_session(
 
 
 __all__ = [
+    "MessageParser",
     "OllamaNotAvailableError",
+    "_parse_jsonl_messages",
     "chunk_session",
     "chunk_session_from_offset",
     "dedupe_against_existing",

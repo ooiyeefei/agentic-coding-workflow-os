@@ -563,10 +563,14 @@ class TestExtractLatest:
         called_path = mock_extract.call_args.kwargs.get("session_path")
         assert called_path == new_session
 
-    def test_no_sessions_gives_helpful_error(
+    def test_no_sessions_explicit_tool_gives_helpful_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Verify error message when no sessions exist."""
+        """An explicit --tool with no session for this repo is a real error.
+
+        (Auto mode with nothing found is a graceful no-op — see
+        ``test_no_sessions_auto_mode_is_graceful_noop``.)
+        """
         repo = tmp_path / "project"
         repo.mkdir()
 
@@ -574,7 +578,29 @@ class TestExtractLatest:
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "fakehome")
 
         runner = CliRunner()
-        result = runner.invoke(main, ["extract-latest", "--repo", str(repo)])
+        result = runner.invoke(
+            main, ["extract-latest", "--repo", str(repo), "--tool", "claude-code"]
+        )
 
         assert result.exit_code == 1
         assert "No session files found" in result.output
+
+    def test_no_sessions_auto_mode_is_graceful_noop(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Auto mode (no --tool) with no sessions anywhere -> quiet exit 0.
+
+        The SessionEnd hook fires auto-mode; a repo with no recorded sessions
+        for any installed tool must not error (that would surface as a scary
+        hook failure).
+        """
+        repo = tmp_path / "project"
+        repo.mkdir()
+
+        # Fake home with neither ~/.claude nor ~/.codex present.
+        monkeypatch.setattr(Path, "home", lambda: tmp_path / "fakehome")
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["extract-latest", "--repo", str(repo)])
+
+        assert result.exit_code == 0

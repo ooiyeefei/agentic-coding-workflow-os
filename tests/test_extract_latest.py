@@ -1,13 +1,20 @@
 """Tests for the spanweave extract-latest CLI command (hook-invoked).
 
-extract-latest is wired as a Claude Code Stop hook, so it must degrade
+extract-latest is wired as a Claude Code SessionEnd hook, so it must degrade
 gracefully when Ollama is unavailable: a quiet no-op that exits 0 rather
-than erroring (which Claude Code surfaces as a scary Stop hook error).
+than erroring (which Claude Code surfaces as a scary hook error).
+
+Since the multi-source refactor, transcript discovery is delegated to source
+adapters (``spanweave.sources``). The Claude-Code tests below pin to
+``--tool claude-code`` and patch ``ClaudeCodeSource.latest_session`` (the new
+discovery seam that replaced the old module-level ``_find_latest_session``).
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -17,6 +24,24 @@ from click.testing import CliRunner
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 SAMPLE_SESSION = FIXTURES_DIR / "sample_session.jsonl"
+
+# The Claude adapter is the discovery seam these tests pin to. Patching its
+# ``latest_session`` replaces what ``_find_latest_session`` used to mock.
+CLAUDE_SOURCE = "spanweave.sources.claude_code.ClaudeCodeSource"
+
+
+@contextmanager
+def claude_session(session: Path | None) -> Iterator[None]:
+    """Force the Claude adapter to 'find' ``session`` (or None) for any repo.
+
+    Also forces ``is_available`` True so auto/explicit selection always reaches
+    discovery regardless of whether ~/.claude exists in the test environment.
+    """
+    with (
+        patch(f"{CLAUDE_SOURCE}.latest_session", return_value=session),
+        patch(f"{CLAUDE_SOURCE}.is_available", return_value=True),
+    ):
+        yield
 
 
 class TestExtractLatestGracefulDegradation:
@@ -29,16 +54,15 @@ class TestExtractLatestGracefulDegradation:
         runner = CliRunner()
 
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=False,
             ),
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         # Nothing on stdout — the hook is silent-success by default.
@@ -56,10 +80,7 @@ class TestExtractLatestGracefulDegradation:
         runner = CliRunner()
 
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -72,7 +93,9 @@ class TestExtractLatestGracefulDegradation:
                 ),
             ),
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         assert result.stdout == ""
@@ -97,10 +120,7 @@ class TestExtractLatestGracefulDegradation:
         runner = CliRunner()
 
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -110,7 +130,9 @@ class TestExtractLatestGracefulDegradation:
                 return_value=mock_response,
             ),
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         assert "Extracted" in result.stdout
@@ -119,18 +141,18 @@ class TestExtractLatestGracefulDegradation:
         assert list(pending_dir.glob("*.md"))
 
     def test_extract_latest_no_sessions_found(self, tmp_path: Path) -> None:
-        """No session files -> clean error (this is not the Ollama path)."""
+        """No session files for an explicit tool -> clean error (not the Ollama path)."""
         from spanweave.cli.main import main
 
         runner = CliRunner()
 
-        with patch(
-            "spanweave.cli.commands.extract_latest._find_latest_session",
-            return_value=None,
-        ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+        with claude_session(None):
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
-        # No session is a different failure mode from Ollama-down; it stays an error.
+        # No session is a different failure mode from Ollama-down; for an
+        # explicit --tool it stays an error.
         assert result.exit_code != 0
 
 
@@ -146,10 +168,7 @@ class TestExtractLatestModelAndWindow:
 
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
             patch(
                 "spanweave.cli.commands.extract_latest._run_watermark_extraction",
@@ -159,7 +178,9 @@ class TestExtractLatestModelAndWindow:
                 "spanweave.learning.extractor.extract_from_session"
             ) as legacy,
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         # Watermark path is the default; legacy recency window is bypassed.
@@ -174,10 +195,7 @@ class TestExtractLatestModelAndWindow:
 
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
             patch(
                 "spanweave.learning.extractor.extract_from_session", return_value=[]
@@ -187,7 +205,16 @@ class TestExtractLatestModelAndWindow:
             ) as wm,
         ):
             result = runner.invoke(
-                main, ["extract-latest", "--repo", str(tmp_path), "--recent", "12"]
+                main,
+                [
+                    "extract-latest",
+                    "--repo",
+                    str(tmp_path),
+                    "--tool",
+                    "claude-code",
+                    "--recent",
+                    "12",
+                ],
             )
 
         assert result.exit_code == 0
@@ -205,15 +232,13 @@ class TestExtractLatestDetach:
 
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch("spanweave.cli.commands.extract_latest._spawn_detached") as spawn,
             patch("spanweave.learning.extractor.extract_from_session") as extract,
         ):
             result = runner.invoke(
-                main, ["extract-latest", "--repo", str(tmp_path), "--detach"]
+                main,
+                ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code", "--detach"],
             )
 
         assert result.exit_code == 0
@@ -224,11 +249,10 @@ class TestExtractLatestDetach:
         from spanweave.cli.main import main
 
         runner = CliRunner()
-        with patch(
-            "spanweave.cli.commands.extract_latest._find_latest_session", return_value=None
-        ):
+        with claude_session(None):
             result = runner.invoke(
-                main, ["extract-latest", "--repo", str(tmp_path), "--detach"]
+                main,
+                ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code", "--detach"],
             )
         assert result.exit_code != 0
 
@@ -241,15 +265,14 @@ class TestExtractLatestSingleFlight:
 
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=SAMPLE_SESSION,
-            ),
+            claude_session(SAMPLE_SESSION),
             patch("spanweave.cli.commands.extract_latest._acquire_lock", return_value=False),
             patch("spanweave.cli.commands.extract_latest.ollama_available", return_value=True),
             patch("spanweave.learning.extractor.extract_from_session") as extract,
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         extract.assert_not_called()
@@ -312,12 +335,15 @@ def _mock_response(decisions: list[dict[str, Any]] | None = None) -> str:
 
 
 class TestExtractLatestWatermark:
-    """extract-latest writes a byte-offset watermark and processes only deltas.
+    """extract-latest writes a per-source byte-offset watermark, processes deltas.
 
-    The Stop hook fires every session end, so without a watermark we'd
+    The hook fires every session end, so without a watermark we'd
     re-process the same recency window on every fire. The watermark records
     the byte offset of EOF after the last successful run; subsequent fires
     pass that offset to ``chunk_session_from_offset`` to chunk only new bytes.
+
+    Since the multi-source refactor the watermark filename is per-tool
+    (``extract-latest-<tool>.watermark``).
 
     Failure modes covered:
     - first fire creates the watermark file
@@ -329,11 +355,11 @@ class TestExtractLatestWatermark:
     - explicit ``--recent N`` ignores the watermark (manual override)
     """
 
-    def _watermark_path(self, repo: Path) -> Path:
-        return repo / ".spanweave" / "daemon" / "extract-latest.watermark"
+    def _watermark_path(self, repo: Path, tool: str = "claude-code") -> Path:
+        return repo / ".spanweave" / "daemon" / f"extract-latest-{tool}.watermark"
 
-    def _read_watermark(self, repo: Path) -> dict[str, Any]:
-        return json.loads(self._watermark_path(repo).read_text(encoding="utf-8"))
+    def _read_watermark(self, repo: Path, tool: str = "claude-code") -> dict[str, Any]:
+        return json.loads(self._watermark_path(repo, tool).read_text(encoding="utf-8"))
 
     def test_first_fire_creates_watermark(self, tmp_path: Path) -> None:
         from spanweave.cli.main import main
@@ -341,10 +367,7 @@ class TestExtractLatestWatermark:
         session = _make_session(tmp_path)
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -354,7 +377,9 @@ class TestExtractLatestWatermark:
                 return_value=_mock_response(),
             ),
         ):
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         wm_path = self._watermark_path(tmp_path)
@@ -371,10 +396,7 @@ class TestExtractLatestWatermark:
         session = _make_session(tmp_path)
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -385,12 +407,16 @@ class TestExtractLatestWatermark:
             ) as call_mock,
         ):
             # First fire processes everything.
-            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
             first_calls = call_mock.call_count
             wm_before = self._read_watermark(tmp_path)
 
             # Second fire with no appended bytes: no new chunks -> no model calls.
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         # No additional Ollama calls because there were no new chunks.
@@ -416,10 +442,7 @@ class TestExtractLatestWatermark:
             return _mock_response()
 
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -429,7 +452,9 @@ class TestExtractLatestWatermark:
                 side_effect=_record,
             ),
         ):
-            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
             seen_after_first = list(seen_chunks)
             seen_chunks.clear()
 
@@ -441,7 +466,9 @@ class TestExtractLatestWatermark:
                     {"type": "assistant", "message": "brand new answer"},
                 ],
             )
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         assert seen_after_first, "first fire should have processed initial bytes"
@@ -458,10 +485,7 @@ class TestExtractLatestWatermark:
         session = _make_session(tmp_path)
         runner = CliRunner()
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -471,7 +495,9 @@ class TestExtractLatestWatermark:
                 return_value=_mock_response(),
             ),
         ):
-            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
             wm_before = self._read_watermark(tmp_path)
             assert wm_before["byte_offset"] > 0
 
@@ -483,7 +509,9 @@ class TestExtractLatestWatermark:
             new_size = session.stat().st_size
             assert new_size < wm_before["byte_offset"]
 
-            result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            result = runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         assert result.exit_code == 0
         wm_after = self._read_watermark(tmp_path)
@@ -518,21 +546,19 @@ class TestExtractLatestWatermark:
             ),
         ):
             # First fire on session A.
-            with patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session_a,
-            ):
-                runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            with claude_session(session_a):
+                runner.invoke(
+                    main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+                )
             wm_a = self._read_watermark(tmp_path)
             assert wm_a["session_path"] == str(session_a)
             seen_chunks.clear()
 
             # Second fire on session B: must reset and process B fully.
-            with patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session_b,
-            ):
-                result = runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            with claude_session(session_b):
+                result = runner.invoke(
+                    main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+                )
 
         assert result.exit_code == 0
         wm_b = self._read_watermark(tmp_path)
@@ -542,7 +568,7 @@ class TestExtractLatestWatermark:
         assert seen_chunks, "session B should have been chunked from byte 0"
 
     def test_worker_crash_does_not_advance_watermark(self, tmp_path: Path) -> None:
-        """If extract_from_session raises mid-run, watermark stays at its prior value.
+        """If staging raises mid-run, watermark stays at its prior value.
 
         Next fire then re-processes the same window; dedup is the safety net.
         """
@@ -551,12 +577,9 @@ class TestExtractLatestWatermark:
         session = _make_session(tmp_path)
         runner = CliRunner()
 
-        # Pre-seed a watermark at byte 0 by doing a first successful fire.
+        # Pre-seed a watermark by doing a first successful fire.
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -566,17 +589,16 @@ class TestExtractLatestWatermark:
                 return_value=_mock_response(),
             ),
         ):
-            runner.invoke(main, ["extract-latest", "--repo", str(tmp_path)])
+            runner.invoke(
+                main, ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"]
+            )
 
         wm_before = self._read_watermark(tmp_path)
         _append(session, [{"type": "user", "message": "new line"}])
 
         # Now make the staging step crash and verify watermark stays put.
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -593,7 +615,7 @@ class TestExtractLatestWatermark:
             with pytest.raises(RuntimeError):
                 runner.invoke(
                     main,
-                    ["extract-latest", "--repo", str(tmp_path)],
+                    ["extract-latest", "--repo", str(tmp_path), "--tool", "claude-code"],
                     catch_exceptions=False,
                 )
 
@@ -624,10 +646,7 @@ class TestExtractLatestWatermark:
             return []
 
         with (
-            patch(
-                "spanweave.cli.commands.extract_latest._find_latest_session",
-                return_value=session,
-            ),
+            claude_session(session),
             patch(
                 "spanweave.cli.commands.extract_latest.ollama_available",
                 return_value=True,
@@ -638,7 +657,16 @@ class TestExtractLatestWatermark:
             ),
         ):
             result = runner.invoke(
-                main, ["extract-latest", "--repo", str(tmp_path), "--recent", "5"]
+                main,
+                [
+                    "extract-latest",
+                    "--repo",
+                    str(tmp_path),
+                    "--tool",
+                    "claude-code",
+                    "--recent",
+                    "5",
+                ],
             )
 
         assert result.exit_code == 0
