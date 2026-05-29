@@ -3,6 +3,7 @@ from __future__ import annotations
 import click
 
 from spanweave import __version__
+from spanweave.cli.commands.eval import eval_command
 from spanweave.cli.commands.extract import extract_command
 from spanweave.cli.commands.extract_latest import extract_latest_command
 from spanweave.cli.commands.grep import grep_command
@@ -51,4 +52,5 @@ main.add_command(reflect_command)
 main.add_command(promote_command)
 main.add_command(review_command)
 main.add_command(grep_command)
+main.add_command(eval_command)
 main.add_command(skill_feedback_group)
