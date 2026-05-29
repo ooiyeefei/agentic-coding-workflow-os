@@ -32,6 +32,7 @@ from spanweave.harvest import SUPPORTED_TOOLS, available_tools, harvest_tool
             "spanweave harvest --repo .",
             "spanweave harvest --tool claude-code --repo .",
             "spanweave harvest -t claude-code -t codex --repo .",
+            "spanweave harvest --tool codex --repo . --all  # all projects",
         ),
     ),
 )
@@ -50,7 +51,18 @@ from spanweave.harvest import SUPPORTED_TOOLS, available_tools, harvest_tool
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
     help="Repository root that contains the .spanweave workspace.",
 )
-def harvest_command(tools: tuple[str, ...], repo: Path) -> None:
+@click.option(
+    "--all",
+    "all_projects",
+    is_flag=True,
+    default=False,
+    help=(
+        "codex: import all projects' memory, not just this repo's. Codex keeps "
+        "one global memory store; by default harvest imports only the summaries "
+        "whose cwd matches --repo. (No effect on claude-code, already per-repo.)"
+    ),
+)
+def harvest_command(tools: tuple[str, ...], repo: Path, all_projects: bool) -> None:
     """Import native memory from coding agents into .spanweave/memory/pending/."""
     repo_path = repo.resolve()
 
@@ -66,7 +78,7 @@ def harvest_command(tools: tuple[str, ...], repo: Path) -> None:
     pending_dir = repo_path / ".spanweave" / "memory" / "pending"
     total = 0
     for tool in selected:
-        result = harvest_tool(tool, repo_path)
+        result = harvest_tool(tool, repo_path, all_projects=all_projects)
         total += result.count
         if not result.store_present:
             click.echo(f"No {tool} native memory found — skipped.")

@@ -69,13 +69,24 @@ def available_tools(repo_root: Path) -> list[str]:
     return [tool for tool in SUPPORTED_TOOLS if _store_present(tool, repo_root)]
 
 
-def harvest_tool(tool: str, repo_root: Path) -> HarvestResult:
+def harvest_tool(
+    tool: str, repo_root: Path, *, all_projects: bool = False
+) -> HarvestResult:
     """Harvest a single tool's native memory into the pending queue.
+
+    ``all_projects`` only affects ``codex``: Codex keeps a single global memory
+    store, so by default its harvest is scoped to ``repo_root`` (only summaries
+    whose ``cwd`` matches the repo). Pass ``all_projects=True`` to import every
+    project's Codex memory. The Claude harvester is already per-repo and ignores
+    the flag.
 
     Raises ``KeyError`` for an unknown tool name; the CLI validates the name via
     a Click ``Choice`` before calling this.
     """
-    staged = _HARVESTERS[tool](repo_root)
+    if tool == "codex":
+        staged = harvest_codex_memory(repo_root, all_projects=all_projects)
+    else:
+        staged = _HARVESTERS[tool](repo_root)
     return HarvestResult(
         tool=tool, staged=staged, store_present=_store_present(tool, repo_root)
     )

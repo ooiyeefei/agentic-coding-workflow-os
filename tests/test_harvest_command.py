@@ -25,7 +25,7 @@ User feedback.
 Use project-local tmp/ for ephemeral artifacts on this user's projects.
 """
 
-_CODEX_ROLLOUT = """\
+_CODEX_BODY = """\
 ## Task 1
 
 Codex remembered this rollout summary about a deploy debugging session.
@@ -42,10 +42,19 @@ def _write_claude(home: Path, repo: Path) -> None:
     (memory_dir / "feedback.md").write_text(_CLAUDE_RECORD, encoding="utf-8")
 
 
-def _write_codex(home: Path) -> None:
+def _codex_rollout(cwd: str, body: str = _CODEX_BODY) -> str:
+    """A Codex rollout summary with bare `key: value` frontmatter incl. `cwd:`."""
+    return f"thread_id: 019abc\ncwd: {cwd}\ngit_branch: main\n\n{body}\n"
+
+
+def _write_codex(home: Path, repo: Path) -> None:
+    """Write a Codex rollout whose cwd matches ``repo`` (so it survives the
+    default project-scoped harvest)."""
     rollout_dir = home / ".codex" / "memories" / "rollout_summaries"
     rollout_dir.mkdir(parents=True, exist_ok=True)
-    (rollout_dir / "session.md").write_text(_CODEX_ROLLOUT, encoding="utf-8")
+    (rollout_dir / "session.md").write_text(
+        _codex_rollout(str(repo.resolve())), encoding="utf-8"
+    )
 
 
 def _pending_bodies(repo: Path) -> list[str]:
@@ -72,7 +81,7 @@ def test_harvest_tool_claude_only(runner: CliRunner, fake_home: Path, tmp_path: 
     repo = tmp_path / "repo"
     repo.mkdir()
     _write_claude(fake_home, repo)
-    _write_codex(fake_home)
+    _write_codex(fake_home, repo)
 
     result = runner.invoke(harvest_command, ["--tool", "claude-code", "--repo", str(repo)])
 
@@ -87,7 +96,7 @@ def test_harvest_default_both_tools(runner: CliRunner, fake_home: Path, tmp_path
     repo = tmp_path / "repo"
     repo.mkdir()
     _write_claude(fake_home, repo)
-    _write_codex(fake_home)
+    _write_codex(fake_home, repo)
 
     result = runner.invoke(harvest_command, ["--repo", str(repo)])
 
@@ -102,7 +111,7 @@ def test_harvest_codex_only(runner: CliRunner, fake_home: Path, tmp_path: Path) 
     repo = tmp_path / "repo"
     repo.mkdir()
     _write_claude(fake_home, repo)
-    _write_codex(fake_home)
+    _write_codex(fake_home, repo)
 
     result = runner.invoke(harvest_command, ["--tool", "codex", "--repo", str(repo)])
 
@@ -112,12 +121,64 @@ def test_harvest_codex_only(runner: CliRunner, fake_home: Path, tmp_path: Path) 
     assert all("source: native-claude" not in b for b in bodies)
 
 
+def test_harvest_codex_scoped_by_default(
+    runner: CliRunner, fake_home: Path, tmp_path: Path
+) -> None:
+    """Default codex harvest is project-scoped: another repo's cwd is skipped."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    rollout_dir = fake_home / ".codex" / "memories" / "rollout_summaries"
+    rollout_dir.mkdir(parents=True, exist_ok=True)
+    (rollout_dir / "mine.md").write_text(
+        _codex_rollout(str(repo.resolve()), "Note from this very repo."),
+        encoding="utf-8",
+    )
+    (rollout_dir / "other.md").write_text(
+        _codex_rollout("/some/other/repo", "Note from a different repo."),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(harvest_command, ["--tool", "codex", "--repo", str(repo)])
+
+    assert result.exit_code == 0, result.output
+    bodies = "\n".join(_pending_bodies(repo))
+    assert "this very repo" in bodies
+    assert "different repo" not in bodies
+
+
+def test_harvest_codex_all_imports_every_project(
+    runner: CliRunner, fake_home: Path, tmp_path: Path
+) -> None:
+    """`--all` imports the whole global Codex store, not just this repo's."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    rollout_dir = fake_home / ".codex" / "memories" / "rollout_summaries"
+    rollout_dir.mkdir(parents=True, exist_ok=True)
+    (rollout_dir / "mine.md").write_text(
+        _codex_rollout(str(repo.resolve()), "Note from this very repo."),
+        encoding="utf-8",
+    )
+    (rollout_dir / "other.md").write_text(
+        _codex_rollout("/some/other/repo", "Note from a different repo."),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        harvest_command, ["--tool", "codex", "--repo", str(repo), "--all"]
+    )
+
+    assert result.exit_code == 0, result.output
+    bodies = "\n".join(_pending_bodies(repo))
+    assert "this very repo" in bodies
+    assert "different repo" in bodies
+
+
 def test_harvest_is_idempotent(runner: CliRunner, fake_home: Path, tmp_path: Path) -> None:
     """Running harvest twice does not duplicate pending records."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _write_claude(fake_home, repo)
-    _write_codex(fake_home)
+    _write_codex(fake_home, repo)
 
     runner.invoke(harvest_command, ["--repo", str(repo)])
     count_after_first = len(_pending_bodies(repo))
