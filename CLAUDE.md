@@ -30,3 +30,19 @@ directions as **GitHub issues** (`gh issue create`) — not as new markdown file
 under `docs/proposed_features/`. Issues are the single tracker for pending work;
 the detailed design can live in the issue body. (Existing `docs/proposed_features/`
 briefs predate this convention.)
+
+## Load Spanweave context on session start
+
+Before substantive work on this project, load prior context from
+`.spanweave/memory/`. Each record type has its own subdir; load all of them, and
+also the matching `shared/` copy (records a teammate promoted for team
+visibility):
+
+- `.spanweave/memory/decisions/` and `.spanweave/memory/shared/decisions/` — choices made and the reasoning behind them.
+- `.spanweave/memory/findings/` and `.spanweave/memory/shared/findings/` — non-obvious facts discovered about the code or system.
+- `.spanweave/memory/reflections/` and `.spanweave/memory/shared/reflections/` — post-hoc lessons about what worked or didn't.
+- `.spanweave/memory/rejected_alternatives/` and `.spanweave/memory/shared/rejected_alternatives/` — options considered and ruled out, with the reason (so you don't re-propose them).
+
+This is cross-tool memory: another agent (Claude Code, Codex, Cursor) may have
+worked here before you. Build on what's already recorded instead of re-deriving
+it.
