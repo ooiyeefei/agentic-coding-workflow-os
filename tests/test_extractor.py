@@ -699,6 +699,60 @@ class TestStagePendingDecisions:
         assert parsed["reasoning"] == reasoning
         assert parsed["tags"] == ["source:x.md", "codex"]
 
+    def test_two_batches_same_timestamp_do_not_overwrite(self, tmp_path: Path) -> None:
+        """Two stage calls sharing a timestamp must not collide (silent data loss).
+
+        Regression: filenames were ``pending_<call-timestamp>_<index>.md`` where
+        the index reset to 000 every call. Two calls that landed on the same
+        timestamp (same instant, or re-staging a batch that already carried a
+        fixed timestamp) reused 000/001/... and silently overwrote the first
+        call's files — no error, just lost records. Discovered in demo prep:
+        copying records that shared a timestamp dropped several silently.
+
+        We pin ``datetime.now`` so BOTH calls get the identical timestamp — the
+        exact condition that triggered the collision — then assert all records
+        survive. (Without the per-record unique token in the filename, batch B's
+        _000/_001 overwrite batch A's _000/_001 and only 2 of 4 files remain.)
+        """
+        from datetime import UTC, datetime
+        from unittest.mock import patch
+
+        from spanweave.learning import extractor
+        from spanweave.learning.extractor import stage_pending_decisions
+
+        batch_a: list[dict[str, Any]] = [
+            {"type": "decision", "body": "alpha one", "tags": [], "confidence": 0.9},
+            {"type": "decision", "body": "alpha two", "tags": [], "confidence": 0.9},
+        ]
+        batch_b: list[dict[str, Any]] = [
+            {"type": "finding", "body": "beta one", "tags": [], "confidence": 0.8},
+            {"type": "finding", "body": "beta two", "tags": [], "confidence": 0.8},
+        ]
+
+        fixed = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
+
+        class _FixedDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return fixed
+
+        with patch.object(extractor, "datetime", _FixedDatetime):
+            paths_a = stage_pending_decisions(
+                batch_a, repo_root=tmp_path, source="auto-extraction"
+            )
+            paths_b = stage_pending_decisions(
+                batch_b, repo_root=tmp_path, source="native-codex"
+            )
+
+        # No path from B reused a path from A (the collision the bug caused).
+        assert set(paths_a).isdisjoint(set(paths_b))
+        # All 4 files survive on disk (none clobbered).
+        pending = tmp_path / ".spanweave" / "memory" / "pending" / "decisions"
+        assert len(list(pending.glob("*.md"))) == 4
+        # Every filename is unique.
+        names = [p.name for p in (*paths_a, *paths_b)]
+        assert len(names) == len(set(names)) == 4
+
 
 class TestDedupeAgainstExisting:
     """Tests for deduplication logic."""

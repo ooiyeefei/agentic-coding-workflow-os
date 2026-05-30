@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
+from ulid import ULID
 
 logger = logging.getLogger(__name__)
 
@@ -513,7 +514,7 @@ def stage_pending_decisions(
     written_paths: list[Path] = []
     timestamp = datetime.now(UTC).isoformat()
 
-    for i, decision in enumerate(decisions):
+    for decision in decisions:
         tags_yaml = "\n".join(f"- {_yaml_scalar(tag)}" for tag in decision.get("tags", []))
         tags_section = f"tags:\n{tags_yaml}" if tags_yaml else "tags: []"
 
@@ -533,9 +534,15 @@ timestamp: {timestamp}
         body = decision.get("body", "")
         content = f"---\n{frontmatter}\n---\n{body}\n"
 
-        # Generate a filename based on timestamp and index
+        # Filename = sortable timestamp prefix + a per-record ULID suffix. The
+        # timestamp alone is NOT unique: two stage calls in the same instant (or
+        # re-staging a batch that already carries a fixed timestamp) both reset
+        # the index to 000/001/... and silently overwrote each other's files.
+        # The ULID guarantees global uniqueness across calls and instants, while
+        # the timestamp prefix keeps files chronologically sortable. ``i`` is no
+        # longer needed for uniqueness but kept out of the name to stay readable.
         safe_timestamp = timestamp.replace(":", "-").replace("+", "p")
-        filename = f"pending_{safe_timestamp}_{i:03d}.md"
+        filename = f"pending_{safe_timestamp}_{ULID()}.md"
         filepath = pending_dir / filename
         filepath.write_text(content, encoding="utf-8")
         written_paths.append(filepath)
