@@ -8,12 +8,33 @@ on what the others remembered.
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import click
 
 from spanweave.cli.formatters import build_help_epilog
 from spanweave.harvest import SUPPORTED_TOOLS, available_tools, harvest_tool
+
+
+def _validate_since(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str | None:
+    """Validate ``--since`` is a parseable ISO date (``YYYY-MM-DD``).
+
+    Returns the value unchanged when valid (or ``None`` when omitted); raises a
+    clean :class:`click.BadParameter` (usage error, non-zero exit, no traceback)
+    on bad input.
+    """
+    if value is None:
+        return None
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise click.BadParameter(
+            f"{value!r} is not a valid date — expected YYYY-MM-DD."
+        ) from None
+    return value
 
 
 @click.command(
@@ -33,6 +54,7 @@ from spanweave.harvest import SUPPORTED_TOOLS, available_tools, harvest_tool
             "spanweave harvest --tool claude-code --repo .",
             "spanweave harvest -t claude-code -t codex --repo .",
             "spanweave harvest --tool codex --repo . --all  # all projects",
+            "spanweave harvest --tool codex --repo . --since 2026-05-20  # recent only",
         ),
     ),
 )
@@ -62,7 +84,20 @@ from spanweave.harvest import SUPPORTED_TOOLS, available_tools, harvest_tool
         "whose cwd matches --repo. (No effect on claude-code, already per-repo.)"
     ),
 )
-def harvest_command(tools: tuple[str, ...], repo: Path, all_projects: bool) -> None:
+@click.option(
+    "--since",
+    "since",
+    type=str,
+    default=None,
+    callback=_validate_since,
+    help=(
+        "Only harvest Codex sessions updated on/after this date (YYYY-MM-DD). "
+        "Codex only."
+    ),
+)
+def harvest_command(
+    tools: tuple[str, ...], repo: Path, all_projects: bool, since: str | None
+) -> None:
     """Import native memory from coding agents into .spanweave/memory/pending/."""
     repo_path = repo.resolve()
 
@@ -78,7 +113,9 @@ def harvest_command(tools: tuple[str, ...], repo: Path, all_projects: bool) -> N
     pending_dir = repo_path / ".spanweave" / "memory" / "pending"
     total = 0
     for tool in selected:
-        result = harvest_tool(tool, repo_path, all_projects=all_projects)
+        result = harvest_tool(
+            tool, repo_path, all_projects=all_projects, since=since
+        )
         total += result.count
         if not result.store_present:
             click.echo(f"No {tool} native memory found — skipped.")
