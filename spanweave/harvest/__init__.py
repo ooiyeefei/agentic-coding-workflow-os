@@ -70,7 +70,11 @@ def available_tools(repo_root: Path) -> list[str]:
 
 
 def harvest_tool(
-    tool: str, repo_root: Path, *, all_projects: bool = False
+    tool: str,
+    repo_root: Path,
+    *,
+    all_projects: bool = False,
+    since: str | None = None,
 ) -> HarvestResult:
     """Harvest a single tool's native memory into the pending queue.
 
@@ -80,11 +84,18 @@ def harvest_tool(
     project's Codex memory. The Claude harvester is already per-repo and ignores
     the flag.
 
+    ``since`` (an ISO ``YYYY-MM-DD`` date) likewise only affects ``codex``: it
+    restricts the harvest to sessions updated on/after that date (recency
+    scoping). The Claude harvester has no comparable per-session timestamp, so
+    ``since`` is ignored for ``claude-code``.
+
     Raises ``KeyError`` for an unknown tool name; the CLI validates the name via
     a Click ``Choice`` before calling this.
     """
     if tool == "codex":
-        staged = harvest_codex_memory(repo_root, all_projects=all_projects)
+        staged = harvest_codex_memory(
+            repo_root, all_projects=all_projects, since=since
+        )
     else:
         staged = _HARVESTERS[tool](repo_root)
     return HarvestResult(

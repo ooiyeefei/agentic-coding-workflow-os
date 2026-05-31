@@ -306,3 +306,185 @@ def test_harvest_all_stages_everything(fake_home: Path, tmp_path: Path) -> None:
     assert "pydantic-settings" in staged
     assert "billing webhook" in staged
     assert "tool-agnostic memory" in staged
+
+
+# --- --since recency filter (#116) ------------------------------------------
+
+
+def _rollout_dated(cwd: str, body: str, *, updated_at: str | None) -> str:
+    """A rollout summary with an optional ``updated_at`` frontmatter line.
+
+    When ``updated_at`` is None the line is omitted entirely, so the reader
+    must fall back to the date-prefixed filename.
+    """
+    lines = ["thread_id: 019deadbeef"]
+    if updated_at is not None:
+        lines.append(f"updated_at: {updated_at}")
+    lines += [f"cwd: {cwd}", "git_branch: main", "", body, ""]
+    return "\n".join(lines)
+
+
+def _write_dated_tree(home: Path) -> None:
+    """Three same-cwd (/repo/A) rollouts dated 05-07, 05-15, 05-25.
+
+    Both the ``updated_at`` frontmatter and the date-prefixed filename carry
+    the date, so either source resolves to the same day. Distinct prose keeps
+    the word-overlap dedup from collapsing them.
+    """
+    _write_codex_memory(
+        home,
+        summary=None,
+        rollouts={
+            "2026-05-07T09-14-22-old.md": _rollout_dated(
+                "/repo/A",
+                "Adopted pydantic-settings for config loading.",
+                updated_at="2026-05-07T09:14:30+00:00",
+            ),
+            "2026-05-15T12-15-13-mid.md": _rollout_dated(
+                "/repo/A",
+                "Migrated the CI pipeline onto GitHub Actions runners.",
+                updated_at="2026-05-15T12:15:35+00:00",
+            ),
+            "2026-05-25T08-00-00-new.md": _rollout_dated(
+                "/repo/A",
+                "Refactored the billing webhook retry handler thoroughly.",
+                updated_at="2026-05-25T08:00:01+00:00",
+            ),
+        },
+    )
+
+
+def test_since_filters_out_older_than_date(fake_home: Path) -> None:
+    """since=2026-05-20 keeps only the 05-25 session."""
+    _write_dated_tree(fake_home)
+
+    records = read_codex_records(Path("/repo/A"), since="2026-05-20")
+
+    bodies = "\n".join(r["body"] for r in records)
+    assert "billing webhook" in bodies
+    assert "pydantic-settings" not in bodies
+    assert "GitHub Actions" not in bodies
+    assert len(records) == 1
+
+
+def test_since_is_inclusive_on_boundary(fake_home: Path) -> None:
+    """since=2026-05-15 keeps the 05-15 (boundary) and 05-25 sessions."""
+    _write_dated_tree(fake_home)
+
+    records = read_codex_records(Path("/repo/A"), since="2026-05-15")
+
+    bodies = "\n".join(r["body"] for r in records)
+    assert "GitHub Actions" in bodies  # 05-15 boundary is inclusive
+    assert "billing webhook" in bodies  # 05-25
+    assert "pydantic-settings" not in bodies  # 05-07 excluded
+    assert len(records) == 2
+
+
+def test_since_none_returns_all(fake_home: Path) -> None:
+    """since=None is the current behavior: no date filtering."""
+    _write_dated_tree(fake_home)
+
+    records = read_codex_records(Path("/repo/A"), since=None)
+
+    assert len(records) == 3
+
+
+def test_since_falls_back_to_filename_date(fake_home: Path) -> None:
+    """With no updated_at frontmatter, the leading filename date is used."""
+    _write_codex_memory(
+        fake_home,
+        summary=None,
+        rollouts={
+            "2026-05-25T08-00-00-fname.md": _rollout_dated(
+                "/repo/A",
+                "Refactored the billing webhook retry handler thoroughly.",
+                updated_at=None,
+            ),
+            "2026-05-01T00-00-00-old.md": _rollout_dated(
+                "/repo/A",
+                "Adopted pydantic-settings for config loading.",
+                updated_at=None,
+            ),
+        },
+    )
+
+    records = read_codex_records(Path("/repo/A"), since="2026-05-20")
+
+    bodies = "\n".join(r["body"] for r in records)
+    assert "billing webhook" in bodies  # 05-25 from filename
+    assert "pydantic-settings" not in bodies  # 05-01 from filename, excluded
+    assert len(records) == 1
+
+
+def test_since_excludes_undateable_record(fake_home: Path) -> None:
+    """A summary with neither updated_at nor a date-prefixed filename is
+    excluded once since is set (cannot prove it is recent)."""
+    _write_codex_memory(
+        fake_home,
+        summary=None,
+        rollouts={
+            "2026-05-25T08-00-00-new.md": _rollout_dated(
+                "/repo/A",
+                "Refactored the billing webhook retry handler thoroughly.",
+                updated_at="2026-05-25T08:00:01+00:00",
+            ),
+            "no-date-here.md": _rollout_dated(
+                "/repo/A",
+                "Adopted pydantic-settings for config loading.",
+                updated_at=None,
+            ),
+        },
+    )
+
+    records = read_codex_records(Path("/repo/A"), since="2026-05-20")
+
+    bodies = "\n".join(r["body"] for r in records)
+    assert "billing webhook" in bodies
+    assert "pydantic-settings" not in bodies  # undateable → excluded
+    assert len(records) == 1
+
+
+def test_since_excludes_cross_project_summary(fake_home: Path) -> None:
+    """The cross-project memory_summary.md has no single date → excluded
+    whenever since is set, even in all-projects (repo_root=None) mode."""
+    _write_dated_tree(fake_home)
+    memories = fake_home / ".codex" / "memories"
+    (memories / "memory_summary.md").write_text(_MEMORY_SUMMARY, encoding="utf-8")
+
+    records = read_codex_records(None, since="2026-05-01")
+
+    bodies = "\n".join(r["body"] for r in records)
+    assert "tool-agnostic memory" not in bodies  # summary excluded
+    # The three dated rollouts are all on/after 05-01.
+    assert len(records) == 3
+
+
+def test_harvest_codex_memory_threads_since(
+    fake_home: Path, tmp_path: Path
+) -> None:
+    """harvest_codex_memory(repo, since=...) only stages recent sessions."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _write_codex_memory(
+        fake_home,
+        summary=None,
+        rollouts={
+            "2026-05-07T00-00-00-old.md": _rollout_dated(
+                str(repo.resolve()),
+                "Adopted pydantic-settings for config loading.",
+                updated_at="2026-05-07T00:00:00+00:00",
+            ),
+            "2026-05-25T00-00-00-new.md": _rollout_dated(
+                str(repo.resolve()),
+                "Refactored the billing webhook retry handler thoroughly.",
+                updated_at="2026-05-25T00:00:00+00:00",
+            ),
+        },
+    )
+
+    paths = harvest_codex_memory(repo, since="2026-05-20")
+
+    assert len(paths) == 1
+    staged = paths[0].read_text(encoding="utf-8")
+    assert "billing webhook" in staged
+    assert "pydantic-settings" not in staged

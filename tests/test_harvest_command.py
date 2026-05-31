@@ -230,3 +230,66 @@ def test_harvest_requested_tool_without_store_is_graceful(
 
     assert result.exit_code == 0, result.output
     assert "No codex native memory found" in result.output
+
+
+def _codex_dated(cwd: str, body: str, *, updated_at: str) -> str:
+    """Codex rollout with bare frontmatter incl. cwd and updated_at."""
+    return (
+        f"thread_id: 019abc\nupdated_at: {updated_at}\n"
+        f"cwd: {cwd}\ngit_branch: main\n\n{body}\n"
+    )
+
+
+def test_harvest_codex_since_stages_only_recent(
+    runner: CliRunner, fake_home: Path, tmp_path: Path
+) -> None:
+    """--since stages only sessions updated on/after the date (Codex)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    rollout_dir = fake_home / ".codex" / "memories" / "rollout_summaries"
+    rollout_dir.mkdir(parents=True, exist_ok=True)
+    (rollout_dir / "2026-05-07T00-00-00-old.md").write_text(
+        _codex_dated(
+            str(repo.resolve()),
+            "Old throwaway demo login rate-limiting note.",
+            updated_at="2026-05-07T00:00:00+00:00",
+        ),
+        encoding="utf-8",
+    )
+    (rollout_dir / "2026-05-25T00-00-00-new.md").write_text(
+        _codex_dated(
+            str(repo.resolve()),
+            "Recent spanweave harvest recency-filter work.",
+            updated_at="2026-05-25T00:00:00+00:00",
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        harvest_command,
+        ["--tool", "codex", "--repo", str(repo), "--since", "2026-05-20"],
+    )
+
+    assert result.exit_code == 0, result.output
+    bodies = "\n".join(_pending_bodies(repo))
+    assert "harvest recency-filter" in bodies
+    assert "login rate-limiting" not in bodies
+
+
+def test_harvest_since_bad_date_is_clean_error(
+    runner: CliRunner, fake_home: Path, tmp_path: Path
+) -> None:
+    """A non-date --since fails cleanly (non-zero exit, no traceback)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    result = runner.invoke(
+        harvest_command,
+        ["--tool", "codex", "--repo", str(repo), "--since", "notadate"],
+    )
+
+    assert result.exit_code != 0
+    # Click emits a BadParameter usage error, not an uncaught exception.
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    out = result.output.lower()
+    assert "notadate" in result.output or "date" in out

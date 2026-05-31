@@ -22,10 +22,22 @@ already-per-repo Claude harvester; pass ``all_projects=True`` (the ``--all``
 flag) to import the entire global store unscoped. The consolidated
 ``memory_summary.md`` has no single ``cwd`` (it is cross-project) and is included
 only in the unscoped ``--all`` view.
+
+**Recency scoping.** cwd-scoping is by FOLDER, not topic — a Codex session that
+ran in this repo's folder but was about a different/old subject still matches the
+``cwd``. The ``since`` parameter (an ISO ``YYYY-MM-DD`` date) further restricts
+rollout summaries to those updated on/after that date (inclusive), since the most
+recent work is usually the most relevant. The date is taken from the frontmatter
+``updated_at`` (ISO-8601 datetime), falling back to the leading ``YYYY-MM-DD`` in
+the filename. A summary with no resolvable date can't be proven recent, so it is
+excluded under ``since``; the cross-project ``memory_summary.md`` has no single
+date and is likewise excluded whenever ``since`` is set. ``since=None`` (the
+default) applies no date filtering and preserves the prior behavior.
 """
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +104,39 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return meta, body
 
 
+def _parse_since(since: str | None) -> date | None:
+    """Parse an optional ISO ``YYYY-MM-DD`` string into a :class:`date`.
+
+    Returns ``None`` when ``since`` is ``None`` (no filtering). Raises
+    :class:`ValueError` on an unparseable string; the CLI validates earlier, so
+    this is a defensive backstop for direct API callers.
+    """
+    if since is None:
+        return None
+    return date.fromisoformat(since)
+
+
+def _summary_date(meta: dict[str, str], path: Path) -> date | None:
+    """Resolve a rollout summary's date for ``since`` comparison.
+
+    Prefers the frontmatter ``updated_at`` (ISO-8601 datetime); falls back to
+    the leading ``YYYY-MM-DD`` in the filename. Returns ``None`` when neither
+    yields a parseable date (such a record can't be proven recent, so callers
+    exclude it under ``since``).
+    """
+    updated_at = meta.get("updated_at", "").strip()
+    if updated_at:
+        try:
+            return datetime.fromisoformat(updated_at).date()
+        except ValueError:
+            pass
+    # Filename fallback: the leading 10 chars are the ``YYYY-MM-DD`` prefix.
+    try:
+        return date.fromisoformat(path.stem[:10])
+    except ValueError:
+        return None
+
+
 def _record_from_file(
     path: Path, *, kind: str, meta: dict[str, str] | None = None
 ) -> dict[str, Any] | None:
@@ -133,7 +178,9 @@ def _record_from_file(
     }
 
 
-def read_codex_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
+def read_codex_records(
+    repo_root: Path | None = None, *, since: str | None = None
+) -> list[dict[str, Any]]:
     """Parse Codex native-memory summaries into stage-able decision dicts.
 
     Codex's memory store is GLOBAL — a single ``~/.codex/memories`` tree shared
@@ -147,6 +194,13 @@ def read_codex_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
     * When ``repo_root`` is ``None`` (the ``--all`` case), include the entire
       global store unscoped, ``memory_summary.md`` included.
 
+    When ``since`` (an ISO ``YYYY-MM-DD`` date) is given, additionally include a
+    rollout summary only if its date (frontmatter ``updated_at``, else the
+    leading filename date) is on/after ``since`` (inclusive). Summaries with no
+    resolvable date are excluded. Because ``memory_summary.md`` has no single
+    date, it is excluded whenever ``since`` is set. ``since=None`` (default)
+    applies no date filtering.
+
     Returns an empty list when the Codex memory store is absent.
     """
     memory_dir = codex_memory_dir()
@@ -154,12 +208,14 @@ def read_codex_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
         return []
 
     scoped_cwd = str(repo_root.resolve()) if repo_root is not None else None
+    since_date = _parse_since(since)
 
     records: list[dict[str, Any]] = []
 
-    # The consolidated summary is cross-project; include it only when unscoped.
+    # The consolidated summary is cross-project; include it only when unscoped
+    # AND no recency filter is active (it carries no single date to compare).
     summary_path = memory_dir / _SUMMARY_FILENAME
-    if scoped_cwd is None and summary_path.is_file():
+    if scoped_cwd is None and since_date is None and summary_path.is_file():
         record = _record_from_file(summary_path, kind="summary")
         if record is not None:
             records.append(record)
@@ -171,6 +227,11 @@ def read_codex_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
             if scoped_cwd is not None and meta.get("cwd") != scoped_cwd:
                 # Different project, or no cwd at all → not in the scoped view.
                 continue
+            if since_date is not None:
+                rec_date = _summary_date(meta, path)
+                if rec_date is None or rec_date < since_date:
+                    # Older than --since, or no resolvable date → excluded.
+                    continue
             record = _record_from_file(path, kind="rollout", meta=meta)
             if record is not None:
                 records.append(record)
@@ -179,7 +240,7 @@ def read_codex_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
 
 
 def harvest_codex_memory(
-    repo_root: Path, *, all_projects: bool = False
+    repo_root: Path, *, all_projects: bool = False, since: str | None = None
 ) -> list[Path]:
     """Read Codex native memory and stage it into the pending review queue.
 
@@ -190,12 +251,16 @@ def harvest_codex_memory(
     flag) to import the entire global store unscoped, including
     ``memory_summary.md``.
 
+    When ``since`` (an ISO ``YYYY-MM-DD`` date) is given, only sessions updated
+    on/after that date are imported — recency scoping on top of cwd scoping. See
+    :func:`read_codex_records`.
+
     Records are written with ``source: native-codex``. Records whose body
     already exists in pending or confirmed memory are skipped, so repeated runs
     are idempotent. Returns the paths of the records actually written.
     """
     scope = None if all_projects else repo_root
-    records = read_codex_records(scope)
+    records = read_codex_records(scope, since=since)
     fresh = dedupe_against_pending_and_confirmed(records, repo_root=repo_root)
     if not fresh:
         return []
