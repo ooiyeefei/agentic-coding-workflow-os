@@ -127,7 +127,10 @@ def harvest_command(
 
     click.echo(f"Done. {total} record(s) staged for review in {pending_dir}.")
     if total:
-        click.echo("Run `spanweave review` to confirm or dismiss them.")
+        click.echo(
+            "Next: `spanweave review` to triage (Accept/Edit/Dismiss), "
+            "or `spanweave review --auto-accept` to keep them all."
+        )
 
 
 __all__ = ["harvest_command"]

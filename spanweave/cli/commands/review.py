@@ -160,7 +160,8 @@ def _route_accepted_record(
     epilog=build_help_epilog(
         notes=(
             "Pending learnings come from `spanweave extract` auto-extraction.",
-            "Interactive mode requires: pip install spanweave[interactive]",
+            "Interactive mode needs the optional 'interactive' extra "
+            "(questionary + rich); or use --auto-accept.",
         ),
         examples=(
             "spanweave review --repo .",
@@ -280,9 +281,12 @@ def review_command(repo: Path, auto_accept: bool) -> None:
                 dismissed += 1
     else:
         click.echo(
-            "Interactive review requires the 'interactive' extras.\n"
-            "Install with: pip install spanweave[interactive]\n"
-            "Or use --auto-accept to accept all pending decisions."
+            "Interactive review needs the optional 'interactive' extra "
+            "(questionary + rich), which isn't installed.\n"
+            "  • Fastest: re-run with --auto-accept to accept all pending "
+            "(no install needed).\n"
+            "  • Or add the extra to your install — see the README "
+            "\"Install\" section."
         )
         return
 

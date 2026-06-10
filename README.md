@@ -35,6 +35,17 @@ cd agentic-coding-workflow-os && uv sync   # then run: uv run spanweave …
 decisions: `ollama pull gemma4:e4b`. The cross-tool handoff below uses native
 memory harvesting and needs **no model at all**.
 
+**Interactive review is optional too.** `spanweave review` accepts records all at
+once with `--auto-accept` out of the box. To get the per-record Accept / Edit /
+Dismiss UI, install the `interactive` extra (`questionary` + `rich`):
+
+```bash
+# if you installed with uv tool:
+uv tool install --reinstall "spanweave[interactive] @ git+https://github.com/ooiyeefei/agentic-coding-workflow-os.git"
+# if you cloned for development:
+uv sync --extra interactive
+```
+
 ---
 
 ## Walkthrough: continue a dead Codex session in Claude Code
